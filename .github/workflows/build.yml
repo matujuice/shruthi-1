@@ -1,0 +1,27 @@
+# Builds the Shruthi-1 firmware (.hex + .syx for the MIDI bootloader) on every push.
+# ubuntu-22.04: last runner image with python2, which hex2sysex needs.
+name: build
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  firmware:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - run: sudo apt-get update && sudo apt-get install -y gcc-avr avr-libc binutils-avr python2
+      - run: avr-gcc --version | head -1
+      - run: make -f shruthi/makefile AVRLIB_TOOLS_PATH=/usr/bin/
+      - run: make -f shruthi/makefile AVRLIB_TOOLS_PATH=/usr/bin/ syx HEX2SYSEX="python2 tools/hex2sysex/hex2sysex.py"
+      - name: Size (must stay below bootloader at 0xFC00 = 64512 B)
+        run: |
+          avr-size build/shruthi1/shruthi1.elf | tee -a "$GITHUB_STEP_SUMMARY"
+          used=$(avr-size build/shruthi1/shruthi1.elf | awk 'NR==2{print $1+$2}')
+          echo "flash used: $used / 64512" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$used" -le 64512
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shruthi1-firmware
+          path: |
+            build/shruthi1/shruthi1.hex
+            build/shruthi1/shruthi1.syx
