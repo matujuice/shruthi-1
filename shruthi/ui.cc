@@ -402,7 +402,6 @@ void Ui::RefreshLeds() {
       }
     }
   } else {
-    led_pattern |= LED_MODE_MASK;
     if (editor.current_page() == PAGE_MOD_MATRIX) {
       uint8_t current_modulation_source_value = part.modulation_source(0,
           part.patch().modulation_matrix.modulation[
