@@ -16,7 +16,8 @@ jobs:
             avr-gcc --version | head -1
             make -f shruthi/makefile AVRLIB_TOOLS_PATH=/usr/bin/
             make -f shruthi/makefile AVRLIB_TOOLS_PATH=/usr/bin/ syx
-            avr-size build/shruthi1/shruthi1.elf > build/shruthi1/size.txt'
+            avr-size build/shruthi1/shruthi1.elf > build/shruthi1/size.txt
+            avr-nm -C --size-sort -r -S build/shruthi1/shruthi1.elf > build/shruthi1/symbols.txt'
       - name: Size (must stay below bootloader at 0xFC00 = 64512 B)
         run: |
           cat build/shruthi1/size.txt | tee -a "$GITHUB_STEP_SUMMARY"
@@ -29,3 +30,4 @@ jobs:
           path: |
             build/shruthi1/shruthi1.hex
             build/shruthi1/shruthi1.syx
+            build/shruthi1/symbols.txt
