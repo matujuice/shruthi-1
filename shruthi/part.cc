@@ -218,7 +218,7 @@ static const prog_char init_system_settings[] PROGMEM = {
 
 /* static */
 void Part::ResetPatch() {
-  memcpy_P(&patch_, init_patch, sizeof(Patch));  // same as ResourcesManager::Load; avoids avr-gcc 5 ICE
+  ResourcesManager::Load(init_patch, 0, &patch_);
   Touch(true);
 }
 
