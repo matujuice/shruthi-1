@@ -14,6 +14,7 @@
 VERSION        = 1.03
 MCU_NAME       = 644
 TARGET         = shruthi1
+EXTRA_LD_FLAGS = ,--relax
 PACKAGES       = avrlib avrlib/i2c avrlib/devices shruthi
 RESOURCES      = shruthi/resources
 EXTRA_DEFINES  = -DDISABLE_DEFAULT_UART_RX_ISR
