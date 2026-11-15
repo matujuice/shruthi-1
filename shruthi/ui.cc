@@ -61,7 +61,6 @@ void Ui::Init() {
 
   lcd.Init();
   display.Init();
-  lcd.SetCustomCharMapRes(character_table[0], 7, 1);
 
   editor.Init();
   queue_.Flush();
@@ -359,7 +358,13 @@ void Ui::DebounceSwitches() {
     }
   } else if (switch_state_[SWITCH_ENCODER] == 0x7f) {
     if (!inhibit_encoder_release_) {
-      queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 0);
+      if (switch_state_[SWITCH_SHIFT] == 0x00) {
+        // FUNC + click.
+        queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 1);
+        inhibit_shift_release_ = true;
+      } else {
+        queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 0);
+      }
     }
     inhibit_encoder_release_ = false;
   }
@@ -434,7 +439,9 @@ void Ui::DoEvents() {
         if (e.control_id <= SWITCH_LOAD_SAVE) {
           editor.OnSwitch(e);
         } else if (e.control_id == SWITCH_ENCODER) {
-          if (e.value < 6) {
+          if (e.value == 1) {
+            editor.ReloadPatch();
+          } else if (e.value < 6) {
             editor.OnClick();
           } else {
             editor.OnLongClick();
@@ -493,6 +500,7 @@ void Ui::DoEvents() {
   }
 
   RefreshLeds();
+  editor.UploadGlyphs();
   display.Tick();
 }
 

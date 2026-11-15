@@ -20,7 +20,7 @@
 #ifndef SHRUTHI_DISPLAY_H_
 #define SHRUTHI_DISPLAY_H_
 
-#include "avrlib/devices/buffered_display.h"
+#include "shruthi/buffered_display.h"
 #include "avrlib/devices/hd44780_lcd.h"
 
 #include "shruthi/hardware_config.h"

@@ -52,7 +52,7 @@ class MidiDispatcher : public midi::MidiDevice {
 
   // Forwarded to the controller.
   static inline void NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
-    display.set_status('\x01');
+    display.set_status('\xa5');
     if (!editor.OnNoteOn(note, velocity)) {
       part.NoteOn(channel, note, velocity);
     }
@@ -69,12 +69,12 @@ class MidiDispatcher : public midi::MidiDevice {
     if (controller == midi::kBankMsb) {
       current_bank_ = value;
     } else {
-      display.set_status('\x05');
+      display.set_status('\xdf');
       part.ControlChange(controller, value);
     }
   }
   static inline void PitchBend(uint8_t channel, uint16_t pitch_bend) {
-    display.set_status('\x02');
+    display.set_status('\xa5');
     part.PitchBend(pitch_bend);
   }
   static void Aftertouch(uint8_t channel, uint8_t note, uint8_t velocity) {

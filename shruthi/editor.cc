@@ -51,100 +51,229 @@ const UiHandler Editor::ui_handler_[] = {
   { &Editor::DisplayConfirmPage, &Editor::DisplayConfirmPage,
     &Editor::OnConfirmInput, &Editor::OnConfirmIncrement,
     &Editor::OnConfirmClick },
-  { &Editor::DisplayJamPage, &Editor::DisplayEditDetailsPage,
+  { &Editor::DisplayJamPage, &Editor::DisplayJamPage,
     &Editor::OnJamPageInput, &Editor::OnJamPageIncrement,
     &Editor::OnJamPageClick },
 };
 
 PageDefinition Editor::page_definition_[] = {
-  /* PAGE_OSC_OSC_1 */ { PAGE_OSC_OSC_2, GROUP_OSC,
-    PAGE_MOD_MATRIX, PAGE_OSC_OSC_2,
-    STR_RES_OSCILLATOR_1, PARAMETER_EDITOR, 0, LED_1_MASK },
-
-  /* PAGE_OSC_OSC_2 */ { PAGE_OSC_OSC_MIX, GROUP_OSC,
-    PAGE_OSC_OSC_1, PAGE_OSC_OSC_MIX,
-    STR_RES_OSCILLATOR_2, PARAMETER_EDITOR, 4, LED_2_MASK },
-
-  /* PAGE_OSC_OSC_MIX */ { PAGE_OSC_OSC_1, GROUP_OSC,
-    PAGE_OSC_OSC_2, PAGE_FILTER_FILTER,
-    STR_RES_MIXER, PARAMETER_EDITOR, 8, LED_1_MASK | LED_2_MASK },
-
-  /* PAGE_FILTER_FILTER */ { PAGE_FILTER_MULTIMODE, GROUP_FILTER,
-    PAGE_OSC_OSC_MIX, PAGE_FILTER_MULTIMODE,
-    STR_RES_FILTER, PARAMETER_EDITOR, 12, LED_3_MASK },
-
-  /* PAGE_FILTER_MULTIMODE */ { PAGE_FILTER_FILTER, GROUP_FILTER,
-    PAGE_FILTER_FILTER, PAGE_MOD_ENV_1,
-    STR_RES_FILTERS, PARAMETER_EDITOR, 66, LED_3_MASK },
-
-  /* PAGE_MOD_ENV_1 */ { PAGE_MOD_ENV_2, GROUP_MOD_SOURCES,
-    PAGE_FILTER_MULTIMODE, PAGE_MOD_ENV_2,
-    STR_RES_ENVELOPE_1, PARAMETER_EDITOR, 16, LED_4_MASK },
-
-  /* PAGE_MOD_ENV_2 */ { PAGE_MOD_LFO_1, GROUP_MOD_SOURCES,
-    PAGE_MOD_ENV_1, PAGE_MOD_LFO_1,
-    STR_RES_ENVELOPE_2, PARAMETER_EDITOR, 20, LED_5_MASK },
-
-  /* PAGE_MOD_LFO_1 */ { PAGE_MOD_LFO_2, GROUP_MOD_SOURCES,
-    PAGE_MOD_ENV_2, PAGE_MOD_LFO_2,
-    STR_RES_LFO_1, PARAMETER_EDITOR, 24, LED_4_MASK },
-
-  /* PAGE_MOD_LFO_2 */ { PAGE_MOD_ENV_1, GROUP_MOD_SOURCES,
-    PAGE_MOD_LFO_1, PAGE_MOD_MATRIX,
-    STR_RES_LFO_2, PARAMETER_EDITOR, 28, LED_5_MASK },
-
+  /* PAGE_OSC_OSC_1 */ { PAGE_OSC_OSC_2, GROUP_SYN, PARAMETER_EDITOR, LED_1_MASK },
+  /* PAGE_OSC_OSC_2 */ { PAGE_OSC_OSC_MIX, GROUP_SYN, PARAMETER_EDITOR, LED_1_MASK },
+  /* PAGE_OSC_OSC_MIX */ { PAGE_OSC_OSC_1, GROUP_SYN, PARAMETER_EDITOR, LED_1_MASK },
+  /* PAGE_FILTER_FILTER */ { PAGE_MOD_ENV_1, GROUP_FLTR, PARAMETER_EDITOR, LED_2_MASK },
+  /* PAGE_MOD_ENV_1 */ { PAGE_FILTER_FILTER, GROUP_FLTR, PARAMETER_EDITOR, LED_2_MASK },
+  /* PAGE_MOD_ENV_2 */ { PAGE_MOD_ENV_2, GROUP_AMP, PARAMETER_EDITOR, LED_3_MASK },
+  /* PAGE_MOD_LFO_1 */ { PAGE_MOD_LFO_2, GROUP_MOD, PARAMETER_EDITOR, LED_4_MASK },
+  /* PAGE_MOD_LFO_2 */ { PAGE_MOD_LFO_1, GROUP_MOD, PARAMETER_EDITOR, LED_4_MASK },
+  /* PAGE_FX */ { PAGE_FX, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_6_MASK },
+  /* PAGE_FILTER_MULTIMODE */ { PAGE_FILTER_MULTIMODE, GROUP_VCF,
+    PARAMETER_EDITOR, LED_2_MASK | LED_6_MASK },
+  /* PAGE_VOICE */ { PAGE_VOICE, GROUP_VOICE, PARAMETER_EDITOR, LED_3_MASK | LED_6_MASK },
   /* PAGE_MOD_MATRIX */ { PAGE_MOD_OPERATORS, GROUP_MOD_MATRIX,
-    PAGE_MOD_LFO_2, PAGE_MOD_OPERATORS,
-    STR_RES_MOD_, PARAMETER_EDITOR, 32, 0 },
-
+    PARAMETER_EDITOR, LED_4_MASK | LED_6_MASK },
   /* PAGE_MOD_OPERATORS */ { PAGE_MOD_MATRIX, GROUP_MOD_MATRIX,
-    PAGE_MOD_MATRIX, PAGE_OSC_OSC_1,
-    STR_RES_OPERATORS, PARAMETER_EDITOR, 58, 0 },
-    
-  /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS,
-    PAGE_SYS_DISPLAY, PAGE_SYS_MIDI,
-    STR_RES_KEYBOARD, PARAMETER_EDITOR, 44, LED_6_MASK },
-
-  /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS,
-    PAGE_SYS_KBD, PAGE_SYS_DISPLAY,
-    STR_RES_MIDI, PARAMETER_EDITOR, 48, LED_6_MASK },
-
-  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_KBD, GROUP_SYS,
-    PAGE_SYS_MIDI, PAGE_SYS_KBD,
-    STR_RES_SYSTEM, PARAMETER_EDITOR, 52, LED_6_MASK },
-
-  /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE,
-    PAGE_LOAD_SAVE, PAGE_LOAD_SAVE,
-    STR_RES_PATCH, LOAD_SAVE, 0, LED_WRITE_MASK },
-
-  /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM,
-    PAGE_CONFIRM, PAGE_CONFIRM,
-    STR_RES_PATCH, CONFIRM, 0, 0x55 },
-
-  /* PAGE_JAM */ { PAGE_JAM, GROUP_JAM,
-    PAGE_JAM, PAGE_JAM,
-    STR_RES_PATCH, JAM, 0, 0x00 },
+    PARAMETER_EDITOR, LED_4_MASK | LED_6_MASK },
+  /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS, PARAMETER_EDITOR, LED_5_MASK | LED_6_MASK },
+  /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS, PARAMETER_EDITOR, LED_5_MASK | LED_6_MASK },
+  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_KBD, GROUP_SYS, PARAMETER_EDITOR, LED_5_MASK | LED_6_MASK },
+  /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_WRITE_MASK },
+  /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
+  /* PAGE_JAM */ { PAGE_JAM, GROUP_JAM, JAM, 0x00 },
 };
+
+// Parameter ids for the 4 pots of each parameter page. 0xff = unused;
+// 0x80 | k = k-th parameter of the expansion filter board block.
+static const prog_uint8_t page_parameters[][4] PROGMEM = {
+  { 0, 1, 2, 3 },  // OSC 1
+  { 4, 5, 6, 7 },  // OSC 2
+  { 9, 10, 11, 0xff },  // MIXER
+  { 12, 13, 14, 15 },  // FILTER
+  { 16, 17, 18, 19 },  // FLT ENV
+  { 20, 21, 22, 23 },  // AMP ENV
+  { 24, 25, 26, 27 },  // LFO 1
+  { 28, 29, 30, 31 },  // LFO 2
+  { 8, 9, 0xff, 0xff },  // FX
+  { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
+  { 46, 47, 44, 0xff },  // VOICE
+  { 32, 33, 34, 35 },  // MATRIX
+  { 58, 59, 60, 61 },  // MATH
+  { 44, 45, 46, 47 },  // SYS KBD
+  { 48, 49, 50, 51 },  // SYS MIDI
+  { 52, 53, 54, 55 },  // SYS DISPLAY
+};
+
+static const prog_char page_labels[] PROGMEM =
+  "SHAPRMRNGSUB"  // 0
+  "SHAPRMRNGTUN"  // 1
+  "MIXSUBNOI   "  // 2
+  "CUTRESENVLFO"  // 3
+  "ATKDECSUSREL"  // 4
+  "ATKDECSUSREL"  // 5
+  "WAVRATATKMOD"  // 6
+  "WAVRATATKMOD"  // 7
+  "OP MIX      "  // 8
+  "MODOVDFM    "  // 9
+  "PRTLEGOCT   "  // 10
+  "            "  // 11
+  "OP IN1IN2OUT"  // 12
+  "OCTRAGPRTLEG"  // 13
+  "TUNCHNOUT   "  // 14
+  "PAUSNPFLTSTA"  // 15;
+
+static const prog_char page_titles[] PROGMEM =
+  "SYN  OSC 1   1/3"
+  "SYN  OSC 2   2/3"
+  "SYN  MIXER   3/3"
+  "FLTR FILTER  1/2"
+  "FLTR FLT ENV 2/2"
+  "AMP  AMP ENV    "
+  "MOD  LFO 1   1/2"
+  "MOD  LFO 2   2/2"
+  "FX              "
+  "POLIVOKS        "
+  "VOICE           "
+  "MATRIX          "
+  "MATH            "
+  "SYS  KBD     1/3"
+  "SYS  MIDI    2/3"
+  "SYS  DISPLAY 3/3";
+
+static const prog_char osc_names[] PROGMEM = "OFFSAWSQRTRIZSWZRSZTRZPLZSYPAD FMWAVTMPDIGMETBOWSLPORGMALUSR8BTCRUPWMNOIVOWBELPOLCELCLPFEMFMTFRMRESELEVIB";
+
+static const prog_uint8_t icons[] PROGMEM = {
+  0x00, 0x01, 0x03, 0x05, 0x09, 0x11, 0x00, 0x00,  // saw
+  0x00, 0x1d, 0x15, 0x15, 0x15, 0x17, 0x00, 0x00,  // sqr
+  0x00, 0x09, 0x09, 0x09, 0x09, 0x1f, 0x00, 0x00,  // pul
+  0x00, 0x00, 0x04, 0x0a, 0x11, 0x00, 0x00, 0x00,  // tri
+  0x00, 0x18, 0x08, 0x0b, 0x0a, 0x0e, 0x00, 0x00,  // rnd
+  0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x00, 0x00,  // off
+  0x00, 0x06, 0x09, 0x09, 0x11, 0x11, 0x00, 0x00,  // zsw
+  0x00, 0x08, 0x14, 0x15, 0x02, 0x00, 0x00, 0x00,  // zrs
+  0x00, 0x00, 0x02, 0x05, 0x08, 0x10, 0x00, 0x00,  // ztr
+  0x00, 0x10, 0x1d, 0x15, 0x17, 0x00, 0x00, 0x00,  // zpl
+  0x00, 0x01, 0x03, 0x0b, 0x1d, 0x09, 0x00, 0x00,  // zsy
+  0x00, 0x08, 0x15, 0x02, 0x08, 0x15, 0x02, 0x00,  // pad
+  0x0e, 0x0a, 0x0e, 0x04, 0x0e, 0x0a, 0x0e, 0x00,  // fm
+  0x00, 0x03, 0x02, 0x0e, 0x08, 0x18, 0x00, 0x00,  // bit
+  0x00, 0x1d, 0x11, 0x15, 0x11, 0x17, 0x00, 0x00,  // pwm
+  0x00, 0x12, 0x05, 0x08, 0x12, 0x05, 0x00, 0x00,  // noi
+  0x00, 0x00, 0x0e, 0x11, 0x0e, 0x00, 0x00, 0x00,  // vow
+  0x00, 0x08, 0x14, 0x15, 0x05, 0x02, 0x00, 0x00,  // wtb
+  0x00, 0x04, 0x04, 0x04, 0x04, 0x1f, 0x00, 0x00,  // clk
+  0x00, 0x18, 0x06, 0x13, 0x0c, 0x03, 0x00, 0x00,  // glt
+  0x00, 0x06, 0x01, 0x1e, 0x10, 0x0f, 0x00, 0x00,  // blw
+  0x00, 0x04, 0x0e, 0x0e, 0x1f, 0x04, 0x00, 0x00,  // mtl
+  0x00, 0x15, 0x0e, 0x1b, 0x0e, 0x15, 0x00, 0x00,  // pop
+  0x00, 0x07, 0x04, 0x04, 0x04, 0x1c, 0x00, 0x00,  // fuzz
+  0x00, 0x0c, 0x0a, 0x1a, 0x03, 0x01, 0x00, 0x00,  // cru
+  0x00, 0x04, 0x04, 0x1f, 0x04, 0x04, 0x00, 0x00,  // sum
+  0x00, 0x0e, 0x1b, 0x15, 0x1b, 0x0e, 0x00, 0x00,  // rng
+  0x00, 0x0e, 0x15, 0x1f, 0x15, 0x0e, 0x00, 0x00,  // xor
+  0x00, 0x0a, 0x15, 0x11, 0x00, 0x00, 0x00, 0x00,  // fld
+  0x00, 0x0f, 0x09, 0x09, 0x1b, 0x1b, 0x00, 0x00,  // duo
+  0x00, 0x02, 0x02, 0x0a, 0x0a, 0x0a, 0x00, 0x00,  // st2
+  0x00, 0x08, 0x0a, 0x1a, 0x1e, 0x1e, 0x00, 0x00,  // st4
+  0x00, 0x11, 0x15, 0x15, 0x1f, 0x00, 0x00, 0x00,  // st8
+  0x00, 0x1c, 0x02, 0x02, 0x01, 0x01, 0x00, 0x00,  // lpf
+  0x00, 0x0e, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00,  // bpf
+};
+
+// Icon index for each value of the units that have icons. 0xff = no icon.
+static const prog_uint8_t icon_map[] PROGMEM = {
+  5, 0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 24, 14, 15, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
+  1, 3, 2, 1, 3, 2, 18, 19, 20, 21, 22,
+  25, 10, 26, 27, 23, 24, 24, 28, 13, 29, 30, 31, 32, 0xff,
+  3, 1, 4, 0, 0xff, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
+  33, 34,
+};
+
+// Custom glyphs: allocated per screen, uploaded to CGRAM by UploadGlyphs().
+static uint8_t glyph_[8][8];
+static uint8_t glyph_dirty_ = 0xff;
+static uint8_t glyph_count_;
+
+static char GlyphGet(const uint8_t* bits) {
+  for (uint8_t i = 0; i < glyph_count_; ++i) {
+    if (!memcmp(glyph_[i], bits, 8)) {
+      return 8 + i;
+    }
+  }
+  if (glyph_count_ == 8) {
+    return ' ';
+  }
+  uint8_t i = glyph_count_++;
+  if (memcmp(glyph_[i], bits, 8)) {
+    memcpy(glyph_[i], bits, 8);
+    glyph_dirty_ |= 1 << i;
+  }
+  return 8 + i;
+}
+
+// Framed 4px meter. Unipolar: 0-6 rows from the bottom; bipolar: 0-3 rows
+// up or down from the middle.
+static char Meter(int16_t num, int16_t den, bool bipolar) {
+  uint8_t bits[8];
+  int8_t from, to;
+  if (!den) {
+    den = 1;
+  }
+  if (bipolar) {
+    int8_t n = (6 * num + (num < 0 ? -den : den)) / (2 * den);
+    if (n > 3) n = 3;
+    if (n < -3) n = -3;
+    from = n > 0 ? 4 - n : 4;
+    to = n > 0 ? 3 : 3 - n;
+  } else {
+    from = 7 - (12 * num + den) / (2 * den);
+    to = 6;
+  }
+  for (int8_t r = 0; r < 8; ++r) {
+    bits[r] = (r == 0 || r == 7 || (r >= from && r <= to)) ? 0x1e : 0x12;
+  }
+  return GlyphGet(bits);
+}
+
+static char Icon(uint8_t unit, uint8_t value) {
+  uint8_t base, count;
+  switch (unit) {
+    case UNIT_WAVEFORM: base = 0; count = 35; break;
+    case UNIT_SUB_OSC_WAVEFORM: base = 35; count = 11; break;
+    case UNIT_OPERATOR: base = 46; count = 14; break;
+    case UNIT_LFO_WAVEFORM: base = 60; count = 21; break;
+    case UNIT_FILTER_1_MODE: base = 81; count = 2; break;
+    default: return ' ';
+  }
+  uint8_t icon = value < count ? pgm_read_byte(icon_map + base + value) : 0xff;
+  if (icon == 0xff) {
+    return ' ';
+  }
+  uint8_t bits[8];
+  memcpy_P(bits, icons + 8 * icon, 8);
+  return GlyphGet(bits);
+}
 
 /* <static> */
 ParameterPage Editor::current_page_ = PAGE_FILTER_FILTER;
 ParameterPage Editor::last_visited_page_[] = {
     PAGE_OSC_OSC_1,
     PAGE_FILTER_FILTER,
-    PAGE_MOD_ENV_1,
+    PAGE_MOD_ENV_2,
+    PAGE_MOD_LFO_1,
+    PAGE_FX,
+    PAGE_FILTER_MULTIMODE,
+    PAGE_VOICE,
     PAGE_MOD_MATRIX,
-
     PAGE_SYS_KBD,
-
     PAGE_LOAD_SAVE,
-    PAGE_CONFIRM
+    PAGE_CONFIRM,
+    PAGE_JAM
 };
 uint8_t Editor::last_visited_subpage_ = 0;
 uint8_t Editor::display_mode_ = DISPLAY_MODE_OVERVIEW;
 uint8_t Editor::editor_mode_ = EDITOR_MODE_PATCH;
 uint8_t Editor::last_visited_group_[] = {
-    GROUP_FILTER,
-    GROUP_SYS,
+    GROUP_FLTR,
+    GROUP_SYS
 };
 
 char Editor::line_buffer_[kLcdWidth * kLcdHeight + 1];
@@ -163,6 +292,7 @@ uint8_t Editor::jam_mode_previous_page_;
 
 ConfirmPageSettings Editor::confirm_page_settings_;
 bool Editor::snapped_[36];
+bool Editor::title_flash_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
 /* </static> */
@@ -172,27 +302,7 @@ void Editor::Init() {
   parameter_manager.Init();
   
   line_buffer_[kLcdWidth] = '\0';
-  ConfigureFilterMenu();
   deferred_load_ = 0xffff;
-}
-
-void Editor::ConfigureFilterMenu() {
-  uint8_t n = part.system_settings().expansion_filter_board;
-  if (n == 0) {
-    page_definition_[PAGE_FILTER_FILTER].next = PAGE_FILTER_FILTER;
-    page_definition_[PAGE_FILTER_FILTER].overall_next = PAGE_MOD_ENV_1;
-    page_definition_[PAGE_MOD_ENV_1].overall_previous = PAGE_FILTER_FILTER;
-  } else {
-    page_definition_[PAGE_FILTER_FILTER].next = PAGE_FILTER_MULTIMODE;
-    page_definition_[PAGE_FILTER_FILTER].overall_next = PAGE_FILTER_MULTIMODE;
-    page_definition_[PAGE_MOD_ENV_1].overall_previous = PAGE_FILTER_MULTIMODE;
-    page_definition_[PAGE_FILTER_MULTIMODE].first_parameter_index = 62;
-    page_definition_[PAGE_FILTER_MULTIMODE].name = (n == FILTER_BOARD_DSP) ? \
-        STR_RES_DSP : STR_RES_FILTERS;
-    while (--n) {
-      page_definition_[PAGE_FILTER_MULTIMODE].first_parameter_index += 4;
-    }
-  }
 }
 
 /* static */
@@ -200,8 +310,13 @@ void Editor::PageChange() {
   if (current_page_ == PAGE_MOD_MATRIX) {
     subpage_ = last_visited_subpage_;
   }
-  last_visited_page_[page_definition_[current_page_].group] = current_page_;
-  last_visited_group_[editor_mode_] = page_definition_[current_page_].group;
+  uint8_t group = page_definition_[current_page_].group;
+  last_visited_page_[group] = current_page_;
+  // Remembered for FUNC tap = back to the main pages.
+  if (group < GROUP_FX) {
+    last_visited_group_[0] = group;
+  }
+  title_flash_ = current_page_ <= PAGE_SYS_DISPLAY;
   
   if (page_definition_[current_page_].ui_type == PARAMETER_EDITOR) {
     memset(snapped_, false, sizeof(snapped_));
@@ -227,6 +342,10 @@ void Editor::JumpToPageGroup(uint8_t group) {
 
 /* static */
 bool Editor::Relax() {
+  if (title_flash_) {
+    title_flash_ = false;
+    return true;
+  }
   // Disable the "get back to overview page" thing in the sequencer pages or
   // Load/save pages - in short, all pages where there's a moving cursor.
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
@@ -340,59 +459,52 @@ void Editor::OnProgrammerSwitch(const Event& event) {
 void Editor::OnSwitch(const Event& event) {
   uint8_t id = event.control_id;
   if (event.value == 0xff) {
-    if (current_page_ != PAGE_LOAD_SAVE) {
-      return;
-    }
-    switch (id) {
-      case SWITCH_1:
-        display.set_status('x');
-        part.ResetPatch();
-        part.ResetSequence();
-        break;
+    // FUNC + key.
+    if (current_page_ == PAGE_LOAD_SAVE && id < SWITCH_MODE) {
+      switch (id) {
+        case SWITCH_1:
+          display.set_status('x');
+          part.ResetPatch();
+          part.ResetSequence();
+          break;
 
-      case SWITCH_2:
-        display.set_status('?');
-        RandomizePatch();
-        RandomizeSequence();
-        break;
+        case SWITCH_2:
+          display.set_status('?');
+          RandomizePatch();
+          RandomizeSequence();
+          break;
 
-      case SWITCH_3:
-        display.set_status('>');
-        Storage::SysExDump(part.mutable_patch());
-        Storage::SysExDump(part.mutable_sequencer_settings());
-        break;
-        
-      case SWITCH_4:
-        {
-          ConfirmPageSettings confirm_midi_backup;
-          confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
-          confirm_midi_backup.return_group = GROUP_OSC;
-          confirm_midi_backup.callback = &StartMidiBackup;
-          Confirm(confirm_midi_backup);
-        }
-        break;
+        case SWITCH_3:
+          display.set_status('>');
+          Storage::SysExDump(part.mutable_patch());
+          Storage::SysExDump(part.mutable_sequencer_settings());
+          break;
+
+        case SWITCH_4:
+          {
+            ConfirmPageSettings confirm_midi_backup;
+            confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
+            confirm_midi_backup.return_group = GROUP_SYN;
+            confirm_midi_backup.callback = &StartMidiBackup;
+            Confirm(confirm_midi_backup);
+          }
+          break;
+      }
+    } else if (id == SWITCH_MODE) {
+      JumpToPageGroup(GROUP_SYS);
+    } else if (id + GROUP_FX != GROUP_VCF ||
+               part.system_settings().expansion_filter_board) {
+      JumpToPageGroup(id + GROUP_FX);
     }
   } else if (id == SWITCH_MODE) {
-    editor_mode_ = (editor_mode_ != EDITOR_MODE_PATCH)
-      ? EDITOR_MODE_PATCH
-      : EDITOR_MODE_SEQUENCE;
-    JumpToPageGroup(last_visited_group_[editor_mode_]);
+    ToggleLoadSaveAction();
   } else if (id == SWITCH_LOAD_SAVE) {
-    if (current_page_ >= PAGE_SYS_KBD && current_page_ <= PAGE_SYS_DISPLAY) {
-      ConfirmPageSettings confirm_save_system_settings;
-      confirm_save_system_settings.text = STR_RES_SAVE_MIDI_KBD;
-      confirm_save_system_settings.return_group = GROUP_SYS;
-      confirm_save_system_settings.callback = &SaveSystemSettings;
-      Confirm(confirm_save_system_settings);
-    } else {
-      ToggleLoadSaveAction();
+    // FUNC tap: back to the last main page.
+    if (page_definition_[current_page_].group != last_visited_group_[0]) {
+      JumpToPageGroup(last_visited_group_[0]);
     }
   } else {
-    if (editor_mode_ == EDITOR_MODE_SEQUENCE) {
-      JumpToPageGroup(GROUP_SYS);  // sequencer groups removed; S6 mode = system pages
-    } else if (editor_mode_ == EDITOR_MODE_PATCH) {
-      JumpToPageGroup(id + GROUP_OSC);
-    }
+    JumpToPageGroup(id + GROUP_SYN);
   }
 }
 
@@ -441,6 +553,14 @@ void Editor::OnLongClick() {
 
 /* static */
 void Editor::OnClick() {
+  if (current_page_ >= PAGE_SYS_KBD && current_page_ <= PAGE_SYS_DISPLAY) {
+    ConfirmPageSettings confirm_save_system_settings;
+    confirm_save_system_settings.text = STR_RES_SAVE_MIDI_KBD;
+    confirm_save_system_settings.return_group = GROUP_SYS;
+    confirm_save_system_settings.callback = &SaveSystemSettings;
+    Confirm(confirm_save_system_settings);
+    return;
+  }
   if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
     display_mode_ = DISPLAY_MODE_EDIT;
     programmer_parameter_ = 0xff;
@@ -459,7 +579,6 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 
 /* static */
 void Editor::Refresh() {
-  ConfigureFilterMenu();
   if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
     (*ui_handler_[page_definition_[current_page_].ui_type].overview_page)();
   } else {
@@ -655,133 +774,152 @@ void Editor::DisplayLoadSavePage() {
 }
 
 /* static */
-void Editor::DisplayEditOverviewPage() {
-  // 0123456789abcdef
-  // foo bar baz bad
-  //  63 127   0   0
-  if (cursor_ >= 3) {
-    cursor_ = 3;
+void Editor::UploadGlyphs() {
+  if (!glyph_dirty_ || lcd.writable() < 18) {
+    return;
   }
-  uint8_t previous = 0xff;
-  for (uint8_t i = 0; i < kNumEditingPots; ++i) {
-    uint8_t index = KnobIndexToParameterId(i);
-    const Parameter& parameter = parameter_manager.parameter(index);
-    uint8_t caption_position = i * kColumnWidth;
-    uint8_t text_position = i * kColumnWidth + kLcdWidth + 1;
-    if (parameter.offset == previous) {
-      memset(line_buffer_ + caption_position, ' ', kColumnWidth);
-      memset(line_buffer_ + text_position, ' ', kColumnWidth);
-    } else {
-      ResourcesManager::LoadStringResource(
-          parameter.short_name,
-          line_buffer_ + caption_position,
-          kColumnWidth - 1);
-      line_buffer_[caption_position + kColumnWidth - 1] = '\0';
-      line_buffer_[text_position + kColumnWidth - 1] = '\0';
-      AlignRight(line_buffer_ + caption_position, kColumnWidth);
-      uint8_t value = GetParameterValue(parameter.offset);
-      parameter.PrintValue(value, line_buffer_ + text_position, kColumnWidth - 1);
-      AlignRight(line_buffer_ + text_position, kColumnWidth);
-    }
-    previous = parameter.offset;
+  uint8_t slot = 0;
+  while (!(glyph_dirty_ & (1 << slot))) {
+    ++slot;
   }
+  glyph_dirty_ &= ~(1 << slot);
+  lcd.WriteCommand(0x40 | (slot << 3));
+  for (uint8_t i = 0; i < 8; ++i) {
+    lcd.WriteData(glyph_[slot][i]);
+  }
+  // The LCD address counter now points to CGRAM.
+  display.InvalidateCursor();
+}
 
-  // Change the case of the current parameter accessible by the rotary encoder.
-  uint8_t pos = cursor_ * kColumnWidth + 1;
-  if (line_buffer_[pos] > 96 && line_buffer_[pos] <= 122) {
-    line_buffer_[pos] -= 32;
+/* static */
+char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
+  const Parameter& p = parameter_manager.parameter(id);
+  uint8_t value = GetParameterValue(p.offset);
+  char text[8];
+  memset(text, 0, sizeof(text));
+  char* t = text;
+  bool is_signed = p.unit == UNIT_INT8 &&
+      static_cast<int8_t>(p.min_value) < 0;
+  if (is_signed && static_cast<int8_t>(value) > 0 && value < 100) {
+    *t++ = '+';
   }
-  
-  // If we are in latched mode, show it.
-  if (part.latched()) {
-    for (uint8_t i = 1; i < kLcdWidth; ++i) {
-      if (line_buffer_[i] == ' ') {
-        line_buffer_[i] = '-';
+  if (p.unit == UNIT_WAVEFORM) {
+    memcpy_P(t, osc_names + 3 * value, 3);
+  } else {
+    p.PrintValue(value, t, width - (t - text));
+  }
+  uint8_t len = strnlen(text, width);
+  memset(out, ' ', width);
+  memcpy(right ? out + width - len : out, text, len);
+
+  int16_t den = p.max_value - p.min_value;
+  if (id == 7 || id == 9) {  // Detune, osc balance: centered fader.
+    return Meter(2 * (value - p.min_value) - den, den, true);
+  } else if (is_signed) {
+    return Meter(static_cast<int8_t>(value),
+                 static_cast<int8_t>(p.max_value), true);
+  } else if (p.unit <= UNIT_INT8) {
+    return Meter(value - p.min_value, den, false);
+  }
+  return Icon(p.unit, value);
+}
+
+/* static */
+void Editor::DisplayEditOverviewPage() {
+  // SHA PRM RNG SUB
+  // SAW#  0# +0#SQ1#
+  char* row_0 = line_buffer_;
+  char* row_1 = line_buffer_ + kLcdWidth + 1;
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  row_0[kLcdWidth] = '\0';
+  glyph_count_ = 0;
+  if (title_flash_) {
+    memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
+  } else if (current_page_ == PAGE_MOD_MATRIX) {
+    // LFO1 > CUTOFF
+    // SLOT 3      +32#
+    PrintParameter(33, row_0, 6, false);
+    uint8_t n = 6;
+    while (n && row_0[n - 1] == ' ') {
+      --n;
+    }
+    row_0[n + 1] = '>';
+    PrintParameter(34, row_0 + n + 3, 7, false);
+    memcpy_P(row_1, PSTR("SLOT"), 4);
+    PrintParameter(32, row_1 + 5, 2, false);
+    row_1[15] = PrintParameter(35, row_1 + 12, 3, true);
+  } else {
+    bool custom_labels = current_page_ != PAGE_FILTER_MULTIMODE ||
+        part.system_settings().expansion_filter_board == FILTER_BOARD_PVK;
+    uint8_t previous = 0xff;
+    for (uint8_t i = 0; i < kNumEditingPots; ++i) {
+      uint8_t id = KnobIndexToParameterId(i);
+      if (id == 0xff) {
+        continue;
+      }
+      uint8_t offset = parameter_manager.parameter(id).offset;
+      if (offset == previous) {
+        continue;
+      }
+      previous = offset;
+      char* label = row_0 + i * kColumnWidth;
+      if (custom_labels) {
+        memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
+      } else {
+        ResourcesManager::LoadStringResource(
+            parameter_manager.parameter(id).short_name, label, 3);
+      }
+      char* value = row_1 + i * kColumnWidth;
+      value[3] = PrintParameter(id, value, 3, true);
+    }
+    // If we are in latched mode, show it.
+    if (part.latched()) {
+      for (uint8_t i = 1; i < kLcdWidth; ++i) {
+        if (row_0[i] == ' ') {
+          row_0[i] = '-';
+        }
       }
     }
   }
-
-  display.Print(0, line_buffer_);
-  display.Print(1, line_buffer_ + kLcdWidth + 1);
+  for (uint8_t i = 0; i < 2 * kLcdWidth + 1; ++i) {
+    char c = line_buffer_[i];
+    if (c == '\0' && i != kLcdWidth) {
+      line_buffer_[i] = ' ';
+    } else if (c >= 'a' && c <= 'z') {
+      line_buffer_[i] = c - 32;
+    }
+  }
+  display.Print(0, row_0);
+  display.Print(1, row_1);
 }
 
 /* static */
 void Editor::DisplayEditDetailsPage() {
-  if ((part.system_settings().display_delay & 0xf) == 0) {
+  // Programmer switches: long name and value of the parameter they changed.
+  if (programmer_parameter_ == 0xff ||
+      (part.system_settings().display_delay & 0xf) == 0) {
     DisplayEditOverviewPage();
     return;
   }
-  // 0123456789abcdef
-  // programmer
-  // cutoff        42
-  //
-  // OR
-  //
-  // filter
-  // cutoff       127
-  //
-  // OR
-  //
-  // mod src>dst
-  // amount        63
-  if (current_page_ == PAGE_MOD_MATRIX && programmer_parameter_ == 0xff) {
-    const Parameter& current_source = parameter_manager.parameter(
-            page_definition_[PAGE_MOD_MATRIX].first_parameter_index + 1);
-    uint8_t value = GetParameterValue(current_source.offset);
-    current_source.PrintValue(value, line_buffer_ + 4, kColumnWidth - 1);
-    const Parameter& current_destination = parameter_manager.parameter(
-          page_definition_[PAGE_MOD_MATRIX].first_parameter_index + 2);
-    value = GetParameterValue(current_destination.offset);
-    current_destination.PrintValue(value, line_buffer_ + kColumnWidth + 4, kColumnWidth);
-    line_buffer_[0] = 'm';
-    line_buffer_[1] = 'o';
-    line_buffer_[2] = 'd';
-    line_buffer_[3] = ' ';
-    line_buffer_[kColumnWidth + 3] = '>';
-    AlignLeft(line_buffer_ + kColumnWidth + 4, kLcdWidth - kColumnWidth - 4);
-    display.Print(0, line_buffer_);
-  }
-  uint8_t index = KnobIndexToParameterId(cursor_);
-  if (programmer_parameter_ != 0xff) {
-    index = programmer_parameter_;
-  }
-  const Parameter& parameter = parameter_manager.parameter(index);
-  uint8_t page_index = current_page_;
-  
-  if (programmer_parameter_ != 0xff) {
-    page_index = programmer_parameter_ >> 2;
-    if (page_index >= PAGE_FILTER_MULTIMODE) {
-      ++page_index;
-    }
-  }
-  const PageDefinition& page = page_definition_[page_index];
-  if (current_page_ != PAGE_MOD_MATRIX || programmer_parameter_ != 0xff) {
-    ResourcesManager::LoadStringResource(
-        page.name,
-        line_buffer_,
-        kLcdWidth);
-    AlignLeft(line_buffer_, kLcdWidth);
-    display.Print(0, line_buffer_);
-  }
   ResourcesManager::LoadStringResource(
-      parameter.long_name,
+      parameter_manager.parameter(programmer_parameter_).long_name,
       line_buffer_,
-      kCaptionWidth);
-  AlignLeft(line_buffer_, kCaptionWidth);
-  
-  uint8_t value = GetParameterValue(parameter.offset);
-  parameter.PrintValue(value, line_buffer_ + kCaptionWidth, kValueWidth);
-  AlignRight(line_buffer_ + kCaptionWidth, kValueWidth);
+      kLcdWidth);
+  AlignLeft(line_buffer_, kLcdWidth);
+  display.Print(0, line_buffer_);
+  glyph_count_ = 0;
+  memset(line_buffer_, ' ', kLcdWidth);
+  line_buffer_[kLcdWidth - 1] = PrintParameter(
+      programmer_parameter_, line_buffer_ + kLcdWidth - 8, 7, true);
   display.Print(1, line_buffer_);
 }
 
 /* static */
 uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
-  if (current_page_ == PAGE_LOAD_SAVE
-      && (action_ == ACTION_SAVE || action_ == ACTION_COMPARE)) {
-    return 0xff;
-  }
   if (current_page_ == PAGE_LOAD_SAVE) {
+    if (action_ != ACTION_LOAD) {
+      return 0xff;
+    }
     switch (knob_index) {
       case 0:
         return PRM_OSC_PARAMETER_1;
@@ -789,18 +927,25 @@ uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
         return PRM_FILTER_CUTOFF;
       case 2:
         return PRM_FILTER_RESONANCE;
-      case 3:
+      default:
         return PRM_FILTER_ENV;
     }
-    subpage_ = 0;
-  } else {
-    return page_definition_[current_page_].first_parameter_index + \
-        knob_index;
   }
+  if (current_page_ > PAGE_SYS_DISPLAY) {
+    return 0xff;
+  }
+  uint8_t id = pgm_read_byte(&page_parameters[current_page_][knob_index]);
+  if (id != 0xff && (id & 0x80)) {
+    // Expansion board n has its 4 parameters at 58 + 4 * n.
+    uint8_t n = part.system_settings().expansion_filter_board;
+    id = n ? 58 + 4 * n + (id & 0x7f) : 0xff;
+  }
+  return id;
 }
 
 /* static */
 void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
+  title_flash_ = false;
   uint8_t index;
   if (knob_index < 4) {
     index = KnobIndexToParameterId(knob_index);
@@ -840,27 +985,12 @@ void Editor::OnVolume(uint8_t value) {
 
 /* static */
 void Editor::OnEditIncrement(int8_t increment) {
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
-    int8_t new_cursor = static_cast<int8_t>(cursor_) + increment;
-    if (current_page_ == PAGE_MOD_MATRIX) {
-      last_visited_subpage_ = subpage_;
-    }
-    if (new_cursor < 0) {
-      subpage_ = 0;
-      cursor_ = 0xff;
-      current_page_ = page_definition_[current_page_].overall_previous;
-    } else if (new_cursor >= 4) {
-      subpage_ = 0;
-      cursor_ = 0;
-      current_page_ = page_definition_[current_page_].overall_next;
-    } else {
-      cursor_ = new_cursor;
-    }
-    PageChange();
-  } else {
-    uint8_t parameter_index = programmer_parameter_ != 0xff
-        ? programmer_parameter_
-        : KnobIndexToParameterId(cursor_);
+  // The encoder fine-tunes the last touched parameter.
+  title_flash_ = false;
+  uint8_t parameter_index = programmer_parameter_ != 0xff
+      ? programmer_parameter_
+      : KnobIndexToParameterId(cursor_);
+  if (parameter_index != 0xff) {
     IncrementParameterValue(parameter_index, increment);
   }
 }

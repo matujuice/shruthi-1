@@ -56,16 +56,19 @@ enum DisplayMode {
 };
 
 enum Group {
-  GROUP_OSC,
-  GROUP_FILTER,
-  GROUP_MOD_SOURCES,
+  GROUP_SYN,
+  GROUP_FLTR,
+  GROUP_AMP,
+  GROUP_MOD,
+  // FUNC + S1..S4.
+  GROUP_FX,
+  GROUP_VCF,
+  GROUP_VOICE,
   GROUP_MOD_MATRIX,
-  
-  GROUP_SYS,
 
+  GROUP_SYS,
   GROUP_LOAD_SAVE,
   GROUP_CONFIRM,
-  
   GROUP_JAM,
   GROUP_LAST
 };
@@ -75,19 +78,19 @@ enum Page {
   PAGE_OSC_OSC_2,
   PAGE_OSC_OSC_MIX,
   PAGE_FILTER_FILTER,
-  PAGE_FILTER_MULTIMODE,
   PAGE_MOD_ENV_1,
   PAGE_MOD_ENV_2,
   PAGE_MOD_LFO_1,
   PAGE_MOD_LFO_2,
+  PAGE_FX,
+  PAGE_FILTER_MULTIMODE,
+  PAGE_VOICE,
   PAGE_MOD_MATRIX,
   PAGE_MOD_OPERATORS,
-  
-  
   PAGE_SYS_KBD,
   PAGE_SYS_MIDI,
   PAGE_SYS_DISPLAY,
-  
+
   PAGE_LOAD_SAVE,
   PAGE_CONFIRM,
   PAGE_JAM
@@ -118,14 +121,7 @@ enum PageUiType {
 struct PageDefinition {
   ParameterPage next;
   ParameterGroup group;
-
-  // Previous and next page when cycling with encoder.
-  ParameterPage overall_previous;
-  ParameterPage overall_next;
-
-  ResourceId name;
   uint8_t ui_type;
-  uint8_t first_parameter_index;
   uint8_t leds_pattern;
 };
 
@@ -213,12 +209,14 @@ class Editor {
   }
   
   static bool FinishLoadingPatch();
+
+  // FUNC + encoder click: reload the stored version of the current patch.
+  static inline void ReloadPatch() { deferred_load_ = current_patch_number_; }
+
+  // Sends at most one changed custom glyph to the LCD CGRAM.
+  static void UploadGlyphs();
   
  private:
-  // This hides or shows the second filter page, with settings for
-  // upcoming multimode filters.
-  static void ConfigureFilterMenu();
-   
   // A bunch of hacks for special values/pages.
   static void SetParameterValue(uint8_t id, uint8_t offset, uint8_t value);
   static void IncrementParameterValue(uint8_t id, int8_t increment);
@@ -235,6 +233,8 @@ class Editor {
   // Output and Input handling for all the different category of pages.
   static void DisplayEditOverviewPage();
   static void DisplayEditDetailsPage();
+  // Prints a parameter value in `width` chars, returns its meter/icon glyph.
+  static char PrintParameter(uint8_t id, char* out, uint8_t width, bool right);
   
   static void OnEditInput(uint8_t knob_index, uint8_t value);
   static void OnEditIncrement(int8_t increment);
@@ -299,6 +299,7 @@ class Editor {
   static int8_t jam_mode_shifts_[4];
   
   static bool snapped_[36];
+  static bool title_flash_;
   
   static uint16_t deferred_load_;
 
