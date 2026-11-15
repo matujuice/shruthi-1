@@ -8,11 +8,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      # Ubuntu 12.04 = avr-gcc 4.5.3; newer avr-gcc crashes on avrlib's prog_char (original used 4.3).
-      - name: Build in Ubuntu 12.04
+      # Debian 6 = avr-gcc 4.3.5, same series as the original. Newer gcc: 5.x crashes on prog_char, 4.5 breaks inline asm.
+      - name: Build in Debian 6 (squeeze)
         run: |
-          docker run --rm -v "$PWD:/src" -w /src ubuntu:12.04 bash -ec '
-            sed -i "s#http://archive.ubuntu.com#http://old-releases.ubuntu.com#; s#http://security.ubuntu.com#http://old-releases.ubuntu.com#" /etc/apt/sources.list
+          docker run --rm -v "$PWD:/src" -w /src debian/eol:squeeze bash -ec '
             apt-get update -qq && apt-get install -y -qq gcc-avr avr-libc binutils-avr make python >/dev/null
             avr-gcc --version | head -1
             make -f shruthi/makefile AVRLIB_TOOLS_PATH=/usr/bin/
