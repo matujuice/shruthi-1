@@ -98,7 +98,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
   { 44, 45, 46, 47 },  // SYS KBD
-  { 48, 49, 50, 51 },  // SYS MIDI
+  { 48, 49, 50, 0xff },  // SYS MIDI
   { 52, 53, 54, 55 },  // SYS DISPLAY
 };
 
@@ -561,7 +561,8 @@ void Editor::OnClick() {
     Confirm(confirm_save_system_settings);
     return;
   }
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
+  title_flash_ = false;
+  if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT;
     programmer_parameter_ = 0xff;
   } else {
@@ -836,7 +837,10 @@ void Editor::DisplayEditOverviewPage() {
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   row_0[kLcdWidth] = '\0';
   glyph_count_ = 0;
+  // Encoder target: steady arrow when browsing, blinking when editing.
+  uint8_t marker = cursor_ * kColumnWidth + 3;
   if (title_flash_) {
+    marker = kLcdNoCursor;
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
   } else if (current_page_ == PAGE_MOD_MATRIX) {
     // LFO1 > CUTOFF
@@ -846,6 +850,9 @@ void Editor::DisplayEditOverviewPage() {
     while (n && row_0[n - 1] == ' ') {
       --n;
     }
+    // Marker cells (scan positions) for slot, source, destination, amount.
+    uint8_t marks[4] = { kLcdWidth + 4, n, n + 2, kLcdWidth + 11 };
+    marker = marks[cursor_];
     row_0[n + 1] = '>';
     PrintParameter(34, row_0 + n + 3, 7, false);
     memcpy_P(row_1, PSTR("SLOT"), 4);
@@ -892,6 +899,15 @@ void Editor::DisplayEditOverviewPage() {
       line_buffer_[i] = c - 32;
     }
   }
+  if (display_mode_ == DISPLAY_MODE_EDIT) {
+    display.set_cursor_character(0x7f);
+  } else {
+    if (marker != kLcdNoCursor) {
+      line_buffer_[marker + (marker >= kLcdWidth)] = 0x7f;  // HD44780 left arrow.
+    }
+    marker = kLcdNoCursor;
+  }
+  display.set_cursor_position(marker);
   display.Print(0, row_0);
   display.Print(1, row_1);
 }
@@ -973,7 +989,9 @@ void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
       }
     }
   }
-  display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
+  if (display_mode_ != DISPLAY_MODE_EDIT) {
+    display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
+  }
   SetParameterValue(index, parameter.offset, parameter.Scale(value));
 }
 
@@ -988,14 +1006,23 @@ void Editor::OnVolume(uint8_t value) {
 
 /* static */
 void Editor::OnEditIncrement(int8_t increment) {
-  // The encoder fine-tunes the last touched parameter.
   title_flash_ = false;
-  uint8_t parameter_index = programmer_parameter_ != 0xff
-      ? programmer_parameter_
-      : KnobIndexToParameterId(cursor_);
-  if (parameter_index != 0xff) {
-    IncrementParameterValue(parameter_index, increment);
+  if (display_mode_ == DISPLAY_MODE_EDIT) {
+    uint8_t id = KnobIndexToParameterId(cursor_);
+    if (id != 0xff) {
+      IncrementParameterValue(id, increment);
+    }
+    return;
   }
+  // Browse: move to the next used column of this page, no page change.
+  int8_t c = cursor_;
+  do {
+    c += increment > 0 ? 1 : -1;
+  } while (c >= 0 && c < 4 && KnobIndexToParameterId(c) == 0xff);
+  if (c >= 0 && c < 4) {
+    cursor_ = c;
+  }
+  display_mode_ = DISPLAY_MODE_OVERVIEW;
 }
 
 /* static */
