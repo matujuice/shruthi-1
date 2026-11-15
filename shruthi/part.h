@@ -201,13 +201,9 @@ class Part {
   // everytime a parameter is modified by the user).
   static void UpdateModulationRates();
   static void UpdateLfoRate(uint8_t i);
-  static void StopSequencerArpeggiatorNotes();
   static void ReleaseLatchedNotes();
   static void InternalNoteOn(uint8_t note, uint8_t velocity);
   static void InternalNoteOff(uint8_t note);
-  static void ClockArpeggiator();
-  static void ClockSequencer();
-  static void NextStep();
   
   static uint16_t Tune(uint8_t note);
   static uint8_t step_duration();
@@ -225,7 +221,6 @@ class Part {
   static Voice voice_;
   static NoteStack mono_allocator_;
   static NoteStack pressed_keys_;
-  static NoteStack generated_notes_;
   static VoiceAllocator poly_allocator_;
   static bool release_latched_keys_on_next_note_on_;
   static bool ignore_note_off_messages_;
@@ -240,14 +235,8 @@ class Part {
   static bool arp_seq_running_;
   static uint8_t arp_seq_prescaler_;
   static uint8_t arp_seq_step_;
-  static int8_t arp_note_;
-  static int8_t arp_octave_;
-  static int8_t arp_direction_;
-  static int8_t arp_previous_note_;
-  static uint16_t arp_seq_gate_length_counter_;
   static int8_t swing_amount_;
   static uint8_t internal_clock_blank_ticks_;
-  static int8_t seq_transposition_;
 
   DISALLOW_COPY_AND_ASSIGN(Part);
 };

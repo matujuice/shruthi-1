@@ -45,13 +45,6 @@ Editor editor;
 const UiHandler Editor::ui_handler_[] = {
   { &Editor::DisplayEditOverviewPage, &Editor::DisplayEditDetailsPage,
     &Editor::OnEditInput, &Editor::OnEditIncrement, NULL },
-  { &Editor::DisplayTrackerPage, &Editor::DisplayTrackerPage,
-    &Editor::OnTrackerInput, &Editor::OnTrackerIncrement, NULL },
-  { &Editor::DisplayPageRPage, &Editor::DisplayPageRPage,
-    &Editor::OnPageRInput, &Editor::OnPageRIncrement, NULL },
-  { &Editor::DisplayStepSequencerPage, &Editor::DisplayStepSequencerPage,
-    &Editor::OnStepSequencerInput, &Editor::OnStepSequencerIncrement,
-    NULL },
   { &Editor::DisplayLoadSavePage, &Editor::DisplayLoadSavePage,
     &Editor::OnEditInput, &Editor::OnLoadSaveIncrement,
     &Editor::OnLoadSaveClick },
@@ -108,26 +101,6 @@ PageDefinition Editor::page_definition_[] = {
     PAGE_MOD_MATRIX, PAGE_OSC_OSC_1,
     STR_RES_OPERATORS, PARAMETER_EDITOR, 58, 0 },
     
-  /* PAGE_SEQ_SEQUENCER */ { PAGE_SEQ_ARPEGGIATOR, GROUP_SEQUENCER_ARPEGGIATOR,
-    PAGE_SEQ_CONTROLLER, PAGE_SEQ_ARPEGGIATOR,
-    STR_RES_SEQUENCER, PARAMETER_EDITOR, 36, LED_1_MASK },
-
-  /* PAGE_SEQ_ARPEGGIATOR */ { PAGE_SEQ_SEQUENCER, GROUP_SEQUENCER_ARPEGGIATOR,
-    PAGE_SEQ_SEQUENCER, PAGE_SEQ_TRACKER,
-    STR_RES_ARPEGGIO, PARAMETER_EDITOR, 40, LED_2_MASK },
-
-  /* PAGE_SEQ_TRACKER */ { PAGE_SEQ_TRACKER, GROUP_SEQUENCER_TRACKER,
-    PAGE_SEQ_ARPEGGIATOR, PAGE_SEQ_RHYTHM,
-    STR_RES_STEP_SEQUENCER, TRACKER_EDITOR, 0, LED_3_MASK },
-
-  /* PAGE_SEQ_RHYTHM */ { PAGE_SEQ_CONTROLLER, GROUP_SEQUENCER_STEPS,
-    PAGE_SEQ_TRACKER, PAGE_SEQ_CONTROLLER,
-    STR_RES_STEP_SEQUENCER, PAGE_R_EDITOR, 0, LED_4_MASK },
-
-  /* PAGE_SEQ_CONTROLLER */ { PAGE_SEQ_RHYTHM, GROUP_SEQUENCER_STEPS,
-    PAGE_SEQ_RHYTHM, PAGE_SEQ_SEQUENCER,
-    STR_RES_STEP_SEQUENCER, STEP_SEQUENCER, 52, LED_5_MASK },
-
   /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS,
     PAGE_SYS_DISPLAY, PAGE_SYS_MIDI,
     STR_RES_KEYBOARD, PARAMETER_EDITOR, 44, LED_6_MASK },
@@ -161,9 +134,6 @@ ParameterPage Editor::last_visited_page_[] = {
     PAGE_MOD_ENV_1,
     PAGE_MOD_MATRIX,
 
-    PAGE_SEQ_SEQUENCER,
-    PAGE_SEQ_TRACKER,
-    PAGE_SEQ_RHYTHM,
     PAGE_SYS_KBD,
 
     PAGE_LOAD_SAVE,
@@ -174,7 +144,7 @@ uint8_t Editor::display_mode_ = DISPLAY_MODE_OVERVIEW;
 uint8_t Editor::editor_mode_ = EDITOR_MODE_PATCH;
 uint8_t Editor::last_visited_group_[] = {
     GROUP_FILTER,
-    GROUP_SEQUENCER_ARPEGGIATOR,
+    GROUP_SYS,
 };
 
 char Editor::line_buffer_[kLcdWidth * kLcdHeight + 1];
@@ -419,7 +389,7 @@ void Editor::OnSwitch(const Event& event) {
     }
   } else {
     if (editor_mode_ == EDITOR_MODE_SEQUENCE) {
-      JumpToPageGroup(id + GROUP_SEQUENCER_ARPEGGIATOR);
+      JumpToPageGroup(GROUP_SYS);  // sequencer groups removed; S6 mode = system pages
     } else if (editor_mode_ == EDITOR_MODE_PATCH) {
       JumpToPageGroup(id + GROUP_OSC);
     }
@@ -484,18 +454,7 @@ void Editor::OnClick() {
 
 /* static */
 uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
-  uint8_t handled = 0;
-  if (current_page_ == PAGE_SEQ_TRACKER && display_mode_ == DISPLAY_MODE_EDIT) {
-    part.mutable_sequencer_settings()->steps[cursor_].set_note(note);
-    part.mutable_sequencer_settings()->steps[cursor_].set_velocity(velocity);
-    ++cursor_;
-    if (cursor_ >= part.sequencer_settings().pattern_size) {
-      cursor_ = 0;
-    }
-    Refresh();
-    handled = 1;
-  }
-  return handled;
+  return 0;
 }
 
 /* static */
@@ -693,233 +652,6 @@ void Editor::DisplayLoadSavePage() {
     display.set_cursor_position(kLcdNoCursor);
   }
   display.Print(1, line_buffer_);
-}
-
-/* static */
-void Editor::MoveSequencerCursor(int8_t increment) {
-  int8_t new_cursor = cursor_;
-  new_cursor += increment;
-  const SequencerSettings& seq = part.sequencer_settings();
-  if (new_cursor < 0) {
-    cursor_ = 0xff;
-    current_page_ = page_definition_[current_page_].overall_previous;
-    PageChange();
-  } else if (new_cursor >= seq.pattern_size) {
-    cursor_ = 0;
-    current_page_ = page_definition_[current_page_].overall_next;
-    PageChange();
-  } else {
-    cursor_ = new_cursor;
-  }
-}
-
-/* static */
-void Editor::DisplayStepSequencerPage() {
-  // 0123456789abcdef
-  // step sequencer
-  // 0000ffff44449999
-  const SequencerSettings& seq = part.sequencer_settings();
-  if (cursor_ > seq.pattern_size - 1) {
-    cursor_ = seq.pattern_size - 1;
-  }
-  ResourcesManager::LoadStringResource(
-      STR_RES_STEP_SEQUENCER,
-      line_buffer_,
-      kLcdWidth);
-  AlignLeft(line_buffer_, kLcdWidth);
-  display.Print(0, line_buffer_);
-  memset(line_buffer_, ' ', kLcdWidth);
-  for (uint8_t i = 0; i < seq.pattern_size; ++i) {
-    line_buffer_[i] = NibbleToAscii(
-        seq.steps[(i + seq.pattern_rotation) & 0x0f].controller());
-  }
-  if (seq.pattern_size != kLcdWidth) {
-    line_buffer_[seq.pattern_size] = '|';
-  }
-  display.Print(1, line_buffer_);
-  ShowEditCursor();
-}
-
-/* static */
-void Editor::OnSequencerNavigation(uint8_t knob_index, uint8_t value) {
-  switch (knob_index) {
-    case 1:
-      {
-        cursor_ = value >> 3;
-        uint8_t max_position = part.sequencer_settings().pattern_size - 1;
-        if (cursor_ > max_position) {
-          cursor_ = max_position;
-        }
-      }
-      break;
-    case 3:
-      {
-        uint8_t new_size = (value >> 3) + 1;
-        if (cursor_ >= new_size) {
-          cursor_ = new_size - 1;
-        }
-        last_knob_ = 1;
-        part.SetParameter(57, PRM_SEQ_PATTERN_SIZE, new_size, true);
-      }
-      break;
-  }
-}
-
-/* static */
-void Editor::OnStepSequencerInput(uint8_t knob_index, uint8_t value) {
-  OnSequencerNavigation(knob_index, value);
-  if (knob_index == 2) {
-    SequencerSettings* seq = part.mutable_sequencer_settings();
-    seq->steps[(cursor_ + seq->pattern_rotation) & 0x0f].set_controller(
-        value >> 3);
-  } else if (knob_index == 0) {
-    part.SetParameter(56, PRM_SEQ_PATTERN_ROTATION, value >> 3, true);
-    last_knob_ = 0;
-  }
-}
-
-/* static */
-void Editor::OnStepSequencerIncrement(int8_t increment) {
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
-    MoveSequencerCursor(increment);
-  } else {
-    SequencerSettings* seq = part.mutable_sequencer_settings();
-    uint8_t position = (cursor_ + seq->pattern_rotation) & 0x0f;
-    seq->steps[position].set_controller(
-        seq->steps[position].controller() + \
-        increment);
-  }
-}
-
-/* static */
-void Editor::DisplayTrackerPage() {
-  memset(line_buffer_, ' ', kLcdWidth);
-  if (cursor_ > part.sequencer_settings().pattern_size - 1) {
-    cursor_ = part.sequencer_settings().pattern_size - 1;
-  }
-  if (cursor_ > 0) {
-    part.sequencer_settings().PrintStep(cursor_ - 1, line_buffer_);
-  } else {
-    // This is an invisible character. It is just there to prevent the status
-    // indicator to be printed on the last column instead of the first.
-    line_buffer_[kLcdWidth - 1] = 0xfe;
-  }
-  display.Print(0, line_buffer_);
-
-  part.sequencer_settings().PrintStep(cursor_, line_buffer_);
-  line_buffer_[0] = 0x7e;
-  display.Print(1, line_buffer_);
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
-    display.set_cursor_position(0xff);
-  } else {
-    display.set_cursor_character(kLcdEditCursor);
-    display.set_cursor_position(kLcdWidth + 7);
-  }
-}
-
-/* static */
-void Editor::OnTrackerInput(uint8_t knob_index, uint8_t value) {
-  uint16_t value_16_bits = 0;
-  switch (knob_index) {
-    case 0:
-      {
-        cursor_ = value >> 3;
-        uint8_t max_position = part.sequencer_settings().pattern_size - 1;
-        if (cursor_ > max_position) {
-          cursor_ = max_position;
-        }
-      }
-      break;
-    case 1:
-      part.mutable_sequencer_settings()->steps[cursor_].set_note(
-          24 + (value >> 1));
-      break;
-    case 2:
-      value_16_bits = value << 3;
-      value_16_bits *= 10;
-      value_16_bits >>= 5;
-      if (value_16_bits < 64) {
-        part.mutable_sequencer_settings()->steps[cursor_].set_velocity(0);
-        part.mutable_sequencer_settings()->steps[cursor_].set_gate(0);
-        part.mutable_sequencer_settings()->steps[cursor_].set_legato(0);
-      } else {
-        value_16_bits -= 64;
-        part.mutable_sequencer_settings()->steps[cursor_].set_velocity(
-            value_16_bits);
-        part.mutable_sequencer_settings()->steps[cursor_].set_gate(1);
-        part.mutable_sequencer_settings()->steps[cursor_].set_legato(
-            value_16_bits >= 0x80);
-      }
-      break;
-    case 3:
-      part.mutable_sequencer_settings()->steps[cursor_].set_controller(
-          value >> 3);
-      break;
-  }
-}
-
-/* static */
-void Editor::OnTrackerIncrement(int8_t increment) {
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
-    MoveSequencerCursor(increment);
-  } else {
-    int8_t note = part.mutable_sequencer_settings()->steps[cursor_].note();
-    note += increment;
-    if (note >= 12 && note < 108) {
-      part.mutable_sequencer_settings()->steps[cursor_].set_note(note);
-    }
-  }
-}
-
-/* static */
-void Editor::DisplayPageRPage() {
-  if (cursor_ > part.sequencer_settings().pattern_size - 1) {
-    cursor_ = part.sequencer_settings().pattern_size - 1;
-  }
-  memset(line_buffer_, ' ', kLcdWidth);
-  memset(line_buffer_, ' ', kLcdWidth);
-  for (uint8_t i = 0; i < part.sequencer_settings().pattern_size; ++i) {
-    line_buffer_[i] = part.mutable_sequencer_settings()->steps[i].character();
-  }
-  if (part.sequencer_settings().pattern_size != kLcdWidth) {
-    line_buffer_[part.sequencer_settings().pattern_size] = '|';
-  }
-  display.Print(0, line_buffer_);
-
-  for (uint8_t i = 0; i < part.sequencer_settings().pattern_size; ++i) {
-    if (part.mutable_sequencer_settings()->steps[i].gate()) {
-      line_buffer_[i] = NibbleToAscii(
-          part.mutable_sequencer_settings()->steps[i].velocity() >> 4);
-    }
-  }
-  if (part.sequencer_settings().pattern_size != kLcdWidth) {
-    line_buffer_[part.sequencer_settings().pattern_size] = '|';
-  }
-  display.Print(1, line_buffer_);
-  ShowEditCursor();
-}
-
-/* static */
-void Editor::OnPageRInput(
-    uint8_t knob_index,
-    uint8_t value) {
-  OnSequencerNavigation(knob_index, value);
-  if (knob_index == 2) {
-    OnTrackerInput(2, value);
-  }
-}
-
-/* static */
-void Editor::OnPageRIncrement(int8_t increment) {
-  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
-    MoveSequencerCursor(increment);
-  } else {
-    int8_t flags = part.mutable_sequencer_settings()->steps[cursor_].flags();
-    flags += increment;
-    if (flags >= 0 && flags <= 16) {
-      part.mutable_sequencer_settings()->steps[cursor_].set_flags(flags);
-    }
-  }
 }
 
 /* static */

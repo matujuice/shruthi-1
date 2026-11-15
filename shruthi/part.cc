@@ -48,7 +48,6 @@ bool Part::dirty_;
 Voice Part::voice_;
 NoteStack Part::pressed_keys_;
 NoteStack Part::mono_allocator_;
-NoteStack Part::generated_notes_;
 VoiceAllocator Part::poly_allocator_;
 bool Part::release_latched_keys_on_next_note_on_;
 bool Part::ignore_note_off_messages_;
@@ -66,14 +65,8 @@ uint16_t Part::lfo_increment_[kNumLfos];
 bool Part::arp_seq_running_;
 uint8_t Part::arp_seq_prescaler_;
 uint8_t Part::arp_seq_step_;
-int8_t Part::arp_note_;
-int8_t Part::arp_octave_;
-int8_t Part::arp_direction_;
-int8_t Part::arp_previous_note_;
-uint16_t Part::arp_seq_gate_length_counter_;
 int8_t Part::swing_amount_;
 uint8_t Part::internal_clock_blank_ticks_;
-int8_t Part::seq_transposition_;
 /* </static> */
 
 /* static */
@@ -88,7 +81,6 @@ void Part::Init() {
   pressed_keys_.Init();
   mono_allocator_.Init();
   poly_allocator_.Init();
-  generated_notes_.Init();
   voice_.Init();
   dirty_ = false;
   arp_seq_running_ = false;
@@ -256,11 +248,6 @@ void Part::NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     return;
   }
   
-  bool reclock_arpeggiator = sequencer_settings_.mode() == SEQUENCER_MODE_ARP
-      && !sequencer_settings_.internal_clock()
-      && pressed_keys_.size() == 0
-      && running();
-
   if (release_latched_keys_on_next_note_on_) {
     bool still_latched = ignore_note_off_messages_;
     
@@ -280,13 +267,7 @@ void Part::NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
     Clock(true);
   }
   
-  if (sequencer_settings_.mode() == SEQUENCER_MODE_STEP || !running()) {
-    InternalNoteOn(note, velocity);
-  }
-  
-  if (reclock_arpeggiator) {
-    ClockArpeggiator();
-  }
+  InternalNoteOn(note, velocity);
 }
 
 /* static */
@@ -301,9 +282,7 @@ void Part::NoteOff(uint8_t channel, uint8_t note) {
     }
   } else {
     pressed_keys_.NoteOff(note);
-    if (sequencer_settings_.mode() == SEQUENCER_MODE_STEP || !running()) {
-      InternalNoteOff(note);
-    }
+    InternalNoteOff(note);
   }
 }
 
@@ -437,14 +416,8 @@ void Part::Clock(bool internal) {
       }
     }
     if (!arp_seq_prescaler_) {
-      NextStep();
-      ClockArpeggiator();
-      ClockSequencer();
-    }
-    if (!arp_seq_gate_length_counter_ && generated_notes_.size()) {
-      StopSequencerArpeggiatorNotes();
-    } else {
-      --arp_seq_gate_length_counter_;
+      // Step counter kept for groove swing and the LEDs.
+      arp_seq_step_ = (arp_seq_step_ + 1) & 0x0f;
     }
   }
 
@@ -481,201 +454,20 @@ void Part::Start(bool internal) {
   lfo_step_[0] = 0;
   lfo_step_[1] = 0;
   
-  if (sequencer_settings_.mode() != SEQUENCER_MODE_STEP) {
-    poly_allocator_.Clear();
-    mono_allocator_.Clear();
-    generated_notes_.Clear();
-    voice_.NoteOff();
-  }
-  
   release_latched_keys_on_next_note_on_ = false;
   ignore_note_off_messages_ = false;
   
   arp_seq_prescaler_ = 0;
   arp_seq_step_ = 0xff;
   arp_seq_running_ = true;
-  arp_previous_note_ = 0;
-  seq_transposition_ = 0;
-  if (sequencer_settings_.arp_direction == ARPEGGIO_DIRECTION_DOWN) {
-    arp_note_ = pressed_keys_.size() - 1;
-    arp_octave_ = sequencer_settings_.arp_range - 1;
-    arp_direction_ = -1;
-  } else {
-    arp_note_ = 0;
-    arp_octave_ = 0;
-    arp_direction_ = 1;
-  }
 }
 
 /* static */
 void Part::Stop(bool internal) {
   arp_seq_running_ = false;
   ignore_note_off_messages_ = false;
-  if (sequencer_settings_.mode() != SEQUENCER_MODE_STEP) {
-    StopSequencerArpeggiatorNotes();
-    AllSoundOff();
-  }
   if (internal) {
     midi_dispatcher.OnStop();
-  }
-}
-
-/* static */
-void Part::NextStep() {
-  ++arp_seq_step_;
-  if (arp_seq_step_ >= sequencer_settings_.pattern_size) {
-    arp_seq_step_ = 0;
-  }
-  if (sequencer_settings_.mode() == SEQUENCER_MODE_SEQ) {
-    uint8_t n = (arp_seq_step_ + sequencer_settings_.pattern_rotation) & 0x0f;
-    if (sequencer_settings_.steps[n].legato()) {
-      arp_seq_gate_length_counter_ += step_duration();
-    }
-  }
-}
-
-/* static */
-void Part::ClockArpeggiator() {
-  bool has_note = false;
-  if (sequencer_settings_.arp_pattern < kNumArpeggiatorPatterns) {
-    uint16_t pattern_mask = 1 << arp_seq_step_;
-    uint16_t pattern = ResourcesManager::Lookup<uint16_t, uint8_t>(
-          lut_res_arpeggiator_patterns,
-          sequencer_settings_.arp_pattern);
-    has_note = pattern_mask & pattern;
-  } else {
-    uint8_t n = (arp_seq_step_ + sequencer_settings_.pattern_rotation) & 0x0f;
-    SequenceStep& step = sequencer_settings_.steps[n];
-    has_note = step.gate() && !step.legato();
-  }
-  voice_.set_modulation_source(MOD_SRC_STEP, has_note ? 255 : 0);
-  
-  uint8_t num_notes = pressed_keys_.size();
-  if (sequencer_settings_.mode() == SEQUENCER_MODE_ARP && 
-      has_note && num_notes) {
-    // Update arepggiator note/octave counter.
-    if (num_notes == 1 && sequencer_settings_.arp_range == 1) {
-      // This is a corner case for the Up/down pattern code.
-      // Get it out of the way.
-      arp_note_ = 0;
-      arp_octave_ = 0;
-    } else {
-      if (sequencer_settings_.arp_direction == ARPEGGIO_DIRECTION_RANDOM) {
-        uint8_t random_byte = Random::state_msb();
-        arp_octave_ = random_byte & 0xf;
-        arp_note_ = (random_byte & 0xf0) >> 4;
-        while (arp_octave_ >= sequencer_settings_.arp_range) {
-          arp_octave_ -= sequencer_settings_.arp_range;
-        }
-        while (arp_note_ >= num_notes) {
-          arp_note_ -= num_notes;
-        }
-      } else {
-        bool wrapped = true;
-        while (wrapped) {
-          if (arp_note_ >= num_notes || arp_note_ < 0) {
-            arp_octave_ += arp_direction_;
-            arp_note_ = arp_direction_ > 0 ? 0 : num_notes - 1;
-          }
-          wrapped = false;
-          if (arp_octave_ >= sequencer_settings_.arp_range || arp_octave_ < 0) {
-            arp_octave_ = arp_direction_ > 0
-                ? 0
-                : sequencer_settings_.arp_range - 1;
-            if (sequencer_settings_.arp_direction == \
-                ARPEGGIO_DIRECTION_UP_DOWN) {
-              arp_direction_ = -arp_direction_;
-              arp_note_ = arp_direction_ > 0 ? 1 : num_notes - 2;
-              arp_octave_ = arp_direction_ > 0
-                  ? 0
-                  : sequencer_settings_.arp_range - 1;
-              wrapped = true;
-            }
-          }
-        }
-      }
-    }
-
-    // Kill pending notes (if any). There is a HUGE hack here... The arpeggiator
-    // in the previous version of the firmware had a kind of bug that created
-    // beautiful moving chords when the synth was in duophonic mode. To
-    // reproduce this all notes from the previous steps are cleared...
-    // except one.
-    StopSequencerArpeggiatorNotes();
-    const NoteEntry* arpeggio_note = \
-      sequencer_settings_.arp_direction == ARPEGGIO_DIRECTION_PLAYED ?
-      &pressed_keys_.played_note(arp_note_) :
-      &pressed_keys_.sorted_note(arp_note_);
-    uint8_t note = arpeggio_note->note;
-    uint8_t velocity = arpeggio_note->velocity & 0x7f;
-    note += 12 * arp_octave_;
-    while (note > 127) {
-      note -= 12;
-    }
-    generated_notes_.NoteOn(note, velocity);
-    InternalNoteOn(note, velocity);
-    
-    // Big hack to allow the arpeggiator to work polyphonically in DUO mode.
-    if (arp_previous_note_ &&
-        patch_.osc[0].option == OP_DUO
-        && arp_previous_note_ != note) {
-      generated_notes_.NoteOn(arp_previous_note_, velocity);
-      InternalNoteOn(arp_previous_note_, velocity);
-    }
-
-    arp_previous_note_ = note;
-    arp_note_ += arp_direction_;
-    arp_seq_gate_length_counter_ = (step_duration() >> 1) + 1;
-  }
-  
-  if (sequencer_settings_.mode() == SEQUENCER_MODE_ARP && num_notes &&
-      sequencer_settings_.arp_pattern == kNumArpeggiatorPatterns) {
-    uint8_t n = arp_seq_step_ + 1;
-    if (n >= sequencer_settings_.pattern_size) {
-      n = 0;
-    }
-    n = (n + sequencer_settings_.pattern_rotation) & 0x0f;
-    SequenceStep& step = sequencer_settings_.steps[n];
-    if (sequencer_settings_.steps[n].legato()) {
-      arp_seq_gate_length_counter_ += step_duration();
-    }
-  }
-}
-
-/* static */
-void Part::ClockSequencer() {
-  uint8_t n = (arp_seq_step_ + sequencer_settings_.pattern_rotation) & 0x0f;
-  voice_.set_modulation_source(
-      MOD_SRC_SEQ,
-      sequencer_settings_.steps[n].controller() << 4);
-  voice_.set_modulation_source(
-      MOD_SRC_SEQ_1,
-      sequencer_settings_.steps[n & 0x7].controller() << 4);
-  voice_.set_modulation_source(
-      MOD_SRC_SEQ_2,
-      sequencer_settings_.steps[(n & 0x7) + 8].controller() << 4);
-  
-  if (sequencer_settings_.mode() == SEQUENCER_MODE_SEQ) {
-    SequenceStep& step = sequencer_settings_.steps[n];
-    if (step.gate()) {
-      int8_t transposition = pressed_keys_.size() ?
-          pressed_keys_.most_recent_note().note - 60 : seq_transposition_;
-      seq_transposition_ = transposition;
-      int8_t note = step.note() + transposition;
-      while (note < 0) note += 12;
-      while (note > 127)  note -= 12;
-      if (!step.legato()) {
-        StopSequencerArpeggiatorNotes();
-        InternalNoteOn(note, step.velocity());
-      } else {
-        if (generated_notes_.most_recent_note().note != note) {
-          InternalNoteOn(note, step.velocity());
-          StopSequencerArpeggiatorNotes();
-        }
-      }
-      generated_notes_.NoteOn(note, step.velocity());
-      arp_seq_gate_length_counter_ = (step_duration() >> 1) + 1;
-    }
   }
 }
 
@@ -735,9 +527,6 @@ void Part::SetParameter(
   data_access_byte_[offset + 1] = value;
   if (offset >= PRM_ENV_ATTACK_1 && offset <= PRM_LFO_RETRIGGER_2) {
     UpdateModulationRates();
-  } else if (offset == PRM_ARP_DIRECTION) {
-    arp_direction_ = \
-        sequencer_settings_.arp_direction == ARPEGGIO_DIRECTION_DOWN ? -1 : 1;
   }
   if (user_initiated) {
     midi_dispatcher.OnEdit(parameter_index, offset, value);
@@ -785,11 +574,7 @@ const prog_uint8_t filter_modes[15] PROGMEM = {
 /* static */
 uint8_t Part::blinky_eyes() {
   uint8_t blinky = 0;
-  if (running() && sequencer_settings_.mode() != SEQUENCER_MODE_STEP) {
-    if (!(arp_seq_step_ & 3)) {
-      blinky = 0xc0;
-    }
-  } else if (modulation_source(0, MOD_SRC_WHEEL) > 224) {
+  if (modulation_source(0, MOD_SRC_WHEEL) > 224) {
     uint8_t i = kModulationMatrixSize - 1;
     uint8_t wheel_mod = patch_.modulation_matrix.modulation[i].source;
     wheel_mod = voice_.modulation_source(wheel_mod);
@@ -866,15 +651,6 @@ void Part::AllNotesOff() {
   voice_.NoteOff();
   release_latched_keys_on_next_note_on_ = false;
   ignore_note_off_messages_ = false;
-}
-
-/* sattic */
-void Part::StopSequencerArpeggiatorNotes() {
-  while (generated_notes_.size()) {
-    uint8_t note = generated_notes_.sorted_note(0).note;
-    generated_notes_.NoteOff(note);
-    InternalNoteOff(note);
-  }
 }
 
 /* static */

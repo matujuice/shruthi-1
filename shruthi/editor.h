@@ -61,9 +61,6 @@ enum Group {
   GROUP_MOD_SOURCES,
   GROUP_MOD_MATRIX,
   
-  GROUP_SEQUENCER_ARPEGGIATOR,
-  GROUP_SEQUENCER_TRACKER,
-  GROUP_SEQUENCER_STEPS,
   GROUP_SYS,
 
   GROUP_LOAD_SAVE,
@@ -86,11 +83,6 @@ enum Page {
   PAGE_MOD_MATRIX,
   PAGE_MOD_OPERATORS,
   
-  PAGE_SEQ_SEQUENCER,
-  PAGE_SEQ_ARPEGGIATOR,
-  PAGE_SEQ_TRACKER,
-  PAGE_SEQ_RHYTHM,
-  PAGE_SEQ_CONTROLLER,
   
   PAGE_SYS_KBD,
   PAGE_SYS_MIDI,
@@ -118,9 +110,6 @@ static const uint8_t kColumnWidth = 4;
 
 enum PageUiType {
   PARAMETER_EDITOR,
-  TRACKER_EDITOR,
-  PAGE_R_EDITOR,
-  STEP_SEQUENCER,
   LOAD_SAVE,
   CONFIRM,
   JAM,
@@ -250,20 +239,6 @@ class Editor {
   static void OnEditInput(uint8_t knob_index, uint8_t value);
   static void OnEditIncrement(int8_t increment);
 
-  static void MoveSequencerCursor(int8_t increment);
-  static void OnSequencerNavigation(uint8_t knob, uint8_t value);
-  
-  static void DisplayTrackerPage();
-  static void OnTrackerInput(uint8_t knob_index, uint8_t value);
-  static void OnTrackerIncrement(int8_t increment);
-
-  static void DisplayPageRPage();
-  static void OnPageRInput(uint8_t knob_index, uint8_t value);
-  static void OnPageRIncrement(int8_t increment);
-
-  static void DisplayStepSequencerPage();
-  static void OnStepSequencerInput(uint8_t knob_index, uint8_t value);
-  static void OnStepSequencerIncrement(int8_t increment);
   
   static void DisplayConfirmPage();
   static void OnConfirmInput(uint8_t knob_index, uint8_t value);
