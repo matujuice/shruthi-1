@@ -118,7 +118,7 @@ static const prog_char page_labels[] PROGMEM =
   "OP IN1IN2OUT"  // 12
   "OCTRAGPRTLEG"  // 13
   "TUNCHNOUT   "  // 14
-  "PAUSNPFLTSTA"  // 15;
+  "PAUSNPFLTSTA";  // 15
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
@@ -808,7 +808,10 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
   } else {
     p.PrintValue(value, t, width - (t - text));
   }
-  uint8_t len = strnlen(text, width);
+  uint8_t len = 0;
+  while (len < width && text[len]) {
+    ++len;
+  }
   memset(out, ' ', width);
   memcpy(right ? out + width - len : out, text, len);
 
