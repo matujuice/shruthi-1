@@ -298,6 +298,7 @@ class Editor {
   static int8_t jam_mode_shifts_[4];
   
   static bool snapped_[4];
+  static bool touched_[4];  // Knobs moved since the overview came back.
   static bool title_flash_;
   static bool show_numbers_;
   static bool func_;  // FUNC held: pots and encoder jump to relevant values.

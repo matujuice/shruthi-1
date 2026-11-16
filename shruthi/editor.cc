@@ -301,6 +301,7 @@ uint8_t Editor::jam_mode_previous_page_;
 
 ConfirmPageSettings Editor::confirm_page_settings_;
 bool Editor::snapped_[4];
+bool Editor::touched_[4];
 bool Editor::title_flash_;
 bool Editor::show_numbers_;
 bool Editor::func_;
@@ -877,6 +878,9 @@ void Editor::DisplayEditOverviewPage() {
   row_0[kLcdWidth] = '\0';
   glyph_previous_ = glyph_used_;
   glyph_used_ = 0;
+  if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
+    memset(touched_, false, sizeof(touched_));
+  }
   // Encoder target: steady arrow when browsing, blinking when editing.
   uint8_t marker = cursor_ * kColumnWidth + 3;
   if (title_flash_) {
@@ -902,7 +906,7 @@ void Editor::DisplayEditOverviewPage() {
       memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
       char* value = row_1 + i * kColumnWidth;
       value[3] = PrintParameter(id, value, 3, label,
-          i == cursor_ && display_mode_ != DISPLAY_MODE_OVERVIEW);
+          touched_[i] || (i == cursor_ && display_mode_ == DISPLAY_MODE_EDIT));
       ::FillAudioBuffer();
     }
     }
@@ -1012,6 +1016,7 @@ void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
   if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
   }
+  touched_[knob_index] = true;
   uint8_t v = parameter.Scale(value);
   SetParameterValue(index, parameter.offset,
       func_ ? RelevantValue(index, v, 0) : v);
