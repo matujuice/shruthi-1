@@ -334,7 +334,7 @@ void Ui::DoEvents() {
     refresh_display = true;
   }
 
-  refresh_display |= editor.PopupDone();
+  refresh_display |= editor.PopupTick();
 
   if (!encoder_.immediate_value() && freeze_display_) {
     refresh_display = false;

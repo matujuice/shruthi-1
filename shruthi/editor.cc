@@ -522,6 +522,7 @@ bool Editor::func_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
 uint32_t Editor::popup_until_;
+uint8_t Editor::popup_phase_;
 uint8_t Editor::perf_[4];
 bool Editor::sys_open_;
 bool Editor::sys_dirty_;
@@ -744,6 +745,7 @@ void Editor::OnSwitch(const Event& event) {
 
 /* static */
 void Editor::OnInput(uint8_t knob_index, uint8_t value) {
+  popup_until_ = 0;  // A knob move replaces the popup.
   (*ui_handler_[page_definition_[current_page_].ui_type].input_handler)(
       knob_index, value);
 }
@@ -778,7 +780,9 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 /* static */
 void Editor::Refresh() {
   if (popup_until_) {
-    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks blink 3x.
+    memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
+    memset(line_buffer_ + 4, ' ', 8);
     memcpy_P(line_buffer_ + 5, PSTR("PATCH"), 5);
     memcpy_P(line_buffer_ + kLcdWidth + 1 + 4, PSTR("RELOADED"), 8);
     display.set_cursor_position(kLcdNoCursor);
@@ -802,12 +806,22 @@ void Editor::Refresh() {
 void Editor::ReloadPatch() {
   deferred_load_ = current_patch_number_;
   popup_until_ = milliseconds() + 1000;
+  popup_phase_ = 5;
 }
 
 /* static */
-bool Editor::PopupDone() {
-  if (popup_until_ && static_cast<int32_t>(milliseconds() - popup_until_) >= 0) {
+bool Editor::PopupTick() {
+  if (!popup_until_) {
+    return false;
+  }
+  int32_t left = popup_until_ - milliseconds();
+  if (left <= 0) {
     popup_until_ = 0;
+    return true;
+  }
+  uint8_t phase = static_cast<uint16_t>(left) / 167;
+  if (phase != popup_phase_) {
+    popup_phase_ = phase;
     return true;
   }
   return false;

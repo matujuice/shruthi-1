@@ -212,8 +212,8 @@ class Editor {
   // FUNC + encoder click: reload the stored version of the current patch.
   // Also shows PATCH RELOADED for 1 s.
   static void ReloadPatch();
-  // True once, when the popup has timed out (redraw the page).
-  static bool PopupDone();
+  // True when the popup blinks or times out (redraw).
+  static bool PopupTick();
 
   // Sends at most one changed custom glyph to the LCD CGRAM.
   static void UploadGlyphs();
@@ -312,6 +312,7 @@ class Editor {
   
   static uint16_t deferred_load_;
   static uint32_t popup_until_;  // 0 = no popup.
+  static uint8_t popup_phase_;  // 5..0; odd = side blocks lit.
 
   DISALLOW_COPY_AND_ASSIGN(Editor);
 };
