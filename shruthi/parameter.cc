@@ -890,6 +890,34 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     0, 127,
     { 12, 0 },
     STR_RES_FDB, STR_RES_FEEDBACK }, 
+
+  // 90: preset-page knob 1 target (offset handled by the editor)
+  { 0xf0,
+    UNIT_INDEX,
+    0, 31,
+    { 0, 0 },
+    STR_RES_PERFORMANCE, STR_RES_PERFORMANCE },
+
+  // 91: preset-page knob 2 target (offset handled by the editor)
+  { 0xf1,
+    UNIT_INDEX,
+    0, 31,
+    { 0, 0 },
+    STR_RES_PERFORMANCE, STR_RES_PERFORMANCE },
+
+  // 92: preset-page knob 3 target (offset handled by the editor)
+  { 0xf2,
+    UNIT_INDEX,
+    0, 31,
+    { 0, 0 },
+    STR_RES_PERFORMANCE, STR_RES_PERFORMANCE },
+
+  // 93: preset-page knob 4 target (offset handled by the editor)
+  { 0xf3,
+    UNIT_INDEX,
+    0, 31,
+    { 0, 0 },
+    STR_RES_PERFORMANCE, STR_RES_PERFORMANCE },
 };
 
 /* static */

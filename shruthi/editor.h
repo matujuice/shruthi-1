@@ -90,6 +90,7 @@ enum Page {
   PAGE_SYS_KBD,
   PAGE_SYS_MIDI,
   PAGE_SYS_DISPLAY,
+  PAGE_SYS_PERF,
 
   PAGE_LOAD_SAVE,
   PAGE_CONFIRM,
@@ -266,6 +267,8 @@ class Editor {
   
   static void SaveSystemSettings();
   static void StartMidiBackup();
+  static void PerfLabel(uint8_t id, char* out, bool long_name);
+  static uint8_t perf_[4];  // Patch parameter ids of the preset-page knobs.
   
   static void UpdateJamNote();
   

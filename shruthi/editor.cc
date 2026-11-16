@@ -22,6 +22,8 @@
 
 #include "shruthi/editor.h"
 
+#include <avr/eeprom.h>
+
 #include "avrlib/deprecated/devices/switch_array.h"
 #include "shruthi/display.h"
 #include "shruthi/midi_dispatcher.h"
@@ -84,7 +86,9 @@ PageDefinition Editor::page_definition_[] = {
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS, PARAMETER_EDITOR,
     LED_MODE_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_KBD, GROUP_SYS, PARAMETER_EDITOR,
+  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_PERF, GROUP_SYS, PARAMETER_EDITOR,
+    LED_MODE_MASK | LED_WRITE_MASK },
+  /* PAGE_SYS_PERF */ { PAGE_SYS_KBD, GROUP_SYS, PARAMETER_EDITOR,
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_MODE_MASK },
   /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
@@ -109,7 +113,8 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 58, 59, 60, 61 },  // MATH
   { 44, 45, 46, 47 },  // SYS KBD
   { 48, 49, 50, 0xff },  // SYS MIDI
-  { 52, 53, 0xff, 55 },  // SYS DISPLAY (filter board fixed: PVK)
+  { 52, 53, 55, 0xff },  // SYS DISPLAY (filter board fixed: PVK)
+  { 90, 91, 92, 93 },  // SYS PERF: preset-page knob targets
 };
 
 static const prog_char page_labels[] PROGMEM =
@@ -128,8 +133,8 @@ static const prog_char page_labels[] PROGMEM =
   "op in1in2out"  // 12
   "octragprtleg"  // 13
   "tunchnout   "  // 14
-  "pausnpfltsta"  // 15
-  "prmcutresenv";  // 16 PAGE_LOAD_SAVE: performance knobs
+  "pausnpsta   "  // 15
+  "kn1kn2kn3kn4";  // 16
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
@@ -145,9 +150,10 @@ static const prog_char page_titles[] PROGMEM =
   "VOICE           "
   "MATRIX       1/2"
   "MATH         2/2"
-  "SYS  KBD     1/3"
-  "SYS  MIDI    2/3"
-  "SYS  DISPLAY 3/3";
+  "SYS  KBD     1/4"
+  "SYS  MIDI    2/4"
+  "SYS  DISPLAY 3/4"
+  "SYS  PERF    4/4";
 
 static const prog_char lfo_mode_names[] PROGMEM = "FRETRGHLDONEHLF";
 
@@ -523,12 +529,25 @@ bool Editor::show_numbers_;
 bool Editor::func_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
+uint8_t Editor::perf_[4];
 /* </static> */
+
+// Free bytes after the sequences (internal EEPROM ends at 2048).
+static uint8_t* const kPerfEeprom = (uint8_t*)2044;
+static const prog_uint8_t perf_defaults[4] PROGMEM = {
+  PRM_OSC_PARAMETER_1, PRM_FILTER_CUTOFF, PRM_FILTER_RESONANCE, PRM_FILTER_ENV
+};
 
 /* static */
 void Editor::Init() {
   parameter_manager.Init();
-  
+  eeprom_read_block(perf_, kPerfEeprom, 4);
+  for (uint8_t i = 0; i < 4; ++i) {
+    if (perf_[i] > 31) {  // 0xff = never saved.
+      perf_[i] = pgm_read_byte(perf_defaults + i);
+    }
+  }
+
   line_buffer_[kLcdWidth] = '\0';
   deferred_load_ = 0xffff;
 }
@@ -544,7 +563,7 @@ void Editor::PageChange() {
   if (group < GROUP_FX) {
     last_visited_group_[0] = group;
   }
-  title_flash_ = current_page_ <= PAGE_SYS_DISPLAY;
+  title_flash_ = current_page_ <= PAGE_SYS_PERF;
   
   if (page_definition_[current_page_].ui_type == PARAMETER_EDITOR) {
     memset(snapped_, false, sizeof(snapped_));
@@ -634,6 +653,28 @@ void Editor::RandomizeSequence() {
 /* static */
 void Editor::SaveSystemSettings() {
   part.mutable_system_settings()->EepromSave();
+  eeprom_write_block(perf_, kPerfEeprom, 4);
+}
+
+// Labels of patch parameter ids 0-31 come from the synth pages 0-8.
+static const prog_char perf_groups[] PROGMEM = "osc1osc2mix filtfenvaenvlfo1lfo2fx  ";
+
+/* static */
+void Editor::PerfLabel(uint8_t id, char* out, bool long_name) {
+  for (uint8_t page = 0; page <= PAGE_FX; ++page) {
+    for (uint8_t k = 0; k < 4; ++k) {
+      if (pgm_read_byte(&page_parameters[page][k]) == id) {
+        if (long_name) {  // "filt cut": group, space, label.
+          memcpy_P(out, perf_groups + 4 * page, 4);
+          out[4] = ' ';
+          memcpy_P(out + 5, page_labels + 12 * page + 3 * k, 3);
+        } else {
+          memcpy_P(out, page_labels + 12 * page + 3 * k, 3);
+        }
+        return;
+      }
+    }
+  }
 }
 
 /* static */
@@ -737,7 +778,7 @@ void Editor::OnLongClick() {
 
 /* static */
 void Editor::OnClick() {
-  if (current_page_ >= PAGE_SYS_KBD && current_page_ <= PAGE_SYS_DISPLAY) {
+  if (current_page_ >= PAGE_SYS_KBD && current_page_ <= PAGE_SYS_PERF) {
     ConfirmPageSettings confirm_save_system_settings;
     confirm_save_system_settings.text = STR_RES_SAVE_MIDI_KBD;
     confirm_save_system_settings.return_group = GROUP_SYS;
@@ -1016,12 +1057,17 @@ char Editor::PrintParameter(
     memcpy(out, text, width + 1);
     return text[width];
   }
+  if (id >= 90) {
+    PerfLabel(value, out, false);
+    return ' ';
+  }
   if (p.unit > UNIT_INT8) {
     memset(out, ' ', width);
     memcpy(out + width - len, text, len);
     return Icon(p.unit, value);
   }
-  if (id == 2 || id == 6) {  // Osc range: plain number, keeps glyphs for bars.
+  if (id == 2 || id == 6 || id == 44 || id == 48 || id == 49) {
+    // Osc range, octave, tuning, channel: plain number, keeps glyphs for bars.
     memset(out, ' ', 4);
     memcpy(out, text, len);
     return out[3];
@@ -1119,7 +1165,11 @@ void Editor::DisplayEditOverviewPage() {
       }
       previous = offset;
       char* label = row_0 + i * kColumnWidth;
-      memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
+      if (current_page_ == PAGE_LOAD_SAVE) {
+        PerfLabel(id, label, false);
+      } else {
+        memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
+      }
       char* value = row_1 + i * kColumnWidth;
       value[3] = PrintParameter(id, value, 3, label,
           touched_[i] || (i == cursor_ && display_mode_ == DISPLAY_MODE_EDIT));
@@ -1144,7 +1194,9 @@ void Editor::DisplayEditOverviewPage() {
         memset(text, 0, sizeof(text));
         uint8_t value = GetParameterValue(p.offset);
         const prog_char* values = LongValues(p.unit);
-        if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
+        if (id >= 90) {
+          PerfLabel(value, text, true);
+        } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
           strcpy_P(text, PSTR("wave "));
           UnsafeItoa<int16_t>(value - LFO_WAVEFORM_WAVE_1 + 1, 3, text + 5);
         } else if (values) {
@@ -1161,7 +1213,10 @@ void Editor::DisplayEditOverviewPage() {
         while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
           ++n;
         }
-        if (n < sizeof(long_name_ids)) {
+        if (id >= 90) {
+          strcpy_P(row_0, PSTR("knob "));
+          row_0[5] = '1' + id - 90;
+        } else if (n < sizeof(long_name_ids)) {
           CopyNth(long_names, n, row_0);
         } else {
           ResourcesManager::LoadStringResource(p.long_name, row_0, kCaptionWidth);
@@ -1210,18 +1265,9 @@ uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
     if (action_ != ACTION_LOAD) {
       return 0xff;
     }
-    switch (knob_index) {
-      case 0:
-        return PRM_OSC_PARAMETER_1;
-      case 1:
-        return PRM_FILTER_CUTOFF;
-      case 2:
-        return PRM_FILTER_RESONANCE;
-      default:
-        return PRM_FILTER_ENV;
-    }
+    return perf_[knob_index];
   }
-  if (current_page_ > PAGE_SYS_DISPLAY) {
+  if (current_page_ > PAGE_SYS_PERF) {
     return 0xff;
   }
   uint8_t id = pgm_read_byte(&page_parameters[current_page_][knob_index]);
@@ -1357,7 +1403,9 @@ void Editor::SetParameterValue(
     uint8_t offset,
     uint8_t value) {
   // Dirty hack for the modulation page.
-  if (current_page_ == PAGE_MOD_MATRIX && offset == PRM_MOD_ROW) {
+  if (offset >= 0xf0) {
+    perf_[offset - 0xf0] = value;
+  } else if (current_page_ == PAGE_MOD_MATRIX && offset == PRM_MOD_ROW) {
     subpage_ = value;
     last_visited_subpage_ = value;
   } else if (current_page_ == PAGE_MOD_OPERATORS && offset == PRM_OP_ROW ) {
@@ -1377,7 +1425,9 @@ void Editor::SetParameterValue(
 /* static */
 uint8_t Editor::GetParameterValue(uint8_t offset) {
   uint8_t value;
-  if (current_page_ == PAGE_MOD_MATRIX && offset == PRM_MOD_ROW) {
+  if (offset >= 0xf0) {
+    value = perf_[offset - 0xf0];
+  } else if (current_page_ == PAGE_MOD_MATRIX && offset == PRM_MOD_ROW) {
     value = subpage_;
   } else if (current_page_ == PAGE_MOD_OPERATORS && offset == PRM_OP_ROW ) {
     value = subpage_;
