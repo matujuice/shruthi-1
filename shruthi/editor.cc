@@ -109,22 +109,22 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
 };
 
 static const prog_char page_labels[] PROGMEM =
-  "ShaPrmRngSub"  // 0
-  "ShaPrmRngTun"  // 1
-  "MixSubNoi   "  // 2
-  "CutResEnvLfo"  // 3
-  "AtkDecSusRel"  // 4
-  "AtkDecSusRel"  // 5
-  "WavSpdMulMod"  // 6
-  "WavSpdMulMod"  // 7
-  "Op Mix      "  // 8
-  "ModOvdFm    "  // 9
-  "PrtLegOct   "  // 10
-  "SltSrcDstAmt"  // 11
-  "Op In1In2Out"  // 12
-  "OctRagPrtLeg"  // 13
-  "TunChnOut   "  // 14
-  "PauSnpFltSta";  // 15
+  "shaprmrngsub"  // 0
+  "shaprmrngtun"  // 1
+  "mixsubnoi   "  // 2
+  "cutresenvlfo"  // 3
+  "atkdecsusrel"  // 4
+  "atkdecsusrel"  // 5
+  "wavspdmulmod"  // 6
+  "wavspdmulmod"  // 7
+  "op mix      "  // 8
+  "modovdfm    "  // 9
+  "prtlegoct   "  // 10
+  "sltsrcdstamt"  // 11
+  "op in1in2out"  // 12
+  "octragprtleg"  // 13
+  "tunchnout   "  // 14
+  "pausnpfltsta";  // 15
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
@@ -198,23 +198,36 @@ static const prog_uint8_t icon_map[] PROGMEM = {
 // Custom glyphs: allocated per screen, uploaded to CGRAM by UploadGlyphs().
 static uint8_t glyph_[8][8];
 static uint8_t glyph_dirty_ = 0xff;
-static uint8_t glyph_count_;
+static uint8_t glyph_used_;  // Slots used by the screen being drawn.
+static uint8_t glyph_previous_;  // Slots used by the previous screen.
 
+// A glyph keeps its slot while it stays on screen, and a new one goes to a
+// slot the LCD is not showing, so a redraw never changes a visible cell.
 static char GlyphGet(const uint8_t* bits) {
-  for (uint8_t i = 0; i < glyph_count_; ++i) {
+  for (uint8_t i = 0; i < 8; ++i) {
     if (!memcmp(glyph_[i], bits, 8)) {
+      glyph_used_ |= 1 << i;
       return 8 + i;
     }
   }
-  if (glyph_count_ == 8) {  // Pages are laid out to need at most 8.
+  uint8_t slot = 0xff;
+  for (uint8_t i = 0; i < 8; ++i) {
+    uint8_t mask = 1 << i;
+    if (!(glyph_used_ & mask) &&
+        (slot == 0xff || !(glyph_previous_ & mask))) {
+      slot = i;
+      if (!(glyph_previous_ & mask)) {
+        break;
+      }
+    }
+  }
+  if (slot == 0xff) {  // Pages are laid out to need at most 8.
     return ' ';
   }
-  uint8_t i = glyph_count_++;
-  if (memcmp(glyph_[i], bits, 8)) {
-    memcpy(glyph_[i], bits, 8);
-    glyph_dirty_ |= 1 << i;
-  }
-  return 8 + i;
+  memcpy(glyph_[slot], bits, 8);
+  glyph_dirty_ |= 1 << slot;
+  glyph_used_ |= 1 << slot;
+  return 8 + slot;
 }
 
 static char Icon(uint8_t unit, uint8_t value) {
@@ -821,20 +834,20 @@ char Editor::PrintParameter(
     }
     to = from + 1;
   }
+  // Built row-wise: the full per-pixel version was slow enough to glitch audio.
   for (uint8_t k = 0; k < 4; ++k) {
-    uint8_t bits[8];
-    for (uint8_t r = 0; r < 8; ++r) {
-      uint8_t b = 0;
-      for (uint8_t x = 0; x < 5; ++x) {
-        uint8_t px = 5 * k + x;
-        bool on = px < 19 && (r == 0 || r == 7 || px == 0 || px == 18);
-        if (r >= 2 && r <= 5) {
-          on |= (px >= from && px <= to) || (dots && px == 9 && r != 3 && r != 4);
-        }
-        b = (b << 1) | on;
-      }
-      bits[r] = b;
+    uint8_t fill = 0, dot = 0;
+    for (uint8_t x = 0; x < 5; ++x) {
+      uint8_t px = 5 * k + x;
+      fill = (fill << 1) | (px >= from && px <= to);
+      dot = (dot << 1) | (dots && px == 9);
     }
+    uint8_t edge = (k == 0 ? 0x10 : 0) | (k == 3 ? 0x02 : 0);
+    uint8_t bits[8];
+    bits[0] = bits[7] = k == 3 ? 0x1e : 0x1f;  // px 19 stays empty.
+    bits[1] = bits[6] = edge;
+    bits[2] = bits[5] = edge | fill | dot;
+    bits[3] = bits[4] = edge | fill;
     out[k] = GlyphGet(bits);
   }
   return out[3];
@@ -848,7 +861,8 @@ void Editor::DisplayEditOverviewPage() {
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   row_0[kLcdWidth] = '\0';
-  glyph_count_ = 0;
+  glyph_previous_ = glyph_used_;
+  glyph_used_ = 0;
   // Encoder target: steady arrow when browsing, blinking when editing.
   uint8_t marker = cursor_ * kColumnWidth + 3;
   if (title_flash_) {
