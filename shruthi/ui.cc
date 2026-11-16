@@ -158,7 +158,6 @@ void Ui::DebounceSwitches() {
   io_.End();
   
   uint8_t data = io_.Receive();
-  uint32_t now = milliseconds();
   uint8_t mask = 0x20;
   for (uint8_t i = 0; i <= SWITCH_ENCODER; ++i) {
     if (i == SWITCH_ENCODER) {
@@ -182,13 +181,13 @@ void Ui::DebounceSwitches() {
       } else if (i == SWITCH_MODE) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0);
       } else {
-        switch_delay_[i] = now | 1;
+        switch_delay_[i] = milliseconds() | 1;
       }
       if (i == SWITCH_MODE) {
-        switch_delay_[i] = now | 1;  // Hold timer for perform mode.
+        switch_delay_[i] = milliseconds() | 1;  // Hold timer for perform mode.
       }
     } else if (switch_state_[i] == 0x7f && i != SWITCH_MODE) {
-      if (switch_delay_[i] && now - switch_delay_[i] <= 300) {
+      if (switch_delay_[i] && milliseconds() - switch_delay_[i] <= 300) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0);
       }
       switch_delay_[i] = 0;
@@ -197,9 +196,10 @@ void Ui::DebounceSwitches() {
   
   // Handle encoder
   if (switch_state_[SWITCH_ENCODER] == 0x80) {
-    switch_delay_[SWITCH_ENCODER] = now + 1000;
+    switch_delay_[SWITCH_ENCODER] = milliseconds() + 1000;
     inhibit_encoder_release_ = false;
   } else if (switch_state_[SWITCH_ENCODER] == 0x00) {
+    uint32_t now = milliseconds();
     int32_t delta = now - switch_delay_[SWITCH_ENCODER];
     if (!inhibit_encoder_release_ && delta > 0) {
       queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 6);
@@ -279,11 +279,10 @@ void Ui::DoEvents() {
     refresh_display = true;
   }
 
-  uint32_t now = milliseconds();
   // Perform mode: hold SYS (S5) for 1 s to leave.
   if (editor.current_page() == PAGE_PERFORM &&
       switch_state_[SWITCH_MODE] == 0x00 && switch_delay_[SWITCH_MODE] &&
-      now - switch_delay_[SWITCH_MODE] > 1000) {
+      milliseconds() - switch_delay_[SWITCH_MODE] > 1000) {
     switch_delay_[SWITCH_MODE] = 0;
     editor.ExitPerform();
     refresh_display = true;
@@ -294,9 +293,8 @@ void Ui::DoEvents() {
   }
 
   uint16_t pause_ms = ((part.system_settings().display_delay & 0xf) << 7) + 100;
-  uint16_t idle_ms = queue_.idle_time_ms();
-  if (idle_ms > pause_ms) {
-    idle_time_ += idle_ms;
+  if (queue_.idle_time_ms() > pause_ms) {
+    idle_time_ += queue_.idle_time_ms();
     queue_.Touch();
     refresh_display |= editor.Relax();
     bool show_screen_saver = idle_time_ >= 100000 && \
@@ -321,7 +319,7 @@ void Ui::DoEvents() {
   bool numbers = false;
   for (uint8_t i = 0; i < SWITCH_MODE; ++i) {
     numbers |= switch_state_[i] == 0x00 && switch_delay_[i] &&
-        now - switch_delay_[i] > 300;
+        milliseconds() - switch_delay_[i] > 300;
   }
   if (numbers != editor.show_numbers()) {
     editor.set_show_numbers(numbers);
