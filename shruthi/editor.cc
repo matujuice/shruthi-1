@@ -595,7 +595,9 @@ bool Editor::Relax() {
   }
   // Disable the "get back to overview page" thing in the sequencer pages or
   // Load/save pages - in short, all pages where there's a moving cursor.
+  // The preset-page knob overlay stays until the encoder is used.
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
+      current_page_ != PAGE_LOAD_SAVE &&
       display.cursor_position() == kLcdNoCursor) {
     display_mode_ = DISPLAY_MODE_OVERVIEW;
     return true;
@@ -727,18 +729,11 @@ void Editor::OnSwitch(const Event& event) {
       }
     } else if (id == SWITCH_MODE) {
       // FUNC + SYS: open the SETTINGS list, or go back to it from a sub-menu.
-      // From the preset page it opens SETTINGS > performance directly.
-      bool from_preset = current_page_ == PAGE_LOAD_SAVE;
       if (page_definition_[current_page_].group != GROUP_SYS) {
         JumpToPageGroup(GROUP_SYS);
       }
-      sys_open_ = from_preset;
-      if (from_preset) {
-        current_page_ = PAGE_SYS_PERF;
-        last_visited_page_[GROUP_SYS] = PAGE_SYS_PERF;
-      } else {
-        cursor_ = current_page_ - PAGE_SYS_KBD;
-      }
+      sys_open_ = false;
+      cursor_ = current_page_ - PAGE_SYS_KBD;
       display_mode_ = DISPLAY_MODE_OVERVIEW;
     } else {
       JumpToPageGroup(id + GROUP_FX);
@@ -792,6 +787,11 @@ void Editor::OnLongClick() {
 /* static */
 void Editor::OnClick() {
   title_flash_ = false;
+  if (current_page_ == PAGE_LOAD_SAVE &&
+      display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY) {
+    display_mode_ = DISPLAY_MODE_OVERVIEW;  // Click only closes the overlay.
+    return;
+  }
   if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT;
   } else {
@@ -956,6 +956,7 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
       }
     }
   } else {
+    display_mode_ = DISPLAY_MODE_OVERVIEW;  // Closes the knob overlay.
     set_edited_item_number(edited_item_number() + increment);
     if (action_ == ACTION_LOAD) {
       deferred_load_ = edited_item_number();
@@ -966,8 +967,7 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
 /* static */
 void Editor::DisplayLoadSavePage() {
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY
-      && action_ != ACTION_SAVE
-      && (part.system_settings().display_delay & 0xf)) {
+      && action_ != ACTION_SAVE) {
     DisplayEditOverviewPage();
     return;
   }
@@ -1138,7 +1138,7 @@ char Editor::PrintParameter(
 
 /* static */
 void Editor::DisplaySysPage() {
-  // List:  SETTINGS     1/4   inside:  KEYBOARD     1/2   last row of both:
+  // List:  SETTINGS     1/4   inside:  KEYBOARD     1/2   last row inside:
   //        >keyboard                   >octave        +1  >back
   char* row_0 = line_buffer_;
   char* row_1 = line_buffer_ + kLcdWidth + 1;
@@ -1150,7 +1150,7 @@ void Editor::DisplaySysPage() {
     memcpy_P(row_0, PSTR("SETTINGS"), 8);
   }
   uint8_t cursor = kLcdNoCursor;
-  if (cursor_ == count) {
+  if (sys_open_ && cursor_ == count) {
     memcpy_P(row_1 + 1, PSTR("back"), 4);
   } else {
     row_0[kLcdWidth - 3] = '1' + cursor_;
@@ -1204,14 +1204,14 @@ void Editor::OnSysIncrement(int8_t increment) {
     return;
   }
   display_mode_ = DISPLAY_MODE_OVERVIEW;
-  // Browse: items, then "back" as the last row.
-  uint8_t count = sys_open_ ? SysItems() : 4;
+  // Browse: items, then "back" as the last row of a sub-menu.
+  uint8_t count = sys_open_ ? SysItems() : 3;
   if (increment > 0 && cursor_ < count) {
     ++cursor_;
   } else if (increment < 0 && cursor_ > 0) {
     --cursor_;
   }
-  if (!sys_open_ && cursor_ < 4) {
+  if (!sys_open_) {
     current_page_ = PAGE_SYS_KBD + cursor_;
     last_visited_page_[GROUP_SYS] = current_page_;
   }
@@ -1219,15 +1219,10 @@ void Editor::OnSysIncrement(int8_t increment) {
 
 /* static */
 void Editor::OnSysClick() {
-  uint8_t count = sys_open_ ? SysItems() : 4;
-  if (cursor_ == count) {
-    if (sys_open_) {
-      sys_open_ = false;  // back to the list
-      cursor_ = current_page_ - PAGE_SYS_KBD;
-      display_mode_ = DISPLAY_MODE_OVERVIEW;
-    } else {
-      JumpToPageGroup(last_visited_group_[0]);  // back to the synth pages
-    }
+  if (sys_open_ && cursor_ == SysItems()) {
+    sys_open_ = false;  // back to the list
+    cursor_ = current_page_ - PAGE_SYS_KBD;
+    display_mode_ = DISPLAY_MODE_OVERVIEW;
   } else if (!sys_open_) {
     sys_open_ = true;
     cursor_ = 0;
