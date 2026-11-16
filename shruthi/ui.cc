@@ -227,9 +227,7 @@ void Ui::RefreshLeds() {
   }
 
   uint8_t led_pattern = editor.leds_pattern();
-  if (editor.current_page() == PAGE_JAM) {
-    led_pattern |= 1 << (part.step() & 0x7);
-  } else if (editor.current_mode() == EDITOR_MODE_SEQUENCE) {
+  if (editor.current_mode() == EDITOR_MODE_SEQUENCE) {
     if (part.running()) {
       if (!(part.step() & 3)) {
         led_pattern |= LED_MODE_MASK;
@@ -276,9 +274,7 @@ void Ui::DoEvents() {
           if (e.value == 1) {
             editor.ReloadPatch();
           } else if (e.value < 6) {
-            editor.OnClick();
-          } else {
-            editor.OnLongClick();
+            editor.OnClick();  // Long press (6): unused.
           }
         }
         break;

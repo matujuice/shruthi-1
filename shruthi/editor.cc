@@ -57,9 +57,6 @@ const UiHandler Editor::ui_handler_[] = {
   { &Editor::DisplayConfirmPage, &Editor::DisplayConfirmPage,
     &Editor::OnConfirmInput, &Editor::OnConfirmIncrement,
     &Editor::OnConfirmClick },
-  { &Editor::DisplayJamPage, &Editor::DisplayJamPage,
-    &Editor::OnJamPageInput, &Editor::OnJamPageIncrement,
-    &Editor::OnJamPageClick },
   { &Editor::DisplaySysPage, &Editor::DisplaySysPage,
     &Editor::OnSysInput, &Editor::OnSysIncrement, &Editor::OnSysClick },
 };
@@ -94,8 +91,7 @@ PageDefinition Editor::page_definition_[] = {
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_MODE_MASK },
   /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
-  /* PAGE_JAM */ { PAGE_JAM, GROUP_JAM, JAM, 0x00 },
-  /* PAGE_PERFORM */ { PAGE_PERFORM, GROUP_JAM, PARAMETER_EDITOR, 0x00 },
+  /* PAGE_PERFORM */ { PAGE_PERFORM, GROUP_PERFORM, PARAMETER_EDITOR, 0x00 },
 };
 
 // Parameter ids for the 4 pots of each parameter page. 0xff = unused;
@@ -497,7 +493,7 @@ ParameterPage Editor::last_visited_page_[] = {
     PAGE_SYS_KBD,
     PAGE_LOAD_SAVE,
     PAGE_CONFIRM,
-    PAGE_JAM
+    PAGE_PERFORM
 };
 uint8_t Editor::last_visited_subpage_ = 0;
 uint8_t Editor::display_mode_ = DISPLAY_MODE_OVERVIEW;
@@ -515,10 +511,6 @@ uint8_t Editor::subpage_;
 uint8_t Editor::action_;
 uint16_t Editor::current_patch_number_ = 0;
 
-int8_t Editor::jam_note_ = 0;
-int8_t Editor::jam_note_root_ = 60;
-int8_t Editor::jam_mode_shifts_[4] = { 2, 5, 7, 4 };
-uint8_t Editor::jam_mode_previous_page_;
 
 ConfirmPageSettings Editor::confirm_page_settings_;
 bool Editor::snapped_[4];
@@ -758,33 +750,6 @@ void Editor::OnInput(uint8_t knob_index, uint8_t value) {
 void Editor::OnIncrement(int8_t increment) {
   (*ui_handler_[page_definition_[current_page_].ui_type].increment_handler)(
       increment);
-}
-
-/* static */
-void Editor::OnLongClick() {
-  if (!part.latched()) {
-    if (part.num_notes() == 0) {
-      UpdateJamNote();
-      jam_mode_previous_page_ = current_page_;
-      display_mode_ = DISPLAY_MODE_OVERVIEW;
-      current_page_ = PAGE_JAM;
-    }
-    part.Latch();
-  } else {
-    if (jam_note_ && current_page_ != PAGE_JAM) {
-      display_mode_ = DISPLAY_MODE_OVERVIEW;
-      current_page_ = PAGE_JAM;
-    } else {
-      part.Unlatch();
-      if (jam_note_) {
-        part.NoteOn(0, jam_note_, 0);
-        jam_note_ = 0;
-        if (current_page_ == PAGE_JAM) {
-          current_page_ = jam_mode_previous_page_;
-        }
-      }
-    }
-  }
 }
 
 /* static */
@@ -1356,14 +1321,6 @@ void Editor::DisplayEditOverviewPage() {
       ::FillAudioBuffer();
     }
     }
-    // If we are in latched mode, show it.
-    if (part.latched()) {
-      for (uint8_t i = 1; i < kLcdWidth; ++i) {
-        if (row_0[i] == ' ') {
-          row_0[i] = '-';
-        }
-      }
-    }
     // A text value being turned takes the whole top row: long name + value.
     uint8_t id = KnobIndexToParameterId(cursor_);
     if (id != 0xff && display_mode_ != DISPLAY_MODE_OVERVIEW &&
@@ -1640,91 +1597,6 @@ void Editor::DisplayConfirmPage() {
     }
     display.Print(i, line_buffer_);
   }
-}
-
-/* static */
-void Editor::DisplayJamPage() {
-  ResourcesManager::LoadStringResource(
-      STR_RES_LETS_JAM_,
-      line_buffer_,
-      kLcdWidth);
-  AlignLeft(line_buffer_, kLcdWidth);
-  display.Print(0, line_buffer_);
-  line_buffer_[0] = 'r';
-  line_buffer_[1] = 'o';
-  line_buffer_[2] = 'o';
-  line_buffer_[3] = 't';
-  line_buffer_[4] = ' ';
-  SequencerSettings::PrintNote(jam_note_, &line_buffer_[5]);
-  line_buffer_[8] = '\0';
-  AlignLeft(line_buffer_, kLcdWidth);
-  display.Print(1, line_buffer_);
-}
-
-
-const prog_uint8_t octave_shift[] PROGMEM = {
-  -24, -12, 0, 12, 24
-};
-
-const prog_uint8_t pentatonic_shift[] PROGMEM = {
-  -12, -10, -8, -5, -3, 0, 2, 4, 7, 9, 12
-};
-
-const prog_uint8_t bhairav_shift[] PROGMEM = {
-  -12, -11, -8, -7, -5, -4, -1, 0, 1, 4, 5, 7, 8, 11, 12
-};
-
-const prog_uint8_t chromatic_shift[] PROGMEM = {
-  -12, -5 , -2, -1, 0, 1, 2, 7, 12
-};
-
-const prog_uint8_t ranges[] PROGMEM = {
-  5,
-  sizeof(pentatonic_shift),
-  sizeof(bhairav_shift),
-  sizeof(chromatic_shift)
-};
-
-void Editor::OnJamPageInput(uint8_t knob_index, uint8_t value) {
-  value = U8U8MulShift8(pgm_read_byte(ranges + knob_index), value << 1);
-  jam_mode_shifts_[knob_index] = value;
-  UpdateJamNote();
-}
-
-void Editor::UpdateJamNote() {
-  int16_t note = jam_note_root_;
-  note += static_cast<int8_t>(pgm_read_byte(octave_shift + jam_mode_shifts_[0]));
-  note += static_cast<int8_t>(pgm_read_byte(pentatonic_shift + jam_mode_shifts_[1]));
-  note += static_cast<int8_t>(pgm_read_byte(bhairav_shift + jam_mode_shifts_[2]));
-  note += static_cast<int8_t>(pgm_read_byte(chromatic_shift + jam_mode_shifts_[3]));
-  while (note < 12) {
-    note += 12;
-  }
-  while (note > 96) {
-    note -= 12;
-  }
-  if (note != jam_note_) {
-    if (jam_note_) {
-      part.NoteOn(0, jam_note_, 0);
-    }
-    part.NoteOn(0, note, 100);
-    jam_note_ = note;
-  }
-}
-
-void Editor::OnJamPageIncrement(int8_t increment) {
-  int16_t new_root = jam_note_root_ + increment;
-  if (new_root < 0) {
-    new_root = 0;
-  } else if (new_root > 127) {
-    new_root = 127;
-  }
-  jam_note_root_ = new_root;
-  UpdateJamNote();
-}
-
-void Editor::OnJamPageClick() {
-  OnLongClick();
 }
 
 /* static */

@@ -69,7 +69,7 @@ enum Group {
   GROUP_SYS,
   GROUP_LOAD_SAVE,
   GROUP_CONFIRM,
-  GROUP_JAM,
+  GROUP_PERFORM,
   GROUP_LAST
 };
 
@@ -94,7 +94,6 @@ enum Page {
 
   PAGE_LOAD_SAVE,
   PAGE_CONFIRM,
-  PAGE_JAM,
   PAGE_PERFORM
 };
 
@@ -117,7 +116,6 @@ enum PageUiType {
   PARAMETER_EDITOR,
   LOAD_SAVE,
   CONFIRM,
-  JAM,
   SYS_MENU,
 };
 
@@ -165,7 +163,6 @@ class Editor {
   // Ons a click on the encoder.
   static void OnClick();
   // Ons a long click on the encoder.
-  static void OnLongClick();
   
   // The editor can react to a note on. This is used for step-by-step
   // pattern programming. This function returns true when the note has been
@@ -255,10 +252,6 @@ class Editor {
   static void OnLoadSaveIncrement(int8_t increment);
   static void OnLoadSaveClick();
 
-  static void DisplayJamPage();
-  static void OnJamPageInput(uint8_t knob_index, uint8_t value);
-  static void OnJamPageIncrement(int8_t increment);
-  static void OnJamPageClick();
   static void DisplaySysPage();
   static void OnSysInput(uint8_t knob_index, uint8_t value);
   static void OnSysIncrement(int8_t increment);
@@ -280,7 +273,6 @@ class Editor {
   static void PerfLabel(uint8_t id, char* out, bool long_name);
   static uint8_t perf_[4];  // Patch parameter ids of the preset-page knobs.
   
-  static void UpdateJamNote();
   
   static PageDefinition page_definition_[];
   static const UiHandler ui_handler_[];
@@ -305,10 +297,6 @@ class Editor {
 
   static bool empty_patch_;
 
-  static int8_t jam_note_;
-  static int8_t jam_note_root_;
-  static uint8_t jam_mode_previous_page_;
-  static int8_t jam_mode_shifts_[4];
   
   static bool snapped_[4];
   static bool touched_[4];  // Knobs moved since the overview came back.
