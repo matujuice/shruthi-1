@@ -26,7 +26,6 @@
 #include "avrlib/time.h"
 #include "avrlib/ui/event_queue.h"
 
-#include "shruthi/clock.h"
 #include "shruthi/display.h"
 #include "shruthi/hardware_config.h"
 

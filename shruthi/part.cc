@@ -26,7 +26,6 @@
 #include "avrlib/resources_manager.h"
 
 #include "shruthi/audio_out.h"
-#include "shruthi/clock.h"
 #include "shruthi/midi_dispatcher.h"
 #include "shruthi/parameter.h"
 #include "shruthi/storage.h"
@@ -65,8 +64,6 @@ uint8_t Part::beat_tick_;
 bool Part::arp_seq_running_;
 uint8_t Part::arp_seq_prescaler_;
 uint8_t Part::arp_seq_step_;
-int8_t Part::swing_amount_;
-uint8_t Part::internal_clock_blank_ticks_;
 /* </static> */
 
 /* static */
@@ -84,7 +81,6 @@ void Part::Init() {
   voice_.Init();
   dirty_ = false;
   arp_seq_running_ = false;
-  clock.Update(120);
   nrpn_parameter_number_ = 0xff;
 }
 
@@ -262,11 +258,6 @@ void Part::NoteOn(uint8_t channel, uint8_t note, uint8_t velocity) {
   
   pressed_keys_.NoteOn(note, velocity);
   
-  if (!running() && sequencer_settings_.internal_clock()) {
-    Start(true);
-    Clock(true);
-  }
-  
   InternalNoteOn(note, velocity);
 }
 
@@ -398,18 +389,6 @@ void Part::Reset() {
 /* static */
 void Part::Clock(bool internal) {
   if (running()) {
-    if (internal) {
-      midi_dispatcher.OnClock();
-      if (!pressed_keys_.size()) {
-        ++internal_clock_blank_ticks_;
-        if (internal_clock_blank_ticks_ >= 12) {
-          Stop(true);
-          return;
-        }
-      } else {
-        internal_clock_blank_ticks_ = 0;
-      }
-    }
     if (!arp_seq_prescaler_) {
       // Step counter kept for groove swing and the LEDs.
       arp_seq_step_ = (arp_seq_step_ + 1) & 0x0f;
@@ -457,18 +436,6 @@ void Part::Stop(bool internal) {
 /* static */
 void Part::SetName(uint8_t* name) {
   memcpy(patch_.name, name, kPatchNameSize);
-  dirty_ = true;
-}
-
-/* static */
-void Part::SetSequenceStep(
-    uint8_t step,
-    uint8_t data_a,
-    uint8_t data_b) {
-  if (step >= kNumSteps) {
-    return;
-  }
-  sequencer_settings_.steps[step].set_raw(data_a, data_b);
   dirty_ = true;
 }
 
@@ -554,19 +521,6 @@ void Part::ProcessBlock() {
   if (block_count_ != 0xffff) {
     ++block_count_;
   }
-  if (sequencer_settings_.internal_clock()) {
-    clock.Tick();
-    if (clock.Wrap(swing_amount_)) {
-      swing_amount_ = S8U8MulShift8(
-          ResourcesManager::Lookup<int16_t, uint8_t>(
-              LUT_RES_GROOVE_SWING + sequencer_settings_.seq_groove_template,
-              arp_seq_step_),
-          sequencer_settings_.seq_groove_amount) >> 1;
-      Clock(true);
-      clock.Update(sequencer_settings_.seq_tempo);
-    }
-  }
-  
   for (uint8_t i = 0; i < kNumLfos; ++i) {
     voice_.set_modulation_source(MOD_SRC_LFO_1 + i, lfo_[i].Render());
   }

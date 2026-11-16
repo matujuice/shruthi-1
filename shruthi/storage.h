@@ -124,9 +124,7 @@ class Storage {
   }
 
   static void WritePatch(uint16_t slot);
-  static void WriteSequence(uint16_t slot);
   static void LoadPatch(uint16_t slot);
-  static void LoadSequence(uint16_t slot);
   static void LoadPatchName(uint8_t* destination, uint16_t slot) {
     LoadBytes<Patch>(destination, 68, 8, slot);
   }

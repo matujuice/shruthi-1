@@ -636,18 +636,6 @@ void Editor::RandomizePatch() {
 }
 
 /* static */
-void Editor::RandomizeSequence() {
-  for (uint8_t i = 0; i < kNumSteps; ++i) {
-    SequencerSettings* settings = part.mutable_sequencer_settings();
-    settings->steps[i].set_raw(
-        Random::GetByte(),
-        Random::GetByte());
-    settings->steps[i].set_note(
-        (settings->steps[i].note() & 0x3f) + 0x20);
-  }
-}
-
-/* static */
 void Editor::SaveSystemSettings() {
   part.mutable_system_settings()->EepromSave();
   eeprom_write_block(perf_, kPerfEeprom, 4);
@@ -706,13 +694,11 @@ void Editor::OnSwitch(const Event& event) {
         case SWITCH_2:
           display.set_status('?');
           RandomizePatch();
-          RandomizeSequence();
           break;
 
         case SWITCH_3:
           display.set_status('>');
           Storage::SysExDump(part.mutable_patch());
-          Storage::SysExDump(part.mutable_sequencer_settings());
           break;
 
         case SWITCH_4:
@@ -838,13 +824,11 @@ void Editor::ScreenSaver() {
 void Editor::RestoreEditBuffer() {
   Storage::Restore(part.mutable_patch());
   part.Touch(true);
-  Storage::Restore(part.mutable_sequencer_settings());
 }
 
 /* static */
 void Editor::BackupEditBuffer() {
   Storage::Backup(part.mutable_patch());
-  Storage::Backup(part.mutable_sequencer_settings());
 }
 
 /* static */
@@ -913,7 +897,6 @@ void Editor::OnLoadSaveClick() {
     }
     if (cursor_ >= kLcdWidth - 4) {
       Storage::WritePatch(edited_item_number());
-      Storage::WriteSequence(edited_item_number());
       action_ = ACTION_LOAD;
     }
   }
@@ -931,10 +914,6 @@ bool Editor::FinishLoadingPatch() {
   if (part.system_settings().start_page == START_PAGE_LAST_PATCH) {
     part.mutable_system_settings()->last_patch = n;
     part.system_settings().EepromSave();
-  }
-  // When we are not playing, load the sequence parameters.
-  if (!part.running()) {
-    Storage::LoadSequence(edited_item_number());
   }
   // Reset the snap position of all pots.
   memset(snapped_, false, sizeof(snapped_));

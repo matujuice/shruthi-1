@@ -64,7 +64,6 @@ class Part {
 
   static void ProcessBlock();  
   static void SetName(uint8_t* name);
-  static void SetSequenceStep(uint8_t index, uint8_t data_a, uint8_t data_b);
   static void SetPatternRotation(uint8_t rotation);
   static void SetPatternLength(uint8_t length);
 
@@ -140,7 +139,7 @@ class Part {
   }
   
   
-  inline bool internal_clock() { return sequencer_settings_.internal_clock(); }
+  inline bool internal_clock() { return false; }  // Internal tempo clock removed.
   inline bool latched() { return ignore_note_off_messages_; }
   inline static void Latch() {
     ignore_note_off_messages_ = true;
@@ -194,8 +193,6 @@ class Part {
   static bool arp_seq_running_;
   static uint8_t arp_seq_prescaler_;
   static uint8_t arp_seq_step_;
-  static int8_t swing_amount_;
-  static uint8_t internal_clock_blank_ticks_;
 
   DISALLOW_COPY_AND_ASSIGN(Part);
 };

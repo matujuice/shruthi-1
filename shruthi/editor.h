@@ -197,7 +197,6 @@ class Editor {
   
   static void RandomizeParameter(uint8_t subpage, uint8_t parameter_index);
   static void RandomizePatch();
-  static void RandomizeSequence();
 
   static inline uint16_t current_patch_number() {
     return current_patch_number_;
@@ -269,7 +268,6 @@ class Editor {
   static uint8_t is_cursor_at_valid_position();
   
   static void LoadPatch(uint8_t index);
-  static void LoadSequence(uint8_t index);
   
   static void SaveSystemSettings();
   static void StartMidiBackup();
