@@ -595,7 +595,13 @@ bool Editor::Relax() {
   }
   // Disable the "get back to overview page" thing in the sequencer pages or
   // Load/save pages - in short, all pages where there's a moving cursor.
-  // The preset-page knob overlay stays until the encoder is used.
+  // The preset-page knob overlay stays until the encoder is used; only the
+  // numbers go back to labels, as on the synth pages.
+  if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
+      current_page_ == PAGE_LOAD_SAVE) {
+    memset(touched_, false, sizeof(touched_));
+    return true;
+  }
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
       current_page_ != PAGE_LOAD_SAVE &&
       display.cursor_position() == kLcdNoCursor) {
@@ -1174,7 +1180,6 @@ void Editor::DisplaySysPage() {
     cursor = kLcdWidth;
     display.set_cursor_character(0x7e);
   }
-  row_1[kLcdWidth] = '\0';
   display.set_cursor_position(cursor);
   display.Print(0, row_0);
   display.Print(1, row_1);
@@ -1260,7 +1265,7 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
   }
   uint8_t w = kLcdWidth - wide;
   uint8_t name_end = wide ? w - len - 1 : 7;
-  memset(row, 0, w + 1);
+  memset(row, 0, w);  // row_1 + 1 has no room for a terminator.
   uint8_t n = 0;
   while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
     ++n;
@@ -1285,7 +1290,6 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
     }
     row[i] = c;
   }
-  row[w] = '\0';
 }
 
 /* static */
