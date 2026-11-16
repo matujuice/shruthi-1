@@ -911,16 +911,11 @@ void Editor::BackupEditBuffer() {
 /* static */
 void Editor::ToggleLoadSaveAction() {
   empty_patch_ = false;
-  if (current_page_ != PAGE_LOAD_SAVE) {
-    BackupEditBuffer();
+  if (current_page_ != PAGE_LOAD_SAVE || action_ == ACTION_SAVE) {
     action_ = ACTION_LOAD;
   } else {
-    if (action_ != ACTION_SAVE) {
-      action_ = ACTION_SAVE;
-      set_edited_item_number(edited_item_number());
-    } else {
-      action_ = ACTION_COMPARE;
-    }
+    action_ = ACTION_SAVE;
+    set_edited_item_number(edited_item_number());
   }
   cursor_ = 0;
   display.set_cursor_position(kLcdNoCursor);
@@ -963,11 +958,13 @@ uint8_t Editor::is_cursor_at_valid_position() {
 /* static */
 void Editor::OnLoadSaveClick() {
   if (action_ == ACTION_LOAD) {
+    // Compare: hear the stored version of this patch; click again for the edit.
+    BackupEditBuffer();
+    deferred_load_ = current_patch_number_;
     action_ = ACTION_COMPARE;
-    RestoreEditBuffer();
   } else if (action_ == ACTION_COMPARE) {
+    RestoreEditBuffer();
     action_ = ACTION_LOAD;
-    OnLoadSaveIncrement(0);
   } else {
     if (!is_cursor_at_valid_position()) {
       display_mode_ = DISPLAY_MODE_OVERVIEW;
@@ -1017,9 +1014,9 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
         }
       }
     }
-  } else {
+  } else if (action_ == ACTION_LOAD) {
     set_edited_item_number(edited_item_number() + increment);
-    if (action_ == ACTION_LOAD) {
+    {
       deferred_load_ = edited_item_number();
       preset_status_ = 0;
     }
