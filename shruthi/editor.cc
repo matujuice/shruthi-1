@@ -36,6 +36,10 @@ using namespace avrlib;
 
 using avrlib::kLcdNoCursor;
 
+// In shruthi.cc. Called between overview cells so a full redraw does not
+// starve the audio buffer (the '!' glitch indicator).
+void FillAudioBuffer();
+
 namespace shruthi {
 
 /* extern */
@@ -899,6 +903,7 @@ void Editor::DisplayEditOverviewPage() {
       char* value = row_1 + i * kColumnWidth;
       value[3] = PrintParameter(id, value, 3, label,
           i == cursor_ && display_mode_ != DISPLAY_MODE_OVERVIEW);
+      ::FillAudioBuffer();
     }
     }
     // If we are in latched mode, show it.
