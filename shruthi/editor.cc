@@ -918,6 +918,27 @@ void Editor::DisplayEditOverviewPage() {
         }
       }
     }
+    // A text value being turned takes the whole top row: long name + value.
+    uint8_t id = KnobIndexToParameterId(cursor_);
+    if (id != 0xff && display_mode_ != DISPLAY_MODE_OVERVIEW &&
+        (touched_[cursor_] || display_mode_ == DISPLAY_MODE_EDIT)) {
+      const Parameter& p = parameter_manager.parameter(id);
+      if (p.unit > UNIT_INT8 && p.unit != UNIT_LFO_RATE) {
+        memset(row_0, ' ', kLcdWidth);
+        ResourcesManager::LoadStringResource(p.long_name, row_0, kCaptionWidth);
+        AlignLeft(row_0, kCaptionWidth);
+        p.PrintValue(GetParameterValue(p.offset), row_0 + kCaptionWidth,
+            kValueWidth);
+        AlignRight(row_0 + kCaptionWidth, kValueWidth);
+        for (uint8_t i = 0; i < kLcdWidth; ++i) {
+          if (row_0[i] >= 'A' && row_0[i] <= 'Z') {
+            row_0[i] += 32;
+          }
+        }
+        row_0[kLcdWidth] = ' ';
+        marker = kLcdNoCursor;
+      }
+    }
   }
   for (uint8_t i = 0; i < 2 * kLcdWidth + 1; ++i) {
     char c = line_buffer_[i];
