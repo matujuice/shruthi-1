@@ -852,17 +852,19 @@ void Editor::DisplayEditOverviewPage() {
     marker = kLcdNoCursor;
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
   } else {
-    uint8_t previous = 0xff;
-    for (uint8_t i = 0; i < kNumEditingPots; ++i) {
+    // The knob being moved takes its glyphs last: the other bars keep their
+    // slots, so only the moving bar's cells are rewritten (no flicker).
+    for (uint8_t j = 0; j < kNumEditingPots; ++j) {
+      uint8_t i = (j + cursor_ + 1) % kNumEditingPots;
       uint8_t id = KnobIndexToParameterId(i);
       if (id == 0xff) {
         continue;
       }
-      uint8_t offset = parameter_manager.parameter(id).offset;
-      if (offset == previous) {
-        continue;
+      uint8_t left = i ? KnobIndexToParameterId(i - 1) : 0xff;
+      if (left != 0xff && parameter_manager.parameter(left).offset ==
+          parameter_manager.parameter(id).offset) {
+        continue;  // A parameter spanning two knobs is drawn once.
       }
-      previous = offset;
       char* label = row_0 + i * kColumnWidth;
       memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
       char* value = row_1 + i * kColumnWidth;
