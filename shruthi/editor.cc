@@ -1022,9 +1022,10 @@ char Editor::PrintParameter(
   if (is_signed && static_cast<int8_t>(value) > 0 && value < 100) {
     *t++ = '+';
   }
-  if (p.unit == UNIT_WAVEFORM || p.unit == UNIT_LFO_RETRIGGER_MODE) {
-    memcpy_P(t, (p.unit == UNIT_WAVEFORM ? osc_names : lfo_mode_names) +
-        3 * value, 3);
+  if (p.unit == UNIT_WAVEFORM) {
+    memcpy_P(t, osc_names + 3 * value, 3);
+  } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
+    memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
     *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
@@ -1075,20 +1076,18 @@ char Editor::PrintParameter(
   }
   bool dots = false;
   uint8_t from = 2, to;  // Lit pixel columns on rows 2-5; empty if to < from.
-  // One shared division: 15 steps unipolar, 13 bipolar, 10 for the mix.
-  uint8_t q = ((id == 9 ? 10 : (is_signed ? 13 : 15)) * num + den / 2) / den;
   if (!is_signed && id != 9) {  // 9 = osc mix: 32 is the equal mix.
-    to = 1 + q;
+    to = 1 + (15 * num + den / 2) / den;
   } else if (num == (den + 1) / 2) {
     dots = true;
     to = 0;
   } else {
     if (id != 9) {
-      from = 2 + q;
+      from = 2 + (13 * num + den / 2) / den;
     } else {
       // Mix shares MIXER with two fills: 11 positions that skip px 4, 9, 14
       // keep the marker inside one cell, so the page fits in 8 glyphs.
-      for (uint8_t j = q; j; --j) {
+      for (uint8_t j = (10 * num + den / 2) / den; j; --j) {
         if (++from % 5 == 4) {
           ++from;
         }
