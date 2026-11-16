@@ -205,9 +205,12 @@ static bool glyph_probe_;  // First pass: only claim slots that still match.
 // A glyph keeps its slot while it stays on screen, and a new one goes to a
 // slot the LCD is not showing, so a redraw never changes a visible cell.
 static char GlyphGet(const uint8_t* bits) {
-  for (uint8_t i = 0; i < 8; ++i) {
+  // Masks are shifted, never computed as 1 << i: avr-gcc 4.3.5 clobbered i
+  // doing so and every reused glyph came back as char 7.
+  uint8_t mask = 1;
+  for (uint8_t i = 0; i < 8; ++i, mask <<= 1) {
     if (!memcmp(glyph_[i], bits, 8)) {
-      glyph_used_ |= 1 << i;
+      glyph_used_ |= mask;
       return 8 + i;
     }
   }
@@ -215,11 +218,13 @@ static char GlyphGet(const uint8_t* bits) {
     return ' ';
   }
   uint8_t slot = 0xff;
-  for (uint8_t i = 0; i < 8; ++i) {
-    uint8_t mask = 1 << i;
+  uint8_t slot_mask = 0;
+  mask = 1;
+  for (uint8_t i = 0; i < 8; ++i, mask <<= 1) {
     if (!(glyph_used_ & mask) &&
         (slot == 0xff || !(glyph_previous_ & mask))) {
       slot = i;
+      slot_mask = mask;
       if (!(glyph_previous_ & mask)) {
         break;
       }
@@ -229,8 +234,8 @@ static char GlyphGet(const uint8_t* bits) {
     return ' ';
   }
   memcpy(glyph_[slot], bits, 8);
-  glyph_dirty_ |= 1 << slot;
-  glyph_used_ |= 1 << slot;
+  glyph_dirty_ |= slot_mask;
+  glyph_used_ |= slot_mask;
   return 8 + slot;
 }
 
