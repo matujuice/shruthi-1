@@ -484,20 +484,7 @@ void Part::ReleaseLatchedNotes() {
 
 /* static */
 uint16_t Part::Tune(uint8_t note) {
-  if (system_settings_.raga) {
-    int16_t pitch_shift = ResourcesManager::Lookup<int16_t, uint8_t>(
-        ResourceId(LUT_RES_SCALE_JUST + part.system_settings_.raga - 1),
-        note % 12);
-    if (pitch_shift != 32767) {
-      return U8U8Mul(note, 128) + pitch_shift;
-    } else {
-      // Some scales/raga settings might have muted notes. Do not trigger
-      // anything in this case!
-      return 0;
-    }
-  } else {
-    return U8U8Mul(note, 128);
-  }
+  return U8U8Mul(note, 128);
 }
 
 /* static */

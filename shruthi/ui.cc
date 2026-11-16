@@ -86,13 +86,7 @@ void Ui::Init() {
 
 /* static */
 void Ui::ShowSplash() {
-  if (part.system_settings().start_page == START_PAGE_SPLASH) {
-    editor.DisplaySplashScreen(STR_RES_V + 1);
-  } else if (part.system_settings().start_page == START_PAGE_LAST_PATCH) {
-    editor.BootOnPatchBrowsePage(part.system_settings().last_patch);
-  } else {
-    editor.Refresh();
-  }
+  editor.DisplaySplashScreen(STR_RES_V + 1);
 }
 
 /* static */

@@ -165,7 +165,7 @@ static const prog_uint16_t units_definitions[UNIT_LAST]
   STR_RES_LFO_1,   // UNIT_MODULATION_SOURCE
   STR_RES_PWM1,  // UNIT_MODULATION_DESTINATION
   0,               // UNIT_ARPEGGIO_DIRECTION
-  STR_RES_EQUAL,   // UNIT_RAGA
+  0,               // UNIT_RAGA (unused)
   0,               // UNIT_TEMPO_WITH_EXTERNAL_CLOCK
   STR_RES__OFF,    // UNIT_MIDI_MODE
   0,               // UNIT_SEQUENCER_MODE
@@ -173,7 +173,7 @@ static const prog_uint16_t units_definitions[UNIT_LAST]
   0,               // UNIT_GROOVE_TEMPLATE
   0,               // UNIT_ARPEGGIO_PATTERN
   STR_RES_FREE,    // UNIT_LFO_RETRIGGER_MODE
-  STR_RES_SPLASH,  // UNIT_START_PAGE
+  0,               // UNIT_START_PAGE (unused)
   0,               // UNIT_PAUSE
   STR_RES__LPF,    // UNIT_FILTER_BOARD
   STR_RES_LPF,     // UNIT_FILTER_1_MODE
@@ -552,12 +552,12 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     { 82, 0 },
     STR_RES_OCTAVE, STR_RES_OCTAVE }, 
 
-  // 45
+  // 45 (was raga: removed, id kept)
   { PRM_SYS_RAGA,
-    UNIT_RAGA,
-    0, 32,
-    { 83, 0 },
-    STR_RES_RAGA, STR_RES_RAGA }, 
+    UNIT_UINT8,
+    0, 0,
+    { 0, 0 },
+    STR_RES_OCTAVE, STR_RES_OCTAVE }, 
 
   // 46
   { PRM_SYS_PORTAMENTO,
@@ -622,12 +622,12 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     { 0, 0 },
     STR_RES_FILTER, STR_RES_FILTER }, 
 
-  // 55
+  // 55 (was start page: always splash now, id kept)
   { PRM_SYS_START_PAGE,
-    UNIT_START_PAGE,
-    0, 2,
+    UNIT_UINT8,
+    0, 0,
     { 0, 0 },
-    STR_RES_STARTPAGE, STR_RES_STARTPAGE }, 
+    STR_RES_PAUSE, STR_RES_PAUSE }, 
 
   // 56
   { PRM_SEQ_PATTERN_ROTATION,

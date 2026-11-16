@@ -332,10 +332,7 @@ scales = [
      LayoutRaga(DecodeShrutiChart('s---r---g---mp---d---n'), True)),
 ]
 
-strings = ''
-for scale, values in scales:
-  strings += '\n' + scale[:6]
-  lookup_tables.append(('scale_%s' % scale, values))
+strings = ''  # Raga scales removed from the firmware (unused).
 
 
 """----------------------------------------------------------------------------

@@ -65,7 +65,6 @@ static const prog_char str_res_fdbck_eq_[] PROGMEM = "fdbck eq.";
 static const prog_char str_res_start[] PROGMEM = "start";
 static const prog_char str_res_length[] PROGMEM = "length";
 static const prog_char str_res_octave[] PROGMEM = "octave";
-static const prog_char str_res_raga[] PROGMEM = "raga";
 static const prog_char str_res_porta[] PROGMEM = "porta";
 static const prog_char str_res_prt[] PROGMEM = "prt";
 static const prog_char str_res_legato[] PROGMEM = "legato";
@@ -74,7 +73,6 @@ static const prog_char str_res_midi_chan[] PROGMEM = "midi chan";
 static const prog_char str_res_chn[] PROGMEM = "chn";
 static const prog_char str_res_midi_out[] PROGMEM = "midi out";
 static const prog_char str_res_pause[] PROGMEM = "pause";
-static const prog_char str_res_startpage[] PROGMEM = "startpage";
 static const prog_char str_res_snap[] PROGMEM = "snap";
 static const prog_char str_res_filter[] PROGMEM = "filter";
 static const prog_char str_res_mode_1[] PROGMEM = "mode 1";
@@ -358,41 +356,6 @@ static const prog_char str_res_pvk[] PROGMEM = "pvk";
 static const prog_char str_res_4pm[] PROGMEM = "4pm";
 static const prog_char str_res_dly[] PROGMEM = "dly";
 static const prog_char str_res_sp[] PROGMEM = "sp";
-static const prog_char str_res_splash[] PROGMEM = "splash";
-static const prog_char str_res_preset[] PROGMEM = "preset";
-static const prog_char str_res_equal[] PROGMEM = "equal";
-static const prog_char str_res_just[] PROGMEM = "just";
-static const prog_char str_res_pythag[] PROGMEM = "pythag";
-static const prog_char str_res_1_4_eb[] PROGMEM = "1/4 eb";
-static const prog_char str_res_1_4_e[] PROGMEM = "1/4 e";
-static const prog_char str_res_1_4_ea[] PROGMEM = "1/4 ea";
-static const prog_char str_res_bhaira[] PROGMEM = "bhaira";
-static const prog_char str_res_gunakr[] PROGMEM = "gunakr";
-static const prog_char str_res_marwa[] PROGMEM = "marwa";
-static const prog_char str_res_shree[] PROGMEM = "shree";
-static const prog_char str_res_purvi[] PROGMEM = "purvi";
-static const prog_char str_res_bilawa[] PROGMEM = "bilawa";
-static const prog_char str_res_yaman[] PROGMEM = "yaman";
-static const prog_char str_res_kafi[] PROGMEM = "kafi";
-static const prog_char str_res_bhimpa[] PROGMEM = "bhimpa";
-static const prog_char str_res_darbar[] PROGMEM = "darbar";
-static const prog_char str_res_bagesh[] PROGMEM = "bagesh";
-static const prog_char str_res_ragesh[] PROGMEM = "ragesh";
-static const prog_char str_res_khamaj[] PROGMEM = "khamaj";
-static const prog_char str_res_mimal[] PROGMEM = "mi'mal";
-static const prog_char str_res_parame[] PROGMEM = "parame";
-static const prog_char str_res_ranges[] PROGMEM = "ranges";
-static const prog_char str_res_ganges[] PROGMEM = "ganges";
-static const prog_char str_res_kamesh[] PROGMEM = "kamesh";
-static const prog_char str_res_palas_[] PROGMEM = "palas";
-static const prog_char str_res_natbha[] PROGMEM = "natbha";
-static const prog_char str_res_m_kaun[] PROGMEM = "m.kaun";
-static const prog_char str_res_bairag[] PROGMEM = "bairag";
-static const prog_char str_res_b_todi[] PROGMEM = "b.todi";
-static const prog_char str_res_chandr[] PROGMEM = "chandr";
-static const prog_char str_res_kaushi[] PROGMEM = "kaushi";
-static const prog_char str_res_jogesh[] PROGMEM = "jogesh";
-static const prog_char str_res_rasia[] PROGMEM = "rasia";
 
 
 PROGMEM const prog_char* const string_table[] = {
@@ -436,7 +399,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_start,
   str_res_length,
   str_res_octave,
-  str_res_raga,
   str_res_porta,
   str_res_prt,
   str_res_legato,
@@ -445,7 +407,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_chn,
   str_res_midi_out,
   str_res_pause,
-  str_res_startpage,
   str_res_snap,
   str_res_filter,
   str_res_mode_1,
@@ -754,42 +715,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_4pm,
   str_res_dly,
   str_res_sp,
-  str_res_splash,
-  str_res_filter,
-  str_res_preset,
-  str_res_equal,
-  str_res_just,
-  str_res_pythag,
-  str_res_1_4_eb,
-  str_res_1_4_e,
-  str_res_1_4_ea,
-  str_res_bhaira,
-  str_res_gunakr,
-  str_res_marwa,
-  str_res_shree,
-  str_res_purvi,
-  str_res_bilawa,
-  str_res_yaman,
-  str_res_kafi,
-  str_res_bhimpa,
-  str_res_darbar,
-  str_res_bagesh,
-  str_res_ragesh,
-  str_res_khamaj,
-  str_res_mimal,
-  str_res_parame,
-  str_res_ranges,
-  str_res_ganges,
-  str_res_kamesh,
-  str_res_palas_,
-  str_res_natbha,
-  str_res_m_kaun,
-  str_res_bairag,
-  str_res_b_todi,
-  str_res_chandr,
-  str_res_kaushi,
-  str_res_jogesh,
-  str_res_rasia,
 };
 
 const prog_uint16_t lut_res_lfo_increments[] PROGMEM = {
@@ -849,126 +774,6 @@ const prog_uint16_t lut_res_fm_frequency_ratios[] PROGMEM = {
      768,    804,    886,   1024,   1086,   1206,   1280,   1448,
     2048,
 };
-const prog_uint16_t lut_res_scale_just[] PROGMEM = {
-       0,     15,      5,     20,    -17,     -2,    -12,      2,
-      17,    -20,     -5,    -15,
-};
-const prog_uint16_t lut_res_scale_pythagorean[] PROGMEM = {
-       0,     15,      5,     -7,     10,     -2,    -12,      2,
-      17,    -20,     -5,     12,
-};
-const prog_uint16_t lut_res_scale_1_4_eb[] PROGMEM = {
-       0,      0,      0,      0,    -64,      0,      0,      0,
-       0,      0,      0,    -64,
-};
-const prog_uint16_t lut_res_scale_1_4_e[] PROGMEM = {
-       0,      0,      0,      0,    -64,      0,      0,      0,
-       0,      0,      0,      0,
-};
-const prog_uint16_t lut_res_scale_1_4_ea[] PROGMEM = {
-       0,      0,      0,      0,    -64,      0,      0,      0,
-       0,    -64,      0,      0,
-};
-const prog_uint16_t lut_res_scale_bhairav[] PROGMEM = {
-       0,    -12,  32767,  32767,    -17,     -2,  32767,      2,
-     -10,  32767,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_gunakri[] PROGMEM = {
-       0,     15,  32767,  32767,  32767,     -2,  32767,      2,
-      17,  32767,  32767,  32767,
-};
-const prog_uint16_t lut_res_scale_marwa[] PROGMEM = {
-       0,     15,  32767,  32767,    -17,  32767,    -12,  32767,
-   32767,    -20,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_shree[] PROGMEM = {
-       0,    -12,  32767,  32767,    -17,  32767,    -12,      2,
-     -10,  32767,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_purvi[] PROGMEM = {
-       0,     15,  32767,  32767,    -17,  32767,    -12,      2,
-      17,  32767,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_bilawal[] PROGMEM = {
-       0,  32767,      5,  32767,    -17,     -2,  32767,      2,
-   32767,      7,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_yaman[] PROGMEM = {
-       0,  32767,      5,  32767,     10,  32767,     15,      2,
-   32767,      7,  32767,     12,
-};
-const prog_uint16_t lut_res_scale_kafi[] PROGMEM = {
-       0,  32767,    -22,     -7,  32767,     -2,  32767,      2,
-   32767,    -20,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_bhimpalasree[] PROGMEM = {
-       0,  32767,      5,     20,  32767,     -2,  32767,      2,
-   32767,      7,     22,  32767,
-};
-const prog_uint16_t lut_res_scale_darbari[] PROGMEM = {
-       0,  32767,      5,     -7,  32767,     -2,  32767,      2,
-     -10,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_rageshree[] PROGMEM = {
-       0,  32767,      5,  32767,    -17,     -2,  32767,      2,
-   32767,    -20,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_khamaj[] PROGMEM = {
-       0,  32767,      5,  32767,    -17,     -2,  32767,      2,
-   32767,      7,     -5,     12,
-};
-const prog_uint16_t lut_res_scale_mimal[] PROGMEM = {
-       0,  32767,      5,     -7,  32767,     -2,  32767,      2,
-   32767,    -20,     -5,    -15,
-};
-const prog_uint16_t lut_res_scale_parameshwari[] PROGMEM = {
-       0,    -12,  32767,     -7,  32767,     -2,  32767,  32767,
-   32767,    -20,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_rangeshwari[] PROGMEM = {
-       0,  32767,      5,     -7,  32767,     -2,  32767,      2,
-   32767,  32767,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_gangeshwari[] PROGMEM = {
-       0,  32767,  32767,  32767,    -17,     -2,  32767,      2,
-     -10,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_kameshwari[] PROGMEM = {
-       0,  32767,      5,  32767,  32767,  32767,    -12,      2,
-   32767,    -20,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_palas_kafi[] PROGMEM = {
-       0,  32767,      5,     -7,  32767,     -2,  32767,      2,
-   32767,      7,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_natbhairav[] PROGMEM = {
-       0,  32767,      5,  32767,    -17,     -2,  32767,      2,
-     -10,  32767,  32767,    -15,
-};
-const prog_uint16_t lut_res_scale_m_kauns[] PROGMEM = {
-       0,  32767,      5,  32767,     10,     -2,  32767,  32767,
-     -10,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_bairagi[] PROGMEM = {
-       0,    -12,  32767,  32767,  32767,     -2,  32767,      2,
-   32767,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_b_todi[] PROGMEM = {
-       0,    -12,  32767,     -7,  32767,  32767,  32767,      2,
-   32767,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_chandradeep[] PROGMEM = {
-       0,  32767,  32767,     -7,  32767,     -2,  32767,      2,
-   32767,  32767,     -5,  32767,
-};
-const prog_uint16_t lut_res_scale_kaushik_todi[] PROGMEM = {
-       0,  32767,  32767,     -7,  32767,     -2,    -12,  32767,
-     -10,  32767,  32767,  32767,
-};
-const prog_uint16_t lut_res_scale_jogeshwari[] PROGMEM = {
-       0,  32767,  32767,     -7,    -17,     -2,  32767,  32767,
-   32767,    -20,     -5,  32767,
-};
 
 
 PROGMEM const prog_uint16_t* const lookup_table_table[] = {
@@ -976,38 +781,6 @@ PROGMEM const prog_uint16_t* const lookup_table_table[] = {
   lut_res_env_portamento_increments,
   lut_res_oscillator_increments,
   lut_res_fm_frequency_ratios,
-  lut_res_scale_just,
-  lut_res_scale_pythagorean,
-  lut_res_scale_1_4_eb,
-  lut_res_scale_1_4_e,
-  lut_res_scale_1_4_ea,
-  lut_res_scale_bhairav,
-  lut_res_scale_gunakri,
-  lut_res_scale_marwa,
-  lut_res_scale_shree,
-  lut_res_scale_purvi,
-  lut_res_scale_bilawal,
-  lut_res_scale_yaman,
-  lut_res_scale_kafi,
-  lut_res_scale_bhimpalasree,
-  lut_res_scale_darbari,
-  lut_res_scale_kafi,
-  lut_res_scale_rageshree,
-  lut_res_scale_khamaj,
-  lut_res_scale_mimal,
-  lut_res_scale_parameshwari,
-  lut_res_scale_rangeshwari,
-  lut_res_scale_gangeshwari,
-  lut_res_scale_kameshwari,
-  lut_res_scale_palas_kafi,
-  lut_res_scale_natbhairav,
-  lut_res_scale_m_kauns,
-  lut_res_scale_bairagi,
-  lut_res_scale_b_todi,
-  lut_res_scale_chandradeep,
-  lut_res_scale_kaushik_todi,
-  lut_res_scale_jogeshwari,
-  lut_res_scale_yaman,
 };
 
 

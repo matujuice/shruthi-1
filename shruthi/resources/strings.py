@@ -40,7 +40,6 @@ sustain
 release
 rate
 modulation
-operators
 mod.
 source
 src
@@ -58,16 +57,9 @@ fdb
 feedback
 eq.
 fdbck eq.
-tempo
-bpm
-groove
-direction
-pattern
-division
 start
 length
 octave
-raga
 porta
 prt
 legato
@@ -76,29 +68,12 @@ midi chan
 chn
 midi out
 pause
-startpage
 snap
-oscillator 1
-oscillator 2
-mixer
 filter
-filter+
 mode 1
 mode 2
 md1
 md2
-envelope 1
-envelope 2
-sequencer
-arpeggio
-ch1
-ch2
-\x011
-\x012
-step sequencer
-keyboard
-midi
-system
 performance
 param. 1
 param. 2
@@ -137,18 +112,16 @@ lp
 bp
 hp
 ap
-
 liquid
 ms
 wobbly
 whacky
-
 pw1
 pw2
-\x051
-\x052
-\x05
-\x05f
+1
+2
+
+f
 mix
 noi
 sub
@@ -170,7 +143,6 @@ r2
 atk
  lf1
  lf2
-
 in1
 in2
 out
@@ -184,7 +156,6 @@ min
 <=
 qtz
 lag
-
 pwm1
 pwm2
 osc1
@@ -212,7 +183,6 @@ rel. 2
 atk1+2
  lfo 1
  lfo 2
-
 distrt
 crushr
 +cmbfl
@@ -229,13 +199,11 @@ dubdly
 3/16dl
 looper
 pitch
-
 l>f
 h>f
 f>l
 f>h
 >fx
-
 lf1
 lf2
 seq
@@ -268,7 +236,6 @@ op2
 =8
 =16
 =32
-
 lfo 1
 lfo 2
 stpseq
@@ -301,29 +268,16 @@ op. 2
 = 8
 = 16
 = 32
-
 patch
-sequence
-save midi/kbd
-settings?
 start full midi
 backup?
 browse
 save
 compare
 ----
-
 v
-\x06\x07-1    SN #4370
+-1    SN #4370
 v1.03
-shruthi classic
-(4 knobs)
-shruthi xt
-classic (fcd72)
-shruthi xt
-(full control)
-let's jam!
-extern
 sum
 sync
 ring
@@ -338,36 +292,11 @@ duo
 4steps
 8steps
 seqmix
-
-stp
-arp
-seq
-
 free
 slave
 master
 1shot
-
 1/1
-1/2
-1/3
-1/4
-1/6
-1/8
-/12
-/16
-/24
-/32
-/48
-/96
-
-swing
-shuffle
-push
-lag
-human
-monkey
-
  off
 thru
 seq
@@ -381,21 +310,18 @@ full
 6~5
 7~6
 8~7
-
 tri
 sqr
 s&h
 ramp
 step
-\x03
-\x04
-\x03\x04
+
+
+
 ?
 played
-
 off
 on
-
 sq1
 tr1
 pl1
@@ -407,7 +333,6 @@ glitch
 blow
 metal
 pop
-
 none
 saw
 square
@@ -443,7 +368,6 @@ frmnt2
 res3hp
 electp
 vibes
-
  lpf
 ssm
 svf
@@ -452,10 +376,4 @@ pvk
 4pm
 dly
 sp
-
-splash
-filter
-preset
-
-equal
 """

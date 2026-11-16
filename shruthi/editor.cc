@@ -88,7 +88,7 @@ PageDefinition Editor::page_definition_[] = {
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_SYS_DISPLAY */ { PAGE_SYS_PERF, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_PERF */ { PAGE_SYS_KBD, GROUP_SYS, SYS_MENU,
+  /* PAGE_SYS_PERF */ { PAGE_SYS_MIDI, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_MODE_MASK },
   /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
@@ -111,9 +111,9 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 46, 47, 44, 0xff },  // VOICE
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
-  { 44, 45, 0xff, 0xff },  // SYS KBD (portamento/legato live in the patch)
-  { 48, 49, 50, 0xff },  // SYS MIDI
-  { 52, 53, 55, 0xff },  // SYS DISPLAY (filter board fixed: PVK)
+  { 0xff, 0xff, 0xff, 0xff },  // SYS KBD (unused; not in the list)
+  { 48, 49, 50, 44 },  // SYS MIDI (octave stays global)
+  { 52, 53, 0xff, 0xff },  // SYS DISPLAY (filter board fixed: PVK)
   { 90, 91, 92, 93 },  // SYS PERF: preset-page knob targets
 };
 
@@ -491,7 +491,7 @@ ParameterPage Editor::last_visited_page_[] = {
     PAGE_FILTER_MULTIMODE,
     PAGE_VOICE,
     PAGE_MOD_MATRIX,
-    PAGE_SYS_KBD,
+    PAGE_SYS_MIDI,
     PAGE_LOAD_SAVE,
     PAGE_CONFIRM,
     PAGE_PERFORM
@@ -716,7 +716,7 @@ void Editor::OnSwitch(const Event& event) {
         JumpToPageGroup(GROUP_SYS);
       }
       sys_open_ = false;
-      cursor_ = current_page_ - PAGE_SYS_KBD;
+      cursor_ = current_page_ - PAGE_SYS_MIDI;
       display_mode_ = DISPLAY_MODE_OVERVIEW;
     } else {
       JumpToPageGroup(id + GROUP_FX);
@@ -910,10 +910,6 @@ bool Editor::FinishLoadingPatch() {
   Storage::LoadPatch(n);
   midi_dispatcher.OnProgramChange(n);
   part.Touch(true);
-  if (part.system_settings().start_page == START_PAGE_LAST_PATCH) {
-    part.mutable_system_settings()->last_patch = n;
-    part.system_settings().EepromSave();
-  }
   // Reset the snap position of all pots.
   memset(snapped_, false, sizeof(snapped_));
   deferred_load_ = 0xffff;
@@ -1121,7 +1117,7 @@ void Editor::DisplaySysPage() {
   char* row_0 = line_buffer_;
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   memset(line_buffer_, ' ', sizeof(line_buffer_));
-  uint8_t count = sys_open_ ? SysItems() : 4;
+  uint8_t count = sys_open_ ? SysItems() : 3;
   if (sys_open_) {
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
   } else {
@@ -1188,14 +1184,14 @@ void Editor::OnSysIncrement(int8_t increment) {
   }
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   // Browse: items, then "back" as the last row of a sub-menu.
-  uint8_t count = sys_open_ ? SysItems() : 3;
+  uint8_t count = sys_open_ ? SysItems() : 2;
   if (increment > 0 && cursor_ < count) {
     ++cursor_;
   } else if (increment < 0 && cursor_ > 0) {
     --cursor_;
   }
   if (!sys_open_) {
-    current_page_ = PAGE_SYS_KBD + cursor_;
+    current_page_ = PAGE_SYS_MIDI + cursor_;
     last_visited_page_[GROUP_SYS] = current_page_;
   }
 }
@@ -1208,7 +1204,7 @@ void Editor::OnSysClick() {
       cursor_ = 1;
     } else {
       sys_open_ = false;  // back to the list
-      cursor_ = current_page_ - PAGE_SYS_KBD;
+      cursor_ = current_page_ - PAGE_SYS_MIDI;
     }
     display_mode_ = DISPLAY_MODE_OVERVIEW;
   } else if (!sys_open_) {
@@ -1615,18 +1611,6 @@ void Editor::DisplayConfirmPage() {
     }
     display.Print(i, line_buffer_);
   }
-}
-
-/* static */
-void Editor::BootOnPatchBrowsePage(uint16_t index) {
-  if (index >= Storage::size<Patch>()) {
-    index = Storage::size<Patch>() - 1;
-  } 
-  current_patch_number_ = index;
-  current_page_ = 0;
-  ToggleLoadSaveAction();
-  OnLoadSaveIncrement(0);
-  Refresh();
 }
 
 }  // namespace shruthi
