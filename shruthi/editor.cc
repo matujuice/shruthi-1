@@ -43,7 +43,7 @@ Editor editor;
 
 /* static */
 const UiHandler Editor::ui_handler_[] = {
-  { &Editor::DisplayEditOverviewPage, &Editor::DisplayEditDetailsPage,
+  { &Editor::DisplayEditOverviewPage, &Editor::DisplayEditOverviewPage,
     &Editor::OnEditInput, &Editor::OnEditIncrement, NULL },
   { &Editor::DisplayLoadSavePage, &Editor::DisplayLoadSavePage,
     &Editor::OnEditInput, &Editor::OnLoadSaveIncrement,
@@ -290,7 +290,6 @@ uint8_t Editor::cursor_;
 uint8_t Editor::last_knob_;
 uint8_t Editor::subpage_;
 uint8_t Editor::action_;
-uint8_t Editor::programmer_parameter_;
 uint16_t Editor::current_patch_number_ = 0;
 
 int8_t Editor::jam_note_ = 0;
@@ -299,7 +298,7 @@ int8_t Editor::jam_mode_shifts_[4] = { 2, 5, 7, 4 };
 uint8_t Editor::jam_mode_previous_page_;
 
 ConfirmPageSettings Editor::confirm_page_settings_;
-bool Editor::snapped_[36];
+bool Editor::snapped_[4];
 bool Editor::title_flash_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
@@ -429,40 +428,6 @@ void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
   Refresh();
 }
 
-const prog_uint8_t programmer_switch_mapping[] PROGMEM = {
-  3,
-  3 | 0x80,
-  8 | 0x80,
-  8,
-  0 | 0x80,
-  0,
-  4 | 0x80,
-  4,
-  
-  28 | 0x80,
-  28,
-  24 | 0x80,
-  24,
-  
-  0xff
-};
-
-/* static */
-void Editor::OnProgrammerSwitch(const Event& event) {
-  uint8_t id = event.control_id - SWITCH_OSC_2_MINUS;
-  uint8_t parameter_index = pgm_read_byte(programmer_switch_mapping + id);
-  if (parameter_index != 0xff) {
-    int8_t increment = parameter_index & 0x80 ? -1 : 1;
-    parameter_index = parameter_index & 0x7f;
-
-    display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
-    programmer_parameter_ = parameter_index;
-    IncrementParameterValue(parameter_index, increment);
-  } else {
-    OnLongClick();
-  }
-};
-
 /* static */
 void Editor::OnSwitch(const Event& event) {
   uint8_t id = event.control_id;
@@ -518,12 +483,8 @@ void Editor::OnSwitch(const Event& event) {
 
 /* static */
 void Editor::OnInput(uint8_t knob_index, uint8_t value) {
-  if (knob_index < 4) {
-    (*ui_handler_[page_definition_[current_page_].ui_type].input_handler)(
-        knob_index, value);
-  } else {
-    OnEditInput(knob_index, value);
-  }
+  (*ui_handler_[page_definition_[current_page_].ui_type].input_handler)(
+      knob_index, value);
 }
 
 /* static */
@@ -572,7 +533,6 @@ void Editor::OnClick() {
   title_flash_ = false;
   if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT;
-    programmer_parameter_ = 0xff;
   } else {
     display_mode_ = DISPLAY_MODE_OVERVIEW;
   }
@@ -742,7 +702,7 @@ void Editor::DisplayLoadSavePage() {
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY
       && action_ != ACTION_SAVE
       && (part.system_settings().display_delay & 0xf)) {
-    DisplayEditDetailsPage();
+    DisplayEditOverviewPage();
     return;
   }
   ResourcesManager::LoadStringResource(
@@ -931,27 +891,6 @@ void Editor::DisplayEditOverviewPage() {
 }
 
 /* static */
-void Editor::DisplayEditDetailsPage() {
-  // Programmer switches: long name and value of the parameter they changed.
-  if (programmer_parameter_ == 0xff ||
-      (part.system_settings().display_delay & 0xf) == 0) {
-    DisplayEditOverviewPage();
-    return;
-  }
-  ResourcesManager::LoadStringResource(
-      parameter_manager.parameter(programmer_parameter_).long_name,
-      line_buffer_,
-      kLcdWidth);
-  AlignLeft(line_buffer_, kLcdWidth);
-  display.Print(0, line_buffer_);
-  glyph_count_ = 0;
-  memset(line_buffer_, ' ', kLcdWidth);
-  line_buffer_[kLcdWidth - 1] = PrintParameter(
-      programmer_parameter_, line_buffer_ + kLcdWidth - 8, 7, true);
-  display.Print(1, line_buffer_);
-}
-
-/* static */
 uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
   if (current_page_ == PAGE_LOAD_SAVE) {
     if (action_ != ACTION_LOAD) {
@@ -983,18 +922,11 @@ uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
 /* static */
 void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
   title_flash_ = false;
-  uint8_t index;
-  if (knob_index < 4) {
-    index = KnobIndexToParameterId(knob_index);
-    if (index == 0xff) {
-      return;
-    }
-    programmer_parameter_ = 0xff;
-    cursor_ = knob_index;
-  } else {
-    index = knob_index - 4;
-    programmer_parameter_ = index;
+  uint8_t index = KnobIndexToParameterId(knob_index);
+  if (index == 0xff) {
+    return;
   }
+  cursor_ = knob_index;
   const Parameter& parameter = parameter_manager.parameter(index);
   
   if (part.system_settings().display_snap) {
@@ -1011,15 +943,6 @@ void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
     display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
   }
   SetParameterValue(index, parameter.offset, parameter.Scale(value));
-}
-
-/* static */
-void Editor::OnVolume(uint8_t value) {
-  if (value >= 120) {
-    part.mutable_voice()->set_volume(255);
-  } else {
-    part.mutable_voice()->set_volume(16 + (value << 1));
-  }
 }
 
 /* static */

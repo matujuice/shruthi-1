@@ -169,8 +169,6 @@ class Editor {
   // recorded in the sequence. In this case, it is not processed!
   static uint8_t OnNoteOn(uint8_t note, uint16_t velocity);
 
-  static void OnProgrammerSwitch(const avrlib::Event& event);
-  static void OnVolume(uint8_t value);
 
   // Displays variants of the current page.
   static void Refresh();
@@ -181,8 +179,6 @@ class Editor {
   
   // Displays two lines of text read from a resource.
   static void DisplaySplashScreen(ResourceId first_line);
-  // Displays the programmer initialization screen.
-  static void DisplayProgrammerSetting(uint8_t programmer);
 
   static inline ParameterPage current_page() { return current_page_; }
   static inline uint8_t current_mode() { return editor_mode_; }
@@ -232,7 +228,6 @@ class Editor {
 
   // Output and Input handling for all the different category of pages.
   static void DisplayEditOverviewPage();
-  static void DisplayEditDetailsPage();
   // Prints a parameter value in `width` chars, returns its meter/icon glyph.
   static char PrintParameter(uint8_t id, char* out, uint8_t width, bool right);
   
@@ -279,7 +274,6 @@ class Editor {
   static uint8_t display_mode_;
   static uint8_t editor_mode_;
   static uint8_t cursor_;
-  static uint8_t programmer_parameter_;
   static uint8_t last_knob_;
   static uint8_t last_visited_subpage_;
 
@@ -298,7 +292,7 @@ class Editor {
   static uint8_t jam_mode_previous_page_;
   static int8_t jam_mode_shifts_[4];
   
-  static bool snapped_[36];
+  static bool snapped_[4];
   static bool title_flash_;
   
   static uint16_t deferred_load_;

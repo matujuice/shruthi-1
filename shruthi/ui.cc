@@ -37,8 +37,8 @@ uint8_t Ui::progress_bar_;
 uint8_t Ui::led_pattern_;
 uint8_t Ui::led_pwm_counter_;
 uint8_t Ui::pots_multiplexer_address_;
-int16_t Ui::adc_values_[36];
-int8_t Ui::adc_thresholds_[36];
+int16_t Ui::adc_values_[4];
+int8_t Ui::adc_thresholds_[4];
 uint8_t Ui::adc_warm_up_cycles_;
 uint8_t Ui::adc_hot_address_;
 uint8_t Ui::adc_resume_scan_to_;
@@ -77,7 +77,7 @@ void Ui::Init() {
   adc_.StartConversion(0);
   pots_multiplexer_address_ = 0;
     
-  for (uint8_t i = 0; i < 36; ++i) {
+  for (uint8_t i = 0; i < 4; ++i) {
     adc_values_[i] = -1;
     adc_thresholds_[i] = kAdcThresholdUnlocked;
   }
@@ -88,17 +88,7 @@ void Ui::Init() {
 
 /* static */
 void Ui::ShowSplash() {
-  if (!encoder_.immediate_value()) {
-    SystemSettings* settings = part.mutable_system_settings();
-    settings->programmer = settings->programmer + 1;
-    if (settings->programmer > PROGRAMMER_XT) {
-      settings->programmer = 0;
-    }
-    settings->EepromSave();
-    editor.DisplaySplashScreen(
-        STR_RES_SHRUTHI_CLASSIC + (settings->programmer << 1));
-    freeze_display_ = true;
-  } else if (part.system_settings().start_page == START_PAGE_SPLASH) {
+  if (part.system_settings().start_page == START_PAGE_SPLASH) {
     editor.DisplaySplashScreen(STR_RES_V + 1);
   } else if (part.system_settings().start_page == START_PAGE_LAST_PATCH) {
     editor.BootOnPatchBrowsePage(part.system_settings().last_patch);
@@ -109,50 +99,11 @@ void Ui::ShowSplash() {
 
 /* static */
 void Ui::LockPotentiometers() {
-  uint8_t programmer = part.system_settings().programmer;
   adc_thresholds_[0] = kAdcThresholdLocked;
   adc_thresholds_[1] = kAdcThresholdLocked;
   adc_thresholds_[2] = kAdcThresholdLocked;
   adc_thresholds_[3] = kAdcThresholdLocked;
 }
-
-const prog_uint8_t xt_parameter_mapping[] PROGMEM = {
-  4 + 29,  // PRM_LFO_ATTACK_2
-  4 + 30,  // PRM_LFO_RATE_2
-  4 + 26,  // PRM_LFO_RATE_1
-  4 + 25,  // PRM_LFO_ATTACK_1
-  4 + 20,  // PRM_ENV_ATTACK_2
-  4 + 23,  // PRM_ENV_RELEASE_2
-  4 + 21,  // PRM_ENV_DECAY_2
-  4 + 22,  // PRM_ENV_SUSTAIN_2
-  
-  4 + 18,  // PRM_ENV_SUSTAIN_1
-  4 + 17,  // PRM_ENV_DECAY_1
-  4 + 31,  // SOFTWARE VOLUME
-  4 + 19,  // PRM_ENV_RELEASE_1
-  4 + 16,  // PRM_ENV_ATTACK_1
-  0xff,  // Unassigned
-  0xff,  // Unassigned
-  0xff,  // Unassigned
-  
-  4 + 6,  // PRM_OSC_RANGE_2
-  4 + 1,  // PRM_OSC_PARAMETER_1
-  4 + 5,  // PRM_OSC_PARAMETER_2
-  4 + 2,  // PRM_OSC_RANGE_1
-  4 + 7,  // PRM_OSC_OPTION_2
-  4 + 10, // PRM_MIX_SUB_OSC
-  4 + 9,  // PRM_MIX_BALANCE
-  4 + 11, // PRM_MIX_NOISE
-  
-  0,
-  1,
-  2,
-  3,
-  4 + 12,  // PRM_FILTER_CUTOFF
-  4 + 13,  // PRM_FILTER_RESONANCE
-  4 + 14,  // PRM_FILTER_ENV
-  4 + 15,  // PRM_FILTER_LFO
-};
 
 /* static */
 void Ui::ScanPotentiometers() {
@@ -161,50 +112,21 @@ void Ui::ScanPotentiometers() {
   uint8_t physical_address = address;
   int16_t value = adc_.ReadOut();
   
-  if (part.system_settings().programmer == PROGRAMMER_NONE) {
-    *PortA::Mode::ptr() = 0x00;
-    pots_multiplexer_address_ = (pots_multiplexer_address_ + 1) & 7;
-    if (adc_resume_scan_to_ == 0) {
-      adc_resume_scan_to_ = pots_multiplexer_address_ + 1;
-      pots_multiplexer_address_ = adc_hot_address_;
-    } else {
-      pots_multiplexer_address_ = adc_resume_scan_to_ - 1;
-      adc_resume_scan_to_ = 0;
-    }    
-    adc_.StartConversion(pots_multiplexer_address_);
-    if (address >= 4) {
-      part.mutable_voice()->set_modulation_source(
-          MOD_SRC_CV_1 + address - 4, value >> 2);
-      address = 0xff;
-    }
-  } else if (part.system_settings().programmer == PROGRAMMER_FCD) {
-    *PortA::Mode::ptr() = 0x00;
-    pots_multiplexer_address_++;
-    if (pots_multiplexer_address_ >= 36) {
-      pots_multiplexer_address_ = 0;
-    }
-    if (pots_multiplexer_address_ < 4) {
-      adc_.StartConversion(pots_multiplexer_address_);
-    } else {
-      WriteShiftRegister();
-      adc_.StartConversion(4);
-    }
-  } else if (part.system_settings().programmer == PROGRAMMER_XT) {
-    *PortA::Mode::ptr() = 0xfe;
-    pots_multiplexer_address_ = (pots_multiplexer_address_ + 1) & 31;
-    if (adc_resume_scan_to_ == 0) {
-      adc_resume_scan_to_ = pots_multiplexer_address_ + 1;
-      pots_multiplexer_address_ = adc_hot_address_;
-    } else {
-      pots_multiplexer_address_ = adc_resume_scan_to_ - 1;
-      adc_resume_scan_to_ = 0;
-    }    
-    uint8_t byte = (pots_multiplexer_address_ << 1) & 0x0f;
-    uint8_t range = pots_multiplexer_address_ >> 3;
-    byte |= (~(0x10 << range)) & 0xf0;
-    *PortA::Output::ptr() = byte;
-    adc_.StartConversion(0);
-    address = pgm_read_byte(xt_parameter_mapping + address);
+  *PortA::Mode::ptr() = 0x00;
+  pots_multiplexer_address_ = (pots_multiplexer_address_ + 1) & 7;
+  if (adc_resume_scan_to_ == 0) {
+    adc_resume_scan_to_ = pots_multiplexer_address_ + 1;
+    pots_multiplexer_address_ = adc_hot_address_;
+  } else {
+    pots_multiplexer_address_ = adc_resume_scan_to_ - 1;
+    adc_resume_scan_to_ = 0;
+  }
+  adc_.StartConversion(pots_multiplexer_address_);
+  if (address >= 4) {
+    // Addresses 4-7 are the CV inputs.
+    part.mutable_voice()->set_modulation_source(
+        MOD_SRC_CV_1 + address - 4, value >> 2);
+    address = 0xff;
   }
   
   if (address != 0xff) {
@@ -213,12 +135,6 @@ void Ui::ScanPotentiometers() {
       adc_values_[address] = value;
       if (address == 0) {
         --adc_warm_up_cycles_;
-        if (adc_warm_up_cycles_ == 0) {
-          // Send a message for the volume knob
-          if (part.system_settings().programmer == PROGRAMMER_XT) {
-            queue_.AddEvent(CONTROL_POT, 35, adc_values_[35]);
-          }
-        }
       }
     } else {
       int16_t previous_value = adc_values_[address];
@@ -276,11 +192,6 @@ void Ui::WriteShiftRegister() {
       break;
   }
 
-  if (part.system_settings().programmer == PROGRAMMER_FCD) {
-    io_.Send(
-        pots_multiplexer_address_ >= 4 ? pots_multiplexer_address_ - 4 : 0);
-  }
-
   io_.Send(led_pattern_);
   io_.End();
 }
@@ -290,33 +201,12 @@ void Ui::DebounceSwitches() {
   io_.Begin();
   io_.End();
   
-  uint8_t last_switch;
-  uint8_t switch_data[3];
-  
-  if (part.system_settings().programmer == PROGRAMMER_XT) {
-    switch_data[1] = io_.Receive();
-    switch_data[0] = io_.Receive();
-    switch_data[2] = io_.Receive();
-    last_switch = SWITCH_LAST - 1;
-  } else {
-    switch_data[0] = io_.Receive();
-    switch_data[1] = 0xff;
-    switch_data[2] = 0xff;
-    last_switch = SWITCH_ENCODER;
-  }
-  
-  uint8_t data = switch_data[0];
+  uint8_t data = io_.Receive();
   uint8_t mask = 0x20;
-  for (uint8_t i = 0; i <= last_switch; ++i) {
+  for (uint8_t i = 0; i <= SWITCH_ENCODER; ++i) {
     if (i == SWITCH_ENCODER) {
       switch_state_[i] = encoder_.ReadSwitch();
       continue;
-    } else if (i == SWITCH_OSC_2_MINUS) {
-      data = switch_data[1];
-      mask = 0x80;
-    } else if (i == SWITCH_LFO_1_SHAPE_MINUS) {
-      data = switch_data[2];
-      mask = 0x10;
     }
     switch_state_[i] <<= 1;
     if (data & mask) {
@@ -367,20 +257,6 @@ void Ui::DebounceSwitches() {
       }
     }
     inhibit_encoder_release_ = false;
-  }
-  
-  for (uint8_t i = SWITCH_OSC_2_MINUS; i <= last_switch; ++i) {
-    if (switch_state_[i] == 0x80) {
-      switch_delay_[i] = milliseconds() + 480;
-      queue_.AddEvent(CONTROL_SWITCH, i, 0);
-    } else if (switch_state_[i] == 0x00) {
-      uint32_t now = milliseconds();
-      int32_t delta = now - switch_delay_[i];
-      if (delta > 0) {
-        queue_.AddEvent(CONTROL_SWITCH, i, 0);
-        switch_delay_[i] = now + 90;
-      }
-    }
   }
 }
 
@@ -445,18 +321,11 @@ void Ui::DoEvents() {
           } else {
             editor.OnLongClick();
           }
-        } else {
-          editor.OnProgrammerSwitch(e);
         }
         break;
 
       case CONTROL_POT:
-        if (e.control_id == 35 &&
-            part.system_settings().programmer == PROGRAMMER_XT) {
-          editor.OnVolume(e.value);
-        } else {
-          editor.OnInput(e.control_id, e.value);
-        }
+        editor.OnInput(e.control_id, e.value);
         break;
     }
     idle_time_ = 0;

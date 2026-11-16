@@ -145,17 +145,6 @@ void FillAudioBuffer() {
   if (filter_board == FILTER_BOARD_DSP) {
     DSPFilterBoardWrite();
   } else if (filter_board == FILTER_BOARD_PVK) {
-    // Mirror unprocessed Cutoff/Resonance values for Shruthi-XP.
-    if (part.system_settings().programmer == PROGRAMMER_FCD) {
-      uint8_t adjusted_cutoff = part.voice().cutoff();
-      if (adjusted_cutoff > 24) {
-        adjusted_cutoff -= 24;
-      } else {
-        adjusted_cutoff = 0;
-      }
-      cv_1 = resonance;
-      cv_2 = adjusted_cutoff;
-    }
     // Apply a knee to the resonance curve.
     resonance = (resonance >> 1) + (resonance < 128 ? resonance : 128);
     if (resonance >= 252) {
@@ -178,11 +167,6 @@ void FillAudioBuffer() {
     resonance = U8U8MulShift8(resonance, resonance);
     resonance = U8U8MulShift8(~resonance, 160) + 48;
   } else if (filter_board == FILTER_BOARD_4PM) {
-    // Mirror unprocessed Cutoff/Resonance values for Shruthi-XP.
-    if (part.system_settings().programmer == PROGRAMMER_FCD) {
-      cv_1 = resonance;
-      cv_2 = part.voice().cutoff();
-    }
     // If the resonance overdrive mode is not selected, half the scale of
     // the resonance setting. Resonance overdrive needs a very strong control
     // current on the OTA to kick in.
