@@ -128,7 +128,8 @@ static const prog_char page_labels[] PROGMEM =
   "op in1in2out"  // 12
   "octragprtleg"  // 13
   "tunchnout   "  // 14
-  "pausnpfltsta";  // 15
+  "pausnpfltsta"  // 15
+  "prmcutresenv";  // 16 PAGE_LOAD_SAVE: performance knobs
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
