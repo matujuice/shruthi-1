@@ -808,10 +808,15 @@ char Editor::PrintParameter(
     dots = true;
     to = 0;
   } else {
-    // 11 marker positions; skipping px 4, 9, 14 keeps it inside one cell.
-    for (uint8_t j = (10 * num + den / 2) / den; j; --j) {
-      if (++from % 5 == 4) {
-        ++from;
+    if (id != 9) {
+      from = 2 + (13 * num + den / 2) / den;
+    } else {
+      // Mix shares MIXER with two fills: 11 positions that skip px 4, 9, 14
+      // keep the marker inside one cell, so the page fits in 8 glyphs.
+      for (uint8_t j = (10 * num + den / 2) / den; j; --j) {
+        if (++from % 5 == 4) {
+          ++from;
+        }
       }
     }
     to = from + 1;
