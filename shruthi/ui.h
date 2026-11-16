@@ -49,7 +49,6 @@ class Ui {
     if (increment != 0) {        
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         increment = increment < 0 ? -10 : 10;
-        inhibit_shift_release_ = true;
       } else if (switch_state_[SWITCH_ENCODER] == 0x00) {
         increment *= 8;  // Pressed + turned: coarse steps, no click on release.
         inhibit_encoder_release_ = true;
@@ -96,7 +95,6 @@ class Ui {
 
   static uint8_t switch_state_[SWITCH_LAST];
   static uint32_t switch_delay_[SWITCH_LAST];
-  static bool inhibit_shift_release_;
   static bool inhibit_encoder_release_;
   static uint8_t sub_clock_;
   static uint8_t sub_clock_2_;

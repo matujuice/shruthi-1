@@ -461,11 +461,6 @@ void Editor::OnSwitch(const Event& event) {
     }
   } else if (id == SWITCH_MODE) {
     ToggleLoadSaveAction();
-  } else if (id == SWITCH_LOAD_SAVE) {
-    // FUNC tap: back to the last main page.
-    if (page_definition_[current_page_].group != last_visited_group_[0]) {
-      JumpToPageGroup(last_visited_group_[0]);
-    }
   } else {
     JumpToPageGroup(id + GROUP_SYN);
   }

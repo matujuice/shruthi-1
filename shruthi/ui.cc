@@ -27,7 +27,6 @@ namespace shruthi {
 using namespace avrlib;
 
 /* static */
-bool Ui::inhibit_shift_release_;
 bool Ui::inhibit_encoder_release_;
 uint8_t Ui::switch_state_[SWITCH_LAST];
 uint32_t Ui::switch_delay_[SWITCH_LAST];
@@ -68,7 +67,6 @@ void Ui::Init() {
   progress_bar_ = 0;
   pots_multiplexer_address_ = 0;
 
-  inhibit_shift_release_ = false;
   memset(switch_state_, 0xff, sizeof(switch_state_));
   
   adc_.Init();
@@ -179,7 +177,6 @@ void Ui::DebounceSwitches() {
     if (switch_state_[i] == 0x80) {
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0xff);
-        inhibit_shift_release_ = true;
         switch_delay_[i] = 0;
       } else if (i == SWITCH_MODE) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0);
@@ -192,14 +189,6 @@ void Ui::DebounceSwitches() {
       }
       switch_delay_[i] = 0;
     }
-  }
-  
-  // Handle shift switch
-  if (switch_state_[SWITCH_SHIFT] == 0x7f) {
-    if (!inhibit_shift_release_) {
-      queue_.AddEvent(CONTROL_SWITCH, SWITCH_SHIFT, 0);
-    }
-    inhibit_shift_release_ = false;
   }
   
   // Handle encoder
@@ -218,7 +207,6 @@ void Ui::DebounceSwitches() {
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         // FUNC + click.
         queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 1);
-        inhibit_shift_release_ = true;
       } else {
         queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 0);
       }
@@ -293,9 +281,6 @@ void Ui::DoEvents() {
         break;
 
       case CONTROL_POT:
-        if (switch_state_[SWITCH_SHIFT] == 0x00) {
-          inhibit_shift_release_ = true;  // FUNC + pot is not a FUNC tap.
-        }
         editor.OnInput(e.control_id, e.value);
         break;
     }
