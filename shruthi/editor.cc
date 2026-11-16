@@ -810,9 +810,9 @@ char Editor::PrintParameter(
   }
   bool dots = false;
   uint8_t from = 2, to;  // Lit pixel columns on rows 2-5; empty if to < from.
-  if (!is_signed && id != 7 && id != 9) {
+  if (!is_signed && id != 9) {  // 9 = osc mix: 32 is the equal mix.
     to = 1 + (15 * num + den / 2) / den;
-  } else if (2 * num == den) {
+  } else if (num == (den + 1) / 2) {
     dots = true;
     to = 0;
   } else {
