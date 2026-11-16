@@ -443,6 +443,13 @@ void Part::Start(bool internal) {
   arp_seq_prescaler_ = 0;
   arp_seq_step_ = 0xff;
   arp_seq_running_ = true;
+
+  // MIDI Start: realign the beat and restart the LFOs on the downbeat.
+  beat_tick_ = 0;
+  block_count_ = 0;
+  for (uint8_t i = 0; i < kNumLfos; ++i) {
+    lfo_[i].ResetPhase();
+  }
 }
 
 /* static */

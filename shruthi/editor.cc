@@ -776,7 +776,9 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
   } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
-    *t++ = 'x';
+    if (value < 7 || value >= 10) {
+      *t++ = 'x';  // 128/256/512 need all 3 columns.
+    }
     if (value >= 10) {
       *t++ = value == 10 ? '1' : '2';
       *t = 'k';

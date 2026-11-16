@@ -145,7 +145,9 @@ struct SequencerSettings {
     return seq_mode;
   }
   bool internal_clock() {
-    return seq_tempo >= 40;
+    // ponytail: no internal tempo; LFOs follow MIDI clock, else keep the last
+    // measured tempo (120 BPM at boot). Add a tempo setting in step 5 if wanted.
+    return false;
   }
   
   static void PrintNote(uint8_t note, char* buffer);
