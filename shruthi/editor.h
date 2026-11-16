@@ -117,6 +117,7 @@ enum PageUiType {
   LOAD_SAVE,
   CONFIRM,
   JAM,
+  SYS_MENU,
 };
 
 struct PageDefinition {
@@ -255,6 +256,11 @@ class Editor {
   static void OnJamPageInput(uint8_t knob_index, uint8_t value);
   static void OnJamPageIncrement(int8_t increment);
   static void OnJamPageClick();
+  static void DisplaySysPage();
+  static void OnSysInput(uint8_t knob_index, uint8_t value);
+  static void OnSysIncrement(int8_t increment);
+  static void OnSysClick();
+  static void NameValue(uint8_t id, char* row);
   
   static void BackupEditBuffer();
   static void RestoreEditBuffer();
@@ -304,6 +310,8 @@ class Editor {
   static bool touched_[4];  // Knobs moved since the overview came back.
   static bool title_flash_;
   static bool show_numbers_;
+  static bool sys_open_;  // false = SYS menu list, true = inside a sub-menu.
+  static bool sys_dirty_;
   static bool func_;  // FUNC held: pots and encoder jump to relevant values.
   
   static uint16_t deferred_load_;

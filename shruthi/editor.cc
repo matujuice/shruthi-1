@@ -60,6 +60,8 @@ const UiHandler Editor::ui_handler_[] = {
   { &Editor::DisplayJamPage, &Editor::DisplayJamPage,
     &Editor::OnJamPageInput, &Editor::OnJamPageIncrement,
     &Editor::OnJamPageClick },
+  { &Editor::DisplaySysPage, &Editor::DisplaySysPage,
+    &Editor::OnSysInput, &Editor::OnSysIncrement, &Editor::OnSysClick },
 };
 
 // LEDs: S1 = LED_1/LED_2, S2 = LED_3, S3 = LED_4/LED_5, S4 = LED_6, S5 = MODE,
@@ -82,13 +84,13 @@ PageDefinition Editor::page_definition_[] = {
     PARAMETER_EDITOR, LED_6_MASK | LED_WRITE_MASK },
   /* PAGE_MOD_OPERATORS */ { PAGE_MOD_MATRIX, GROUP_MOD_MATRIX,
     PARAMETER_EDITOR, LED_6_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS, PARAMETER_EDITOR,
+  /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS, PARAMETER_EDITOR,
+  /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_PERF, GROUP_SYS, PARAMETER_EDITOR,
+  /* PAGE_SYS_DISPLAY */ { PAGE_SYS_PERF, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_PERF */ { PAGE_SYS_KBD, GROUP_SYS, PARAMETER_EDITOR,
+  /* PAGE_SYS_PERF */ { PAGE_SYS_KBD, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_MODE_MASK },
   /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
@@ -111,7 +113,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 46, 47, 44, 0xff },  // VOICE
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
-  { 44, 45, 46, 47 },  // SYS KBD
+  { 44, 45, 0xff, 0xff },  // SYS KBD (portamento/legato live in the patch)
   { 48, 49, 50, 0xff },  // SYS MIDI
   { 52, 53, 55, 0xff },  // SYS DISPLAY (filter board fixed: PVK)
   { 90, 91, 92, 93 },  // SYS PERF: preset-page knob targets
@@ -130,11 +132,7 @@ static const prog_char page_labels[] PROGMEM =
   "modovdfm    "  // 9
   "prtlegoct   "  // 10
   "sltsrcdstamt"  // 11
-  "op in1in2out"  // 12
-  "octragprtleg"  // 13
-  "tunchnout   "  // 14
-  "pausnpsta   "  // 15
-  "kn1kn2kn3kn4";  // 16
+  "op in1in2out";  // 12 (SYS pages are menus: no labels)
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
@@ -530,6 +528,8 @@ bool Editor::func_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
 uint8_t Editor::perf_[4];
+bool Editor::sys_open_;
+bool Editor::sys_dirty_;
 /* </static> */
 
 // Free bytes after the sequences (internal EEPROM ends at 2048).
@@ -726,7 +726,12 @@ void Editor::OnSwitch(const Event& event) {
           break;
       }
     } else if (id == SWITCH_MODE) {
-      JumpToPageGroup(GROUP_SYS);
+      // FUNC + SYS: open the SYS menu list, or go back to it from a sub-menu.
+      if (page_definition_[current_page_].group != GROUP_SYS) {
+        JumpToPageGroup(GROUP_SYS);
+      }
+      sys_open_ = false;
+      display_mode_ = DISPLAY_MODE_OVERVIEW;
     } else {
       JumpToPageGroup(id + GROUP_FX);
     }
@@ -778,14 +783,6 @@ void Editor::OnLongClick() {
 
 /* static */
 void Editor::OnClick() {
-  if (current_page_ >= PAGE_SYS_KBD && current_page_ <= PAGE_SYS_PERF) {
-    ConfirmPageSettings confirm_save_system_settings;
-    confirm_save_system_settings.text = STR_RES_SAVE_MIDI_KBD;
-    confirm_save_system_settings.return_group = GROUP_SYS;
-    confirm_save_system_settings.callback = &SaveSystemSettings;
-    Confirm(confirm_save_system_settings);
-    return;
-  }
   title_flash_ = false;
   if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT;
@@ -804,6 +801,11 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 
 /* static */
 void Editor::Refresh() {
+  // SYS settings auto-save once SYS is left (one EEPROM write, not per step).
+  if (sys_dirty_ && page_definition_[current_page_].group != GROUP_SYS) {
+    sys_dirty_ = false;
+    SaveSystemSettings();
+  }
   if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
     (*ui_handler_[page_definition_[current_page_].ui_type].overview_page)();
   } else {
@@ -1057,17 +1059,13 @@ char Editor::PrintParameter(
     memcpy(out, text, width + 1);
     return text[width];
   }
-  if (id >= 90) {
-    PerfLabel(value, out, false);
-    return ' ';
-  }
   if (p.unit > UNIT_INT8) {
     memset(out, ' ', width);
     memcpy(out + width - len, text, len);
     return Icon(p.unit, value);
   }
-  if (id == 2 || id == 6 || id == 44 || id == 48 || id == 49) {
-    // Osc range, octave, tuning, channel: plain number, keeps glyphs for bars.
+  if (id == 2 || id == 6 || id == 44) {
+    // Osc range, octave: plain number, keeps glyphs for bars.
     memset(out, ' ', 4);
     memcpy(out, text, len);
     return out[3];
@@ -1131,6 +1129,126 @@ char Editor::PrintParameter(
 }
 
 /* static */
+void Editor::DisplaySysPage() {
+  // List:  SYS            /  inside:  SYS  KBD     1/4
+  //        >kbd     1/4               >octave       +1
+  char* row_0 = line_buffer_;
+  char* row_1 = line_buffer_ + kLcdWidth + 1;
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  const prog_char* title = page_titles + kLcdWidth * current_page_;
+  memcpy_P(row_0, title, kLcdWidth);
+  row_0[kLcdWidth] = '\0';
+  uint8_t cursor = kLcdNoCursor;
+  if (!sys_open_) {
+    memset(row_0 + 3, ' ', kLcdWidth - 3);
+    memcpy_P(row_1 + 1, title + 5, kLcdWidth - 5);
+    for (uint8_t i = 1; i < kLcdWidth; ++i) {
+      if (row_1[i] >= 'A' && row_1[i] <= 'Z') {
+        row_1[i] += 32;
+      }
+    }
+  } else {
+    NameValue(KnobIndexToParameterId(cursor_), row_1);
+    memmove(row_1 + 1, row_1, 7);
+  }
+  row_1[0] = 0x7e;  // HD44780 right arrow; blinks while editing.
+  if (sys_open_ && display_mode_ == DISPLAY_MODE_EDIT) {
+    row_1[0] = ' ';
+    cursor = kLcdWidth;
+    display.set_cursor_character(0x7e);
+  }
+  row_1[kLcdWidth] = '\0';
+  display.set_cursor_position(cursor);
+  display.Print(0, row_0);
+  display.Print(1, row_1);
+}
+
+/* static */
+void Editor::OnSysInput(uint8_t knob_index, uint8_t value) {
+  if (sys_open_) {
+    OnEditInput(cursor_, value);  // Any pot sets the selected setting.
+  }
+}
+
+/* static */
+void Editor::OnSysIncrement(int8_t increment) {
+  memset(snapped_, false, sizeof(snapped_));
+  if (sys_open_) {
+    OnEditIncrement(increment);  // Browse items, or change the value.
+    return;
+  }
+  uint8_t page = current_page_ + (increment > 0 ? 1 : -1);
+  if (page >= PAGE_SYS_KBD && page <= PAGE_SYS_PERF) {
+    current_page_ = static_cast<ParameterPage>(page);
+    last_visited_page_[GROUP_SYS] = current_page_;
+  }
+}
+
+/* static */
+void Editor::OnSysClick() {
+  if (!sys_open_) {
+    sys_open_ = true;
+    cursor_ = 0;
+    display_mode_ = DISPLAY_MODE_OVERVIEW;
+  }
+}
+
+/* static */
+// Name in cols 0-6, gap, value right-aligned in 8-15, all lowercase.
+void Editor::NameValue(uint8_t id, char* row) {
+  const Parameter& p = parameter_manager.parameter(id);
+  char text[kLcdWidth + 1];
+  memset(text, 0, sizeof(text));
+  uint8_t value = GetParameterValue(p.offset);
+  const prog_char* values = LongValues(p.unit);
+  if (id >= 90) {
+    PerfLabel(value, text, true);
+  } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
+    strcpy_P(text, PSTR("wave "));
+    UnsafeItoa<int16_t>(value - LFO_WAVEFORM_WAVE_1 + 1, 3, text + 5);
+  } else if (values) {
+    CopyNth(values, value, text);
+  } else {
+    char* t = text;
+    if (p.unit == UNIT_INT8 && static_cast<int8_t>(p.min_value) < 0 &&
+        static_cast<int8_t>(value) > 0) {
+      *t++ = '+';
+    }
+    p.PrintValue(value, t, kValueWidth);
+  }
+  uint8_t len = 0;
+  while (text[len]) {
+    ++len;
+  }
+  memset(row, 0, kLcdWidth + 1);
+  uint8_t n = 0;
+  while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
+    ++n;
+  }
+  if (id >= 90) {
+    strcpy_P(row, PSTR("knob "));
+    row[5] = '1' + id - 90;
+  } else if (n < sizeof(long_name_ids)) {
+    CopyNth(long_names, n, row);
+  } else {
+    ResourcesManager::LoadStringResource(p.long_name, row, kCaptionWidth);
+  }
+  // Fixed columns: name in 0-6, gap, value right-aligned in 8-15.
+  for (uint8_t i = 0; i < kLcdWidth; ++i) {
+    char c = i >= kLcdWidth - len ? text[i - (kLcdWidth - len)] :
+        (i < 7 ? row[i] : ' ');
+    if (c == '\0') {
+      c = ' ';
+    }
+    if (c >= 'A' && c <= 'Z') {
+      c += 32;
+    }
+    row[i] = c;
+  }
+  row[kLcdWidth] = '\0';
+}
+
+/* static */
 void Editor::DisplayEditOverviewPage() {
   // SHA PRM RNG SUB
   // SAW#  0# +0#SQ1#
@@ -1190,50 +1308,7 @@ void Editor::DisplayEditOverviewPage() {
         (touched_[cursor_] || display_mode_ == DISPLAY_MODE_EDIT)) {
       const Parameter& p = parameter_manager.parameter(id);
       if (p.unit > UNIT_INT8 && p.unit != UNIT_LFO_RATE) {
-        char text[kLcdWidth + 1];
-        memset(text, 0, sizeof(text));
-        uint8_t value = GetParameterValue(p.offset);
-        const prog_char* values = LongValues(p.unit);
-        if (id >= 90) {
-          PerfLabel(value, text, true);
-        } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
-          strcpy_P(text, PSTR("wave "));
-          UnsafeItoa<int16_t>(value - LFO_WAVEFORM_WAVE_1 + 1, 3, text + 5);
-        } else if (values) {
-          CopyNth(values, value, text);
-        } else {
-          p.PrintValue(value, text, kValueWidth);
-        }
-        uint8_t len = 0;
-        while (text[len]) {
-          ++len;
-        }
-        memset(row_0, 0, kLcdWidth + 1);
-        uint8_t n = 0;
-        while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
-          ++n;
-        }
-        if (id >= 90) {
-          strcpy_P(row_0, PSTR("knob "));
-          row_0[5] = '1' + id - 90;
-        } else if (n < sizeof(long_name_ids)) {
-          CopyNth(long_names, n, row_0);
-        } else {
-          ResourcesManager::LoadStringResource(p.long_name, row_0, kCaptionWidth);
-        }
-        // Fixed columns: name in 0-6, gap, value right-aligned in 8-15.
-        for (uint8_t i = 0; i < kLcdWidth; ++i) {
-          char c = i >= kLcdWidth - len ? text[i - (kLcdWidth - len)] :
-              (i < 7 ? row_0[i] : ' ');
-          if (c == '\0') {
-            c = ' ';
-          }
-          if (c >= 'A' && c <= 'Z') {
-            c += 32;
-          }
-          row_0[i] = c;
-        }
-        row_0[kLcdWidth] = '\0';
+        NameValue(id, row_0);
         marker = kLcdNoCursor;
       }
     }
@@ -1402,6 +1477,9 @@ void Editor::SetParameterValue(
     uint8_t index,
     uint8_t offset,
     uint8_t value) {
+  if (page_definition_[current_page_].group == GROUP_SYS) {
+    sys_dirty_ = true;
+  }
   // Dirty hack for the modulation page.
   if (offset >= 0xf0) {
     perf_[offset - 0xf0] = value;
