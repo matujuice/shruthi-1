@@ -148,10 +148,10 @@ static const prog_char page_titles[] PROGMEM =
   "VOICE           "
   "MATRIX       1/2"
   "MATH         2/2"
-  "SYS  KBD     1/4"
-  "SYS  MIDI    2/4"
-  "SYS  DISPLAY 3/4"
-  "SYS  PERF    4/4";
+  "KEYBOARD        "
+  "MIDI            "
+  "DISPLAY         "
+  "PERFORMANCE     ";
 
 static const prog_char lfo_mode_names[] PROGMEM = "FRETRGHLDONEHLF";
 
@@ -338,8 +338,8 @@ static const prog_char long_names[] PROGMEM =
   "slot\0"
   "source\0"
   "dest\0"
-  "midiout\0"
-  "start\0"
+  "midi out\0"
+  "startup\0"
   "op\0"
   "in 1\0"
   "in 2\0"
@@ -726,11 +726,19 @@ void Editor::OnSwitch(const Event& event) {
           break;
       }
     } else if (id == SWITCH_MODE) {
-      // FUNC + SYS: open the SYS menu list, or go back to it from a sub-menu.
+      // FUNC + SYS: open the SETTINGS list, or go back to it from a sub-menu.
+      // From the preset page it opens SETTINGS > performance directly.
+      bool from_preset = current_page_ == PAGE_LOAD_SAVE;
       if (page_definition_[current_page_].group != GROUP_SYS) {
         JumpToPageGroup(GROUP_SYS);
       }
-      sys_open_ = false;
+      sys_open_ = from_preset;
+      if (from_preset) {
+        current_page_ = PAGE_SYS_PERF;
+        last_visited_page_[GROUP_SYS] = PAGE_SYS_PERF;
+      } else {
+        cursor_ = current_page_ - PAGE_SYS_KBD;
+      }
       display_mode_ = DISPLAY_MODE_OVERVIEW;
     } else {
       JumpToPageGroup(id + GROUP_FX);
@@ -1130,27 +1138,36 @@ char Editor::PrintParameter(
 
 /* static */
 void Editor::DisplaySysPage() {
-  // List:  SYS            /  inside:  SYS  KBD     1/4
-  //        >kbd     1/4               >octave       +1
+  // List:  SETTINGS     1/4   inside:  KEYBOARD     1/2   last row of both:
+  //        >keyboard                   >octave        +1  >back
   char* row_0 = line_buffer_;
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   memset(line_buffer_, ' ', sizeof(line_buffer_));
-  const prog_char* title = page_titles + kLcdWidth * current_page_;
-  memcpy_P(row_0, title, kLcdWidth);
-  row_0[kLcdWidth] = '\0';
+  uint8_t count = sys_open_ ? SysItems() : 4;
+  if (sys_open_) {
+    memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
+  } else {
+    memcpy_P(row_0, PSTR("SETTINGS"), 8);
+  }
   uint8_t cursor = kLcdNoCursor;
-  if (!sys_open_) {
-    memset(row_0 + 3, ' ', kLcdWidth - 3);
-    memcpy_P(row_1 + 1, title + 5, kLcdWidth - 5);
-    for (uint8_t i = 1; i < kLcdWidth; ++i) {
-      if (row_1[i] >= 'A' && row_1[i] <= 'Z') {
-        row_1[i] += 32;
+  if (cursor_ == count) {
+    memcpy_P(row_1 + 1, PSTR("back"), 4);
+  } else {
+    row_0[kLcdWidth - 3] = '1' + cursor_;
+    row_0[kLcdWidth - 2] = '/';
+    row_0[kLcdWidth - 1] = '0' + count;
+    if (sys_open_) {
+      NameValue(KnobIndexToParameterId(cursor_), row_1 + 1, true);
+    } else {
+      memcpy_P(row_1 + 1, page_titles + kLcdWidth * current_page_, 15);
+      for (uint8_t i = 1; i < kLcdWidth; ++i) {
+        if (row_1[i] >= 'A' && row_1[i] <= 'Z') {
+          row_1[i] += 32;
+        }
       }
     }
-  } else {
-    NameValue(KnobIndexToParameterId(cursor_), row_1);
-    memmove(row_1 + 1, row_1, 7);
   }
+  row_0[kLcdWidth] = '\0';
   row_1[0] = 0x7e;  // HD44780 right arrow; blinks while editing.
   if (sys_open_ && display_mode_ == DISPLAY_MODE_EDIT) {
     row_1[0] = ' ';
@@ -1164,8 +1181,17 @@ void Editor::DisplaySysPage() {
 }
 
 /* static */
+uint8_t Editor::SysItems() {
+  uint8_t n = 0;
+  while (n < 4 && pgm_read_byte(&page_parameters[current_page_][n]) != 0xff) {
+    ++n;
+  }
+  return n;
+}
+
+/* static */
 void Editor::OnSysInput(uint8_t knob_index, uint8_t value) {
-  if (sys_open_) {
+  if (sys_open_ && cursor_ < SysItems()) {
     OnEditInput(cursor_, value);  // Any pot sets the selected setting.
   }
 }
@@ -1173,20 +1199,36 @@ void Editor::OnSysInput(uint8_t knob_index, uint8_t value) {
 /* static */
 void Editor::OnSysIncrement(int8_t increment) {
   memset(snapped_, false, sizeof(snapped_));
-  if (sys_open_) {
-    OnEditIncrement(increment);  // Browse items, or change the value.
+  if (sys_open_ && display_mode_ == DISPLAY_MODE_EDIT) {
+    OnEditIncrement(increment);  // Change the value.
     return;
   }
-  uint8_t page = current_page_ + (increment > 0 ? 1 : -1);
-  if (page >= PAGE_SYS_KBD && page <= PAGE_SYS_PERF) {
-    current_page_ = static_cast<ParameterPage>(page);
+  display_mode_ = DISPLAY_MODE_OVERVIEW;
+  // Browse: items, then "back" as the last row.
+  uint8_t count = sys_open_ ? SysItems() : 4;
+  if (increment > 0 && cursor_ < count) {
+    ++cursor_;
+  } else if (increment < 0 && cursor_ > 0) {
+    --cursor_;
+  }
+  if (!sys_open_ && cursor_ < 4) {
+    current_page_ = PAGE_SYS_KBD + cursor_;
     last_visited_page_[GROUP_SYS] = current_page_;
   }
 }
 
 /* static */
 void Editor::OnSysClick() {
-  if (!sys_open_) {
+  uint8_t count = sys_open_ ? SysItems() : 4;
+  if (cursor_ == count) {
+    if (sys_open_) {
+      sys_open_ = false;  // back to the list
+      cursor_ = current_page_ - PAGE_SYS_KBD;
+      display_mode_ = DISPLAY_MODE_OVERVIEW;
+    } else {
+      JumpToPageGroup(last_visited_group_[0]);  // back to the synth pages
+    }
+  } else if (!sys_open_) {
     sys_open_ = true;
     cursor_ = 0;
     display_mode_ = DISPLAY_MODE_OVERVIEW;
@@ -1195,7 +1237,8 @@ void Editor::OnSysClick() {
 
 /* static */
 // Name in cols 0-6, gap, value right-aligned in 8-15, all lowercase.
-void Editor::NameValue(uint8_t id, char* row) {
+// wide (menu rows): 15 cols, the name may run up to the value.
+void Editor::NameValue(uint8_t id, char* row, bool wide) {
   const Parameter& p = parameter_manager.parameter(id);
   char text[kLcdWidth + 1];
   memset(text, 0, sizeof(text));
@@ -1220,7 +1263,9 @@ void Editor::NameValue(uint8_t id, char* row) {
   while (text[len]) {
     ++len;
   }
-  memset(row, 0, kLcdWidth + 1);
+  uint8_t w = kLcdWidth - wide;
+  uint8_t name_end = wide ? w - len - 1 : 7;
+  memset(row, 0, w + 1);
   uint8_t n = 0;
   while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
     ++n;
@@ -1234,9 +1279,9 @@ void Editor::NameValue(uint8_t id, char* row) {
     ResourcesManager::LoadStringResource(p.long_name, row, kCaptionWidth);
   }
   // Fixed columns: name in 0-6, gap, value right-aligned in 8-15.
-  for (uint8_t i = 0; i < kLcdWidth; ++i) {
-    char c = i >= kLcdWidth - len ? text[i - (kLcdWidth - len)] :
-        (i < 7 ? row[i] : ' ');
+  for (uint8_t i = 0; i < w; ++i) {
+    char c = i >= w - len ? text[i - (w - len)] :
+        (i < name_end ? row[i] : ' ');
     if (c == '\0') {
       c = ' ';
     }
@@ -1245,7 +1290,7 @@ void Editor::NameValue(uint8_t id, char* row) {
     }
     row[i] = c;
   }
-  row[kLcdWidth] = '\0';
+  row[w] = '\0';
 }
 
 /* static */
@@ -1262,7 +1307,8 @@ void Editor::DisplayEditOverviewPage() {
     memset(touched_, false, sizeof(touched_));
   }
   // Encoder target: steady arrow when browsing, blinking when editing.
-  uint8_t marker = cursor_ * kColumnWidth + 3;
+  uint8_t marker = current_page_ == PAGE_LOAD_SAVE ?
+      kLcdNoCursor : cursor_ * kColumnWidth + 3;
   if (title_flash_) {
     marker = kLcdNoCursor;
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
@@ -1308,7 +1354,7 @@ void Editor::DisplayEditOverviewPage() {
         (touched_[cursor_] || display_mode_ == DISPLAY_MODE_EDIT)) {
       const Parameter& p = parameter_manager.parameter(id);
       if (p.unit > UNIT_INT8 && p.unit != UNIT_LFO_RATE) {
-        NameValue(id, row_0);
+        NameValue(id, row_0, false);
         marker = kLcdNoCursor;
       }
     }

@@ -260,7 +260,8 @@ class Editor {
   static void OnSysInput(uint8_t knob_index, uint8_t value);
   static void OnSysIncrement(int8_t increment);
   static void OnSysClick();
-  static void NameValue(uint8_t id, char* row);
+  static void NameValue(uint8_t id, char* row, bool wide);
+  static uint8_t SysItems();  // Settings rows on the current SYS page.
   
   static void BackupEditBuffer();
   static void RestoreEditBuffer();
