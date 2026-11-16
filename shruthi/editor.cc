@@ -290,6 +290,7 @@ ConfirmPageSettings Editor::confirm_page_settings_;
 bool Editor::snapped_[4];
 bool Editor::title_flash_;
 bool Editor::show_numbers_;
+bool Editor::func_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
 /* </static> */
@@ -944,6 +945,31 @@ uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
   return id;
 }
 
+// FUNC + pot/encoder (Elektron style): snap to relevant values. Osc range
+// jumps by octaves, others by 1/8 of their range; dir 0 = nearest (pots),
+// +1/-1 = next/previous (encoder). Lists and small ranges just step by 1.
+static uint8_t RelevantValue(uint8_t id, uint8_t value, int8_t dir) {
+  const Parameter& p = parameter_manager.parameter(id);
+  bool is_signed = p.unit == UNIT_INT8 && static_cast<int8_t>(p.min_value) < 0;
+  int16_t lo = is_signed ? static_cast<int8_t>(p.min_value) : p.min_value;
+  int16_t hi = is_signed ? static_cast<int8_t>(p.max_value) : p.max_value;
+  if (p.unit > UNIT_INT8 || hi - lo < 16) {
+    return dir ? p.Increment(value, dir) : value;
+  }
+  int16_t step = (id == 2 || id == 6) ? 12 : (hi - lo >= 100 ? 16 : 8);
+  int16_t k = 16 * step;  // Offset so the divisions below never see negatives.
+  int16_t s = (is_signed ? static_cast<int8_t>(value) : value) + k;
+  if (dir > 0) {
+    s = (s / step + 1) * step;
+  } else if (dir < 0) {
+    s = ((s + step - 1) / step - 1) * step;
+  } else {
+    s = (s + step / 2) / step * step;
+  }
+  s -= k;
+  return s < lo ? lo : (s > hi ? hi : s);
+}
+
 /* static */
 void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
   title_flash_ = false;
@@ -967,7 +993,9 @@ void Editor::OnEditInput(uint8_t knob_index, uint8_t value) {
   if (display_mode_ != DISPLAY_MODE_EDIT) {
     display_mode_ = DISPLAY_MODE_EDIT_TEMPORARY;
   }
-  SetParameterValue(index, parameter.offset, parameter.Scale(value));
+  uint8_t v = parameter.Scale(value);
+  SetParameterValue(index, parameter.offset,
+      func_ ? RelevantValue(index, v, 0) : v);
 }
 
 /* static */
@@ -975,7 +1003,11 @@ void Editor::OnEditIncrement(int8_t increment) {
   title_flash_ = false;
   if (display_mode_ == DISPLAY_MODE_EDIT) {
     uint8_t id = KnobIndexToParameterId(cursor_);
-    if (id != 0xff) {
+    if (id != 0xff && func_) {
+      const Parameter& p = parameter_manager.parameter(id);
+      SetParameterValue(id, p.offset, RelevantValue(
+          id, GetParameterValue(p.offset), increment > 0 ? 1 : -1));
+    } else if (id != 0xff) {
       IncrementParameterValue(id, increment);
     }
     return;

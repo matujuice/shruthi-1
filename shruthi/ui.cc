@@ -268,6 +268,7 @@ void Ui::DoEvents() {
   bool refresh_display = false;
 
   uint8_t previous_page = editor.current_page();
+  editor.set_func(switch_state_[SWITCH_SHIFT] == 0x00);
 
   while (queue_.available()) {
     Event e = queue_.PullEvent();
@@ -292,6 +293,9 @@ void Ui::DoEvents() {
         break;
 
       case CONTROL_POT:
+        if (switch_state_[SWITCH_SHIFT] == 0x00) {
+          inhibit_shift_release_ = true;  // FUNC + pot is not a FUNC tap.
+        }
         editor.OnInput(e.control_id, e.value);
         break;
     }

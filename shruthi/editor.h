@@ -188,6 +188,7 @@ class Editor {
   static inline uint8_t cursor() { return cursor_; }
   static inline bool show_numbers() { return show_numbers_; }
   static inline void set_show_numbers(bool b) { show_numbers_ = b; }
+  static inline void set_func(bool b) { func_ = b; }
   static inline uint8_t subpage() { return subpage_; }
   
   static void Confirm(ConfirmPageSettings confirm_page_settings);
@@ -298,6 +299,7 @@ class Editor {
   static bool snapped_[4];
   static bool title_flash_;
   static bool show_numbers_;
+  static bool func_;  // FUNC held: pots and encoder jump to relevant values.
   
   static uint16_t deferred_load_;
 

@@ -50,6 +50,9 @@ class Ui {
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         increment = increment < 0 ? -10 : 10;
         inhibit_shift_release_ = true;
+      } else if (switch_state_[SWITCH_ENCODER] == 0x00) {
+        increment *= 8;  // Pressed + turned: coarse steps, no click on release.
+        inhibit_encoder_release_ = true;
       }
       queue_.AddEvent(CONTROL_ENCODER, 0, increment);
     }
