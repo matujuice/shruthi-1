@@ -461,6 +461,113 @@ static char GlyphGet(const uint8_t* bits) {
   return 8 + slot;
 }
 
+// Close-up: tapping the page key again on an envelope or LFO page draws its
+// shape over the whole screen (80x16 px); the knobs still edit it.
+static bool closeup_;
+
+// exp(-4 i / 16) * 255.
+static const prog_uint8_t exp_decay[] PROGMEM = {
+  255, 199, 155, 121, 94, 73, 57, 44, 35, 27, 21, 16, 13, 10, 8, 6 };
+
+static uint8_t Decay(uint8_t t, uint8_t n) {  // t < n.
+  return pgm_read_byte(exp_decay + t * 16 / n);
+}
+
+// Level (0-255) of pixel column x (0-79) of an envelope or LFO page.
+static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
+  if (page <= PAGE_MOD_ENV_2) {
+    const EnvelopeSettings& e = part.patch().env[page - PAGE_MOD_ENV_1];
+    uint8_t a = (e.attack * 23 >> 7) + 1;
+    uint8_t d = (e.decay * 23 >> 7) + 1;
+    uint8_t r = (e.release * 23 >> 7) + 1;
+    uint8_t s = e.sustain << 1;
+    if (x < a) {
+      return x * 255 / a;
+    }
+    x -= a;
+    if (x < d) {
+      return s + U8U8MulShift8(255 - s, Decay(x, d));
+    }
+    x -= d;
+    uint8_t hold = 80 - a - d - r;  // At least 11.
+    if (x < hold) {
+      return s;
+    }
+    x -= hold;
+    return U8U8MulShift8(s, Decay(x, r)) * (r - x) / r;
+  }
+  const LfoSettings& l = part.patch().lfo[page - PAGE_MOD_LFO_1];
+  uint16_t phase = static_cast<uint16_t>(x) * 819U;  // One cycle.
+  if (l.speed < 0) {
+    phase = ~phase;
+  }
+  switch (l.waveform) {
+    case LFO_WAVEFORM_RAMP: return phase >> 8;
+    case LFO_WAVEFORM_S_H: return (phase >> 13) * 97 + 40;  // Fixed steps.
+    case LFO_WAVEFORM_TRIANGLE:
+      return (phase & 0x8000) ? phase >> 7 : ~static_cast<uint8_t>(phase >> 7);
+    case LFO_WAVEFORM_SQUARE: return (phase & 0x8000) ? 255 : 0;
+  }
+  uint8_t shape = l.waveform - LFO_WAVEFORM_WAVE_1;  // As in Lfo::Render().
+  shape = shape ? shape + 16 : 3;
+  return ResourcesManager::Lookup<uint8_t, uint8_t>(
+      wav_res_waves + U8U8Mul(shape, 129), phase >> 9);
+}
+
+// Filled shape, cells from the bottom; full cells use the ROM block 0xff. If
+// more than 8 glyphs are needed, each cell gets one height (7 glyphs at most).
+static void DrawCloseup(uint8_t page, char* row_0) {
+  glyph_previous_ = glyph_used_;
+  for (uint8_t coarse = 0; coarse < 2; ++coarse) {
+    bool overflow = false;
+    glyph_used_ = 0;
+    for (uint8_t pass = 0; pass < 2; ++pass) {
+      glyph_probe_ = pass == 0;
+      for (uint8_t c = 0; c < kLcdWidth; ++c) {
+        uint8_t h[5];
+        uint8_t sum = 0;
+        for (uint8_t p = 0; p < 5; ++p) {
+          h[p] = (CloseupLevel(page, c * 5 + p) + 8) >> 4;
+          if (!h[p]) {
+            h[p] = 1;  // Zero line.
+          }
+          sum += h[p];
+        }
+        if (coarse) {
+          memset(h, (sum + 2) / 5, 5);
+        }
+        for (uint8_t row = 0; row < 2; ++row) {
+          uint8_t bits[8];
+          uint8_t all = 0x1f;
+          uint8_t any = 0;
+          for (uint8_t y = 0; y < 8; ++y) {
+            uint8_t level = (row ? 8 : 16) - y;
+            uint8_t b = 0;
+            for (uint8_t p = 0; p < 5; ++p) {
+              b <<= 1;
+              if (h[p] >= level) {
+                b |= 1;
+              }
+            }
+            bits[y] = b;
+            all &= b;
+            any |= b;
+          }
+          char ch = all == 0x1f ? 0xff : (any ? GlyphGet(bits) : ' ');
+          if (any && ch == ' ' && !glyph_probe_) {
+            overflow = true;
+          }
+          row_0[row * (kLcdWidth + 1) + c] = ch;
+        }
+        ::FillAudioBuffer();
+      }
+    }
+    if (!overflow) {
+      return;
+    }
+  }
+}
+
 static char Icon(uint8_t unit, uint8_t value) {
   uint8_t base, count;
   switch (unit) {
@@ -627,6 +734,7 @@ void Editor::PageChange() {
     last_visited_group_[0] = group;
   }
   title_flash_ = current_page_ <= PAGE_SYS_PERF;
+  closeup_ = false;
   
   if (page_definition_[current_page_].ui_type == PARAMETER_EDITOR) {
     memset(snapped_, false, sizeof(snapped_));
@@ -782,6 +890,10 @@ void Editor::OnSwitch(const Event& event) {
     }
   } else if (id == SWITCH_MODE) {
     ToggleLoadSaveAction();
+  } else if (!closeup_ && current_page_ >= PAGE_MOD_ENV_1 &&
+      current_page_ <= PAGE_MOD_LFO_2 &&
+      page_definition_[current_page_].group == id + GROUP_SYN) {
+    closeup_ = true;  // Envelope/LFO: the next tap shows the shape.
   } else {
     JumpToPageGroup(id + GROUP_SYN);
   }
@@ -1381,6 +1493,14 @@ void Editor::DisplayEditOverviewPage() {
   // SAW#  0# +0#SQ1#
   char* row_0 = line_buffer_;
   char* row_1 = line_buffer_ + kLcdWidth + 1;
+  if (closeup_ && !show_numbers_ && current_page_ >= PAGE_MOD_ENV_1 &&
+      current_page_ <= PAGE_MOD_LFO_2) {
+    DrawCloseup(current_page_, row_0);
+    display.set_cursor_position(kLcdNoCursor);
+    display.Print(0, row_0);
+    display.Print(1, row_1);
+    return;
+  }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   row_0[kLcdWidth] = '\0';
   glyph_previous_ = glyph_used_;
