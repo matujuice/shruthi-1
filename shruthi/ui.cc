@@ -173,22 +173,29 @@ void Ui::DebounceSwitches() {
     mask >>= 1;
   }
   
-  // Handle basic switches
+  // Handle basic switches. Page keys (S1-S4) act on release, so a hold can
+  // show the page's numbers instead; switch_delay_ = 0 means no tap pending.
   for (uint8_t i = 0; i <= SWITCH_MODE; ++i) {
     if (switch_state_[i] == 0x80) {
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0xff);
         inhibit_shift_release_ = true;
+        switch_delay_[i] = 0;
+      } else if (i == SWITCH_MODE) {
+        queue_.AddEvent(CONTROL_SWITCH, i, 0);
       } else {
+        switch_delay_[i] = milliseconds() | 1;
+      }
+    } else if (switch_state_[i] == 0x7f && i != SWITCH_MODE) {
+      if (switch_delay_[i] && milliseconds() - switch_delay_[i] <= 300) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0);
       }
+      switch_delay_[i] = 0;
     }
   }
   
   // Handle shift switch
-  if (switch_state_[SWITCH_SHIFT] == 0x80) {
-    switch_delay_[SWITCH_SHIFT] = milliseconds();
-  } else if (switch_state_[SWITCH_SHIFT] == 0x7f) {
+  if (switch_state_[SWITCH_SHIFT] == 0x7f) {
     if (!inhibit_shift_release_) {
       queue_.AddEvent(CONTROL_SWITCH, SWITCH_SHIFT, 0);
     }
@@ -319,9 +326,12 @@ void Ui::DoEvents() {
     idle_time_ = 0;
   }
   
-  // Holding FUNC shows every value as a number (delay: a tap doesn't flash).
-  bool numbers = switch_state_[SWITCH_SHIFT] == 0x00 &&
-      milliseconds() - switch_delay_[SWITCH_SHIFT] > 300;
+  // Holding a page key shows the page's values as numbers (Elektron style).
+  bool numbers = false;
+  for (uint8_t i = 0; i < SWITCH_MODE; ++i) {
+    numbers |= switch_state_[i] == 0x00 && switch_delay_[i] &&
+        milliseconds() - switch_delay_[i] > 300;
+  }
   if (numbers != editor.show_numbers()) {
     editor.set_show_numbers(numbers);
     refresh_display = true;
