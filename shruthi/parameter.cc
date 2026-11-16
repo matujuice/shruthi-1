@@ -112,10 +112,10 @@ uint8_t Parameter::Increment(
   if (unit == UNIT_INT8) {
     value = static_cast<int16_t>(static_cast<int8_t>(value));
     value += increment;
-    if (value >= static_cast<int8_t>(min_value) &&
-        value <= static_cast<int8_t>(max_value)) {
-      new_value = static_cast<uint8_t>(value);
-    }
+    // Clamp, so coarse steps (x8, x10) still reach the ends of the range.
+    int8_t lo = static_cast<int8_t>(min_value);
+    int8_t hi = static_cast<int8_t>(max_value);
+    new_value = static_cast<uint8_t>(value < lo ? lo : (value > hi ? hi : value));
   } else {
     value += increment;
     if (unit == UNIT_MODULATION_SOURCE) {
@@ -123,7 +123,12 @@ uint8_t Parameter::Increment(
         value += increment > 0 ? 1 : -1;
       }
     }
-    if (value >= min_value && value <= max_value) {
+    if (value < min_value) {
+      value = min_value;
+    } else if (value > max_value) {
+      value = max_value;
+    }
+    if (unit != UNIT_MODULATION_SOURCE || !IsHiddenSource(value)) {
       new_value = static_cast<uint8_t>(value);
     }
   }
