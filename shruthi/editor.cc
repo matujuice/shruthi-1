@@ -480,6 +480,46 @@ static char Icon(uint8_t unit, uint8_t value) {
   return GlyphGet(bits);
 }
 
+// Tall font, 5x16 over both LCD rows: 0-9, then S H R U T I.
+static const prog_uint8_t tall_font[] PROGMEM = {
+  0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // 0
+  0x06, 0x0e, 0x1e, 0x16, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x1f, 0x1f,  // 1
+  0x0e, 0x1f, 0x1b, 0x03, 0x03, 0x03, 0x07, 0x0e, 0x1c, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1f, 0x1f,  // 2
+  0x1e, 0x1f, 0x03, 0x03, 0x03, 0x03, 0x0e, 0x0e, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x1f, 0x1e,  // 3
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x1f, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03,  // 4
+  0x1f, 0x1f, 0x18, 0x18, 0x18, 0x18, 0x1e, 0x1f, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x1f, 0x1e,  // 5
+  0x0e, 0x1e, 0x18, 0x18, 0x18, 0x18, 0x1e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // 6
+  0x1f, 0x1f, 0x03, 0x03, 0x03, 0x06, 0x06, 0x06, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c,  // 7
+  0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // 8
+  0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0f, 0x03, 0x03, 0x03, 0x03, 0x03, 0x0f, 0x0e,  // 9
+  0x0f, 0x1f, 0x18, 0x18, 0x18, 0x18, 0x1f, 0x0f, 0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x1f, 0x1e,  // S
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b,  // H
+  0x1e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x1e, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b,  // R
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // U
+  0x1f, 0x1f, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e,  // T
+  0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e,  // I
+};
+
+// 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
+static uint8_t preset_status_;
+
+// Starts a new glyph screen and draws tall_font characters from column 0 of
+// both rows. Two passes, as in DisplayEditOverviewPage.
+static void PrintTall(const uint8_t* chars, uint8_t n, char* row_0) {
+  glyph_previous_ = glyph_used_;
+  glyph_used_ = 0;
+  for (uint8_t pass = 0; pass < 2; ++pass) {
+    glyph_probe_ = pass == 0;
+    for (uint8_t i = 0; i < n; ++i) {
+      uint8_t bits[8];
+      memcpy_P(bits, tall_font + 16 * chars[i], 8);
+      row_0[i] = GlyphGet(bits);
+      memcpy_P(bits, tall_font + 16 * chars[i] + 8, 8);
+      row_0[kLcdWidth + 1 + i] = GlyphGet(bits);
+    }
+  }
+}
+
 /* <static> */
 ParameterPage Editor::current_page_ = PAGE_FILTER_FILTER;
 ParameterPage Editor::last_visited_page_[] = {
@@ -765,6 +805,9 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 /* static */
 void Editor::Refresh() {
   if (popup_until_) {
+    if (popup_phase_ == 0xff) {
+      return;  // Boot screen stays up.
+    }
     // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks blink 3x.
     memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
     memset(line_buffer_ + 4, ' ', 8);
@@ -790,6 +833,7 @@ void Editor::Refresh() {
 /* static */
 void Editor::ReloadPatch() {
   deferred_load_ = current_patch_number_;
+  preset_status_ = 2;
   popup_until_ = milliseconds() + 1000;
   popup_phase_ = 5;
 }
@@ -803,6 +847,9 @@ bool Editor::PopupTick() {
   if (left <= 0) {
     popup_until_ = 0;
     return true;
+  }
+  if (popup_phase_ == 0xff) {
+    return false;  // Boot screen: no blinking.
   }
   uint8_t phase = static_cast<uint16_t>(left) / 167;
   if (phase != popup_phase_) {
@@ -897,6 +944,7 @@ void Editor::OnLoadSaveClick() {
     if (cursor_ >= kLcdWidth - 4) {
       Storage::WritePatch(edited_item_number());
       action_ = ACTION_LOAD;
+      preset_status_ = 0;
     }
   }
 }
@@ -939,12 +987,30 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
     set_edited_item_number(edited_item_number() + increment);
     if (action_ == ACTION_LOAD) {
       deferred_load_ = edited_item_number();
+      preset_status_ = 0;
     }
   }
 }
 
 /* static */
 void Editor::DisplayLoadSavePage() {
+  if (action_ == ACTION_LOAD) {
+    // 012  FUNK WAH / 012  INT: number in the tall font (at most 6 glyphs).
+    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    uint16_t n = edited_item_number();
+    uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
+    PrintTall(digits, 3, line_buffer_);
+    memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
+    memcpy_P(line_buffer_ + kLcdWidth + 1 + 5,
+        preset_status_ == 1 ? PSTR("EDITED *") :
+        preset_status_ == 2 ? PSTR("RELOADED") :
+        n < StorageConfiguration<Patch>::num_internal ? PSTR("INT") : PSTR("EXT"),
+        preset_status_ ? 8 : 3);
+    display.set_cursor_position(kLcdNoCursor);
+    display.Print(0, line_buffer_);
+    display.Print(1, line_buffer_ + kLcdWidth + 1);
+    return;
+  }
   ResourcesManager::LoadStringResource(
       STR_RES_BROWSE + action_,
       line_buffer_,
@@ -1527,6 +1593,9 @@ void Editor::SetParameterValue(
       offset += subpage_ * 3;
     }
     part.SetParameter(index, offset, value, true);
+    if (page_definition_[current_page_].group != GROUP_SYS) {
+      preset_status_ = 1;
+    }
   }
 }
 
@@ -1559,18 +1628,19 @@ uint8_t Editor::GetParameterValue(uint8_t offset) {
 }
 
 /* static */
-void Editor::DisplaySplashScreen(ResourceId first_line) {
-  // 0123456789abcdef
-  // mutable
-  // instruments sh-1
-  for (uint8_t i = 0; i < 2; ++i) {
-    ResourcesManager::LoadStringResource(
-        first_line + i,
-        line_buffer_,
-        kLcdWidth);
-    AlignLeft(line_buffer_, kLcdWidth);
-    display.Print(i, line_buffer_);
-  }
+void Editor::DisplaySplashScreen() {
+  // SHRUTHI -1 / SHRUTHI POLIVOKS, SHRUTHI in the tall font (all 8 glyphs).
+  uint8_t word[7] = { 10, 11, 12, 13, 14, 11, 15 };
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  PrintTall(word, 7, line_buffer_);
+  line_buffer_[8] = '-';
+  line_buffer_[9] = '1';
+  memcpy_P(line_buffer_ + kLcdWidth + 1 + 8, PSTR("POLIVOKS"), 8);
+  display.Print(0, line_buffer_);
+  display.Print(1, line_buffer_ + kLcdWidth + 1);
+  popup_until_ = milliseconds() + 1000;
+  popup_phase_ = 0xff;
+  ToggleLoadSaveAction();  // PRESET screen once the boot screen ends.
 }
 
 /* static */

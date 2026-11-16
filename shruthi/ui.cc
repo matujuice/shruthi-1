@@ -86,7 +86,7 @@ void Ui::Init() {
 
 /* static */
 void Ui::ShowSplash() {
-  editor.DisplaySplashScreen(STR_RES_V + 1);
+  editor.DisplaySplashScreen();
 }
 
 /* static */
