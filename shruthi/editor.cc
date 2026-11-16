@@ -505,9 +505,9 @@ static const prog_uint8_t tall_font[] PROGMEM = {
   0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1f, 0x1f,  // L
   0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x0e, 0x0e, 0x04, 0x04,  // V
   0x1b, 0x1b, 0x1b, 0x1b, 0x1a, 0x1e, 0x1c, 0x18, 0x1c, 0x1e, 0x1a, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b,  // K
-  0x02, 0x07, 0x0e, 0x1d, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x0e, 0x18,  // hammer & sickle L
-  0x03, 0x00, 0x10, 0x18, 0x1c, 0x0e, 0x07, 0x03, 0x01, 0x00, 0x00, 0x00, 0x01, 0x1f, 0x00, 0x00,  // hammer & sickle C
-  0x10, 0x1c, 0x06, 0x03, 0x03, 0x03, 0x03, 0x13, 0x1b, 0x13, 0x06, 0x0e, 0x1c, 0x00, 0x00, 0x00,  // hammer & sickle R
+  0x00, 0x00, 0x00, 0x01, 0x03, 0x07, 0x0f, 0x07, 0x02, 0x00, 0x06, 0x0f, 0x0f, 0x18, 0x18, 0x00,  // hammer & sickle L
+  0x00, 0x04, 0x03, 0x1d, 0x1c, 0x18, 0x18, 0x1c, 0x0e, 0x07, 0x03, 0x01, 0x1f, 0x1f, 0x00, 0x00,  // hammer & sickle C
+  0x00, 0x00, 0x00, 0x10, 0x18, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x1c, 0x18, 0x1c, 0x0e, 0x06, 0x00,  // hammer & sickle R
 };
 
 // Boot words as tall_font indices (O is the 0), 0xff ends a word.
@@ -859,9 +859,9 @@ void Editor::ReloadPatch() {
 /* static */
 bool Editor::PopupTick() {
   if (!popup_until_) {
-    // Save page: the whole number blinks while selected, faster while edited.
+    // Save page: the selected number or OK blinks, faster while edited.
     uint8_t hidden = current_page_ == PAGE_LOAD_SAVE &&
-        action_ == ACTION_SAVE && cursor_ == 0 &&
+        action_ == ACTION_SAVE && (cursor_ == 0 || cursor_ >= kLcdWidth - 4) &&
         (milliseconds() >> (display_mode_ == DISPLAY_MODE_EDIT ? 7 : 8)) & 1;
     if (hidden != number_hidden_) {
       number_hidden_ = hidden;
@@ -1034,7 +1034,7 @@ void Editor::DisplayLoadSavePage() {
   uint16_t n = edited_item_number();
   uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
   PrintTall(digits, 3, line_buffer_);
-  if (number_hidden_ && action_ == ACTION_SAVE) {
+  if (number_hidden_ && action_ == ACTION_SAVE && cursor_ == 0) {
     memset(line_buffer_, ' ', 3);
     memset(line_buffer_ + kLcdWidth + 1, ' ', 3);
   }
@@ -1051,12 +1051,11 @@ void Editor::DisplayLoadSavePage() {
     if (empty_patch_) {
       row_1[10] = '*';  // Target slot is empty.
     }
-    row_1[13] = 'o';
-    row_1[14] = 'k';
-    if (cursor_ >= kLcdWidth - 4) {
-      row_1[12] = '[';
-      row_1[15] = ']';
-    } else if (is_cursor_at_valid_position()) {
+    if (!number_hidden_ || cursor_ < kLcdWidth - 4) {
+      row_1[13] = 'O';
+      row_1[14] = 'K';
+    }
+    if (is_cursor_at_valid_position()) {
       // Name: on its letter, top row. The number blinks instead.
       cursor = cursor_ ? cursor_ + 1 : kLcdNoCursor;
     }
@@ -1663,7 +1662,7 @@ void Editor::BootStep() {
   if (boot_step_ & 1) {
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
-    popup_until_ = milliseconds() + (boot_step_ == 9 ? 1000 : 550);
+    popup_until_ = milliseconds() + 550;
     return;
   }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
