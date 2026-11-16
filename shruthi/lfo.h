@@ -37,31 +37,20 @@ using avrlib::Random;
 
 namespace shruthi {
 
+// Tempo-locked LFO. The phase is 16.16 fixed point; a negative increment runs
+// the waveform backwards.
 class Lfo {
  public:
   Lfo() { }
 
-  uint8_t Render(const SequencerSettings& sequence) {
+  uint8_t Render() {
     uint8_t value;
-
-    // Ramp up the intensity envelope.
-    uint16_t i = intensity_;
-    if (static_cast<uint8_t>(i >> 8) != 0x3f) {
-      i += intensity_increment_;
-      if (static_cast<uint8_t>(i >> 8) >= 0x40) {
-        i = 16383;
-      }
-      intensity_ = i;
-    }
-    
-    cycle_complete_ = phase_ < phase_increment_;
-    
-    // Compute the LFO value.
+    uint16_t phase = phase_ >> 16;
     switch (shape_) {
       case LFO_WAVEFORM_RAMP:
-        value = phase_ >> 8;
+        value = phase >> 8;
         break;
-        
+
       case LFO_WAVEFORM_S_H:
         if (cycle_complete_) {
           value_ = Random::GetByte();
@@ -70,23 +59,15 @@ class Lfo {
         break;
 
       case LFO_WAVEFORM_TRIANGLE:
-        value = (phase_ & 0x8000) ?
-            phase_ >> 7 :
-            ~static_cast<uint8_t>(phase_ >> 7);
+        value = (phase & 0x8000) ?
+            phase >> 7 :
+            ~static_cast<uint8_t>(phase >> 7);
         break;
 
       case LFO_WAVEFORM_SQUARE:
-        value = (phase_ & 0x8000) ? 255 : 0;
+        value = (phase & 0x8000) ? 255 : 0;
         break;
-        
-      case LFO_WAVEFORM_STEP_SEQUENCER:
-        {
-          uint8_t phase_to_step = phase_ >> 8;
-          phase_to_step = U8U8MulShift8(phase_to_step, sequence.pattern_size);
-          value = sequence.steps[phase_to_step].controller() << 4;
-        }
-        break;
-        
+
       default:
         {
           uint8_t shape_offset = shape_ - LFO_WAVEFORM_WAVE_1;
@@ -97,66 +78,27 @@ class Lfo {
           }
           value = ResourcesManager::Lookup<uint8_t, uint8_t>(
               wav_res_waves + U8U8Mul(shape_offset, 129),
-              phase_ >> 9);
+              phase >> 9);
         }
         break;
     }
-    phase_ += phase_increment_;
-    if (retrigger_mode_ == LFO_MODE_ONE_SHOT) {
-      // The one-shot mode is implemented as follow: we continue running
-      // the phase accumulator in the background; but the value is sampled
-      // and held at the end of the first cycle.
-      if (running_) {
-        if (phase_ < phase_increment_) {
-          running_ = false;
-          // End of cycle adjustments.
-          if (shape_ == LFO_WAVEFORM_RAMP ||
-              shape_ == LFO_WAVEFORM_TRIANGLE ||
-              shape_ == LFO_WAVEFORM_SQUARE) {
-            value = 255;
-          } else if (shape_ == LFO_WAVEFORM_STEP_SEQUENCER) {
-            value = 0;
-          }
-          one_shot_value_ = value;
-        }
-      } else {
-        value = one_shot_value_;
-      }
-      
-      // Only positive values are generated.
-      value = shape_ == LFO_WAVEFORM_STEP_SEQUENCER
-          ? 128 + (value >> 1)
-          : 255 - (value >> 1);
-    }
 
-    // Apply the intensity envelope.
-    return S8U8MulShift8(
-        static_cast<int8_t>(value) - 128,
-        avrlib::U14ShiftRight6(intensity_)
-    ) + 128;
-  }
-  
-  inline void set_target_phase(uint16_t step, uint16_t increment) {
-    // PLL for aligning the LFO to the phase dictated by the MIDI sync.
-    uint16_t phi = phase_;
-    int16_t d_error = increment - (phi - previous_phase_);
-    int16_t p_error = (step * increment) - phi;
-    int32_t error = 0;
-    error += d_error;
-    error += p_error;
-    int32_t new_increment = phase_increment_ + (error >> 8);
-    // The tracking range is 15 BPM .. 960 BPM.
-    if (new_increment < 6) {
-      new_increment = 6;
-    } else if (new_increment > 1040) {
-      new_increment = 1040;
+    // Advance. ONE stops after a full cycle, HLF after half a cycle (the
+    // phase MSB flips); the phase stays on the last value before the end.
+    uint32_t next = phase_ + phase_increment_;
+    bool wrapped = phase_increment_ < 0 ? next > phase_ : next < phase_;
+    cycle_complete_ = false;
+    if (running_ || mode_ < LFO_MODE_ONE_SHOT) {
+      if ((mode_ == LFO_MODE_ONE_SHOT && wrapped) ||
+          (mode_ == LFO_MODE_HALF && ((next ^ phase_) & 0x80000000))) {
+        running_ = false;
+      } else {
+        phase_ = next;
+        cycle_complete_ = wrapped;
+      }
     }
-    phase_increment_ = new_increment;
-    previous_phase_ = phi;
-  }
-  
-  inline void set_target_increment(uint16_t increment) {
-    phase_increment_ = increment;
+    last_value_ = value;
+    return mode_ == LFO_MODE_HOLD ? held_value_ : value;
   }
 
   void Reset() {
@@ -165,53 +107,37 @@ class Lfo {
   }
 
   void ResetPhase() {
-    phase_ = 0;
+    phase_ = phase_increment_ < 0 ? 0xffffffff : 0;
     cycle_complete_ = true;
     running_ = true;
   }
 
+  // Note on.
   void Trigger() {
-    if (retrigger_mode_) {
+    if (mode_ == LFO_MODE_HOLD) {
+      held_value_ = last_value_;
+    } else if (mode_ != LFO_MODE_FREE) {
       ResetPhase();
     }
-    intensity_ = 0;
   }
 
-  void Update(uint8_t shape, uint16_t phase_increment,
-              uint8_t attack, uint8_t retrigger_mode) {
+  void Update(uint8_t shape, int32_t phase_increment, uint8_t mode) {
     shape_ = shape;
-    if (phase_increment) {
-      phase_increment_ = phase_increment;
-    }
-    intensity_increment_ = ResourcesManager::Lookup<
-        uint16_t, uint8_t>(lut_res_env_portamento_increments, attack) >> 1;
-    retrigger_mode_ = retrigger_mode;
+    phase_increment_ = phase_increment;
+    mode_ = mode;
   }
-  
-  bool triggered() const { return cycle_complete_; }
 
  private:
-  // Phase increment.
-  uint16_t phase_increment_;
-  uint16_t previous_phase_;
-  uint16_t intensity_increment_;
-  uint16_t target_increment_;
-  uint16_t intensity_;
-
-  // Current phase of the lfo.
-  uint16_t phase_;
-
-  // Copy of the shape used by this lfo.
+  int32_t phase_increment_;
+  uint32_t phase_;
   uint8_t shape_;
-  uint8_t retrigger_mode_;
+  uint8_t mode_;
   bool cycle_complete_;
   bool running_;
-  
-  // Current value of S&H.
-  uint8_t value_;
-  uint8_t one_shot_value_;
-  uint8_t step_;
-  
+  uint8_t value_;  // S&H.
+  uint8_t last_value_;
+  uint8_t held_value_;
+
   DISALLOW_COPY_AND_ASSIGN(Lfo);
 };
 

@@ -189,14 +189,6 @@ void Parameter::PrintValue(uint8_t value, char* buffer, uint8_t width) const {
         text = STR_RES_PW1;
       }
       break;
-    case UNIT_LFO_RATE:
-      if (value >= 16) {
-        value = value - 16;
-      } else {
-        ++value;
-        prefix = 'x';
-      }
-      break;
     case UNIT_LFO_WAVEFORM:
       if (value >= LFO_WAVEFORM_WAVE_1) {
         text = NULL;
@@ -415,15 +407,15 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
 
   // 25
   { PRM_LFO_RATE_1,
-    UNIT_LFO_RATE,
-    0, 127 + 16,
+    UNIT_INT8,
+    -64, 63,
     { 113, 0 },
     STR_RES_RATE, STR_RES_RATE }, 
 
   // 26
   { PRM_LFO_ATTACK_1,
-    UNIT_RAW_UINT8,
-    0, 127,
+    UNIT_LFO_RATE,
+    0, 11,
     { 114, 0 },
     STR_RES_ATK, STR_RES_ATTACK }, 
 
@@ -437,21 +429,21 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
   // 28
   { PRM_LFO_WAVE_2,
     UNIT_LFO_WAVEFORM,
-    LFO_WAVEFORM_TRIANGLE, LFO_WAVEFORM_WAVE_16,
+    LFO_WAVEFORM_TRIANGLE, LFO_WAVEFORM_LAST - 1,
     { 116, 0 },
     STR_RES_SHAPE, STR_RES_SHAPE }, 
 
   // 29
   { PRM_LFO_RATE_2,
-    UNIT_LFO_RATE,
-    0, 127 + 16,
+    UNIT_INT8,
+    -64, 63,
     { 117, 0 },
     STR_RES_RATE, STR_RES_RATE }, 
 
   // 30
   { PRM_LFO_ATTACK_2,
-    UNIT_RAW_UINT8,
-    0, 127,
+    UNIT_LFO_RATE,
+    0, 11,
     { 118, 0 },
     STR_RES_ATK, STR_RES_ATTACK }, 
 

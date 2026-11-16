@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '%';
+  version_ = '&';  // '&': tempo-locked LFOs (SPD/MUL).
   filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
@@ -68,7 +68,7 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
       return 0;
     }
   }
-  if (buffer[91] != '!' && buffer[91] != '%') {
+  if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&') {
     memset(name, '-', 8);
     return 0;
   }
@@ -104,7 +104,7 @@ void Patch::Update() {
   filter_2_mode_ = filter_topology_ & 0xf;
   filter_1_mode_ = filter_topology_ >> 4;
   
-  if (version_ == '%') {
+  if (version_ != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();
     SequencerSettings* sequencer_settings = part.mutable_sequencer_settings();
     

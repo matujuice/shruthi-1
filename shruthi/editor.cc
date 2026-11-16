@@ -115,8 +115,8 @@ static const prog_char page_labels[] PROGMEM =
   "CUTRESENVLFO"  // 3
   "ATKDECSUSREL"  // 4
   "ATKDECSUSREL"  // 5
-  "WAVRATATKMOD"  // 6
-  "WAVRATATKMOD"  // 7
+  "WAVSPDMULMOD"  // 6
+  "WAVSPDMULMOD"  // 7
   "OP MIX      "  // 8
   "MODOVDFM    "  // 9
   "PRTLEGOCT   "  // 10
@@ -143,6 +143,8 @@ static const prog_char page_titles[] PROGMEM =
   "SYS  KBD     1/3"
   "SYS  MIDI    2/3"
   "SYS  DISPLAY 3/3";
+
+static const prog_char lfo_mode_names[] PROGMEM = "FRETRGHLDONEHLF";
 
 static const prog_char osc_names[] PROGMEM = "OFFSAWSQRTRIZSWZRSZTRZPLZSYPAD FMWAVTMPDIGMETBOWSLPORGMALUSR8BTCRUPWMNOIVOWBELPOLCELCLPFEMFMTFRMRESELEVIB";
 
@@ -189,7 +191,7 @@ static const prog_uint8_t icon_map[] PROGMEM = {
   5, 0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 24, 14, 15, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
   1, 3, 2, 1, 3, 2, 18, 19, 20, 21, 22,
   25, 10, 26, 27, 23, 24, 24, 28, 13, 29, 30, 31, 32, 0xff,
-  3, 1, 4, 0, 0xff, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
+  3, 1, 4, 0, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
   33, 34,
 };
 
@@ -245,8 +247,8 @@ static char Icon(uint8_t unit, uint8_t value) {
     case UNIT_WAVEFORM: base = 0; count = 35; break;
     case UNIT_SUB_OSC_WAVEFORM: base = 35; count = 11; break;
     case UNIT_OPERATOR: base = 46; count = 14; break;
-    case UNIT_LFO_WAVEFORM: base = 60; count = 21; break;
-    case UNIT_FILTER_1_MODE: base = 81; count = 2; break;
+    case UNIT_LFO_WAVEFORM: base = 60; count = 20; break;
+    case UNIT_FILTER_1_MODE: base = 80; count = 2; break;
     default: return ' ';
   }
   uint8_t icon = value < count ? pgm_read_byte(icon_map + base + value) : 0xff;
@@ -812,6 +814,16 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
   }
   if (p.unit == UNIT_WAVEFORM) {
     memcpy_P(t, osc_names + 3 * value, 3);
+  } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
+    memcpy_P(t, lfo_mode_names + 3 * value, 3);
+  } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
+    *t++ = 'x';
+    if (value >= 10) {
+      *t++ = value == 10 ? '1' : '2';
+      *t = 'k';
+    } else {
+      UnsafeItoa<int16_t>(1 << value, 4, t);
+    }
   } else {
     p.PrintValue(value, t, width - (t - text));
   }

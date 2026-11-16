@@ -58,9 +58,9 @@ uint8_t Part::nrpn_parameter_number_msb_;
 
 Lfo Part::lfo_[kNumLfos];
 uint8_t Part::previous_lfo_fm_[kNumLfos];
-uint16_t Part::lfo_step_[kNumLfos];
-uint16_t Part::lfo_limit_[kNumLfos];
-uint16_t Part::lfo_increment_[kNumLfos];
+uint16_t Part::blocks_per_beat_ = 490;  // 120 BPM until the first beat is measured.
+uint16_t Part::block_count_;
+uint8_t Part::beat_tick_;
 
 bool Part::arp_seq_running_;
 uint8_t Part::arp_seq_prescaler_;
@@ -142,8 +142,8 @@ static const prog_char init_patch[] PROGMEM = {
     0, 50, 20, 60,
     0, 40, 90, 30,
     // LFO
-    LFO_WAVEFORM_TRIANGLE, 80, 0, 0,
-    LFO_WAVEFORM_TRIANGLE, 3, 0, 0,
+    LFO_WAVEFORM_TRIANGLE, 32, 4, 0,
+    LFO_WAVEFORM_TRIANGLE, 32, 4, 0,
     // Routing
     MOD_SRC_LFO_1, MOD_DST_VCO_1, 0,
     MOD_SRC_ENV_1, MOD_DST_VCO_2, 0,
@@ -395,11 +395,6 @@ void Part::Reset() {
   AllNotesOff();
 }
 
-static const prog_uint16_t lfo_phase_increment[] PROGMEM = {
-  10922,  5461,  3640,  2730,  2184,  1820,  1560,  1365,
-  1213,   1092,   992,   910,   840,   780,   728,   682
-};
-
 /* static */
 void Part::Clock(bool internal) {
   if (running()) {
@@ -421,25 +416,16 @@ void Part::Clock(bool internal) {
     }
   }
 
-  for (uint8_t i = 0; i < kNumLfos; ++i) {
-    uint8_t rate = patch_.lfo[i].rate;
-    if (rate < 16) {
-      uint16_t limit = U8U8Mul(step_duration(), rate + 1);
-      while (lfo_step_[i] >= limit) {
-        lfo_step_[i] -= limit;
-      }
-      if (limit != lfo_limit_[i]) {
-        lfo_limit_[i] = limit;
-        lfo_increment_[i] = 65536 / limit;
-      }
-      lfo_[i].set_target_phase(lfo_step_[i], lfo_increment_[i]);
+  // Measure the beat (24 ticks) in control-rate blocks; LFO speeds lock to it.
+  if (++beat_tick_ >= 24) {
+    beat_tick_ = 0;
+    if (block_count_) {
+      blocks_per_beat_ = block_count_;
     }
-    ++lfo_step_[i];
-    if (lfo_step_[i] >= 1536) {
-      lfo_step_[i] = 0;
-    }
+    block_count_ = 0;
+    UpdateModulationRates();
   }
-  
+
   ++arp_seq_prescaler_;
   if (arp_seq_prescaler_ >= step_duration()) {
     arp_seq_prescaler_ = 0;
@@ -450,9 +436,6 @@ void Part::Start(bool internal) {
   if (internal) {
     midi_dispatcher.OnStart();
   }
-  
-  lfo_step_[0] = 0;
-  lfo_step_[1] = 0;
   
   release_latched_keys_on_next_note_on_ = false;
   ignore_note_off_messages_ = false;
@@ -543,28 +526,27 @@ void Part::UpdateModulationRates() {
 
 /* static */
 void Part::UpdateLfoRate(uint8_t i) {
-  uint16_t phase_increment;
-  // The LFO rates 0 to 15 are translated into a multiple of the step
-  // sequencer/arpeggiator step size.
-  if (patch_.lfo[i].rate < 16) {
-    phase_increment = 0;
-  } else {
-    int16_t rate = patch_.lfo[i].rate;
-    rate += voice_.modulation_destination(MOD_DST_LFO_1 + i);
-    rate -= 32;
-    if (rate < 0) {
-      rate = 0;
-    } else if (rate >= 128) {
-      rate = 127;
-    }
-    phase_increment = ResourcesManager::Lookup<uint16_t, uint8_t>(
-        lut_res_lfo_increments, rate);
+  const LfoSettings& lfo = patch_.lfo[i];
+  int16_t speed = lfo.speed;
+  speed += voice_.modulation_destination(MOD_DST_LFO_1 + i);
+  speed -= 32;
+  // Clamp: old patches stored the fade time in this byte.
+  uint8_t multiplier = lfo.multiplier > 11 ? 11 : lfo.multiplier;
+  uint32_t p = static_cast<uint32_t>(speed < 0 ? -speed : speed) << multiplier;
+  if (p > 131071) {
+    p = 131071;  // Keeps p << 15 in 32 bits.
   }
+  // Cycles per beat = p / 512, so the 16-bit phase moves 128 * p / beat
+  // blocks per block; computed with 8 extra bits, then scaled to 16.16.
+  uint32_t increment = (p << 15) / blocks_per_beat_;
+  if (increment > 0x400000) {
+    increment = 0x400000;  // A quarter cycle per block.
+  }
+  increment <<= 8;
   lfo_[i].Update(
-      patch_.lfo[i].waveform,
-      phase_increment,
-      patch_.lfo[i].attack,
-      patch_.lfo[i].retrigger_mode);
+      lfo.waveform,
+      speed < 0 ? -static_cast<int32_t>(increment) : increment,
+      lfo.mode);
 }
 
 const prog_uint8_t filter_modes[15] PROGMEM = {
@@ -599,6 +581,9 @@ uint8_t Part::four_pole_routing_byte() {
 
 /* static */
 void Part::ProcessBlock() {
+  if (block_count_ != 0xffff) {
+    ++block_count_;
+  }
   if (sequencer_settings_.internal_clock()) {
     clock.Tick();
     if (clock.Wrap(swing_amount_)) {
@@ -613,8 +598,7 @@ void Part::ProcessBlock() {
   }
   
   for (uint8_t i = 0; i < kNumLfos; ++i) {
-    voice_.set_modulation_source(MOD_SRC_LFO_1 + i, lfo_[i].Render(
-        sequencer_settings_));
+    voice_.set_modulation_source(MOD_SRC_LFO_1 + i, lfo_[i].Render());
   }
   voice_.set_modulation_source(MOD_SRC_NOISE, Random::state_msb());
 
@@ -627,14 +611,6 @@ void Part::ProcessBlock() {
     }
   }
 
-  // Looping envelopes. Note that the second envelope stops looping after the
-  // key is released otherwise the note will never stops playing.
-  for (uint8_t j = 0; j < kNumLfos; ++j) {
-    if (lfo_[j].triggered() &&
-        patch_.lfo[j].retrigger_mode == LFO_MODE_MASTER) {
-      voice_.TriggerEnvelope(j, ATTACK);
-    }
-  }
   voice_.ProcessBlock();
 }
 

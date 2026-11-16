@@ -65,9 +65,9 @@ struct EnvelopeSettings {
 
 struct LfoSettings {
   uint8_t waveform;
-  uint8_t rate;
-  uint8_t attack;
-  uint8_t retrigger_mode;
+  int8_t speed;  // -64..63, negative runs backwards. SPD x MUL = 128: 1 cycle/bar.
+  uint8_t multiplier;  // 0..11 = x1..x2k.
+  uint8_t mode;
 };
 
 #define PATCH_SIZE (sizeof(Patch) - 8)
@@ -327,7 +327,6 @@ enum LfoWave {
   LFO_WAVEFORM_SQUARE,
   LFO_WAVEFORM_S_H,
   LFO_WAVEFORM_RAMP,
-  LFO_WAVEFORM_STEP_SEQUENCER,
   LFO_WAVEFORM_WAVE_1,
   LFO_WAVEFORM_WAVE_2,
   LFO_WAVEFORM_WAVE_3,
@@ -349,9 +348,10 @@ enum LfoWave {
 
 enum LfoMode {
   LFO_MODE_FREE,
-  LFO_MODE_SLAVE,
-  LFO_MODE_MASTER,
+  LFO_MODE_TRIGGER,
+  LFO_MODE_HOLD,
   LFO_MODE_ONE_SHOT,
+  LFO_MODE_HALF,
   LFO_MODE_LAST
 };
 
