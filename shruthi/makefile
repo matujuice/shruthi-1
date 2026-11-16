@@ -27,4 +27,8 @@ EFUSE          = fd
 
 include avrlib/makefile.mk
 
+# Extra size flags for UI/storage code only (not timing-critical; audio code untouched).
+UI_OBJS = $(addprefix $(BUILD_DIR),editor.o ui.o parameter.o storage.o patch.o)
+$(UI_OBJS): CXXFLAGS += -fno-inline-small-functions -fno-split-wide-types -fno-tree-scev-cprop
+
 include $(DEP_FILE)
