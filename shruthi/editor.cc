@@ -480,7 +480,7 @@ static char Icon(uint8_t unit, uint8_t value) {
   return GlyphGet(bits);
 }
 
-// Tall font, 5x16 over both LCD rows: 0-9, then S H R U T I.
+// Tall font, 5x16 over both LCD rows: 0-9, S H R U T I, N E P L V K.
 static const prog_uint8_t tall_font[] PROGMEM = {
   0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // 0
   0x06, 0x0e, 0x1e, 0x16, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x1f, 0x1f,  // 1
@@ -498,10 +498,27 @@ static const prog_uint8_t tall_font[] PROGMEM = {
   0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // U
   0x1f, 0x1f, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e,  // T
   0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e,  // I
+  0x1e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b,  // N
+  0x1f, 0x1f, 0x18, 0x18, 0x18, 0x18, 0x1e, 0x1e, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1f, 0x1f,  // E
+  0x1e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x1e, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,  // P
+  0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x1f, 0x1f,  // L
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x0e, 0x0e, 0x04, 0x04,  // V
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1a, 0x1e, 0x1c, 0x18, 0x1c, 0x1e, 0x1a, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b,  // K
+};
+
+// Boot words as tall_font indices (O is the 0), 0xff ends a word.
+static const prog_uint8_t boot_words[] PROGMEM = {
+  10, 11, 12, 13, 14, 11, 15, 0xff,  // SHRUTHI
+  0, 16, 17, 0xff,  // ONE
+  18, 0, 19, 15, 0xff,  // POLI
+  20, 0, 21, 10, 0xff,  // VOKS
 };
 
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
 static uint8_t preset_status_;
+
+static uint8_t boot_step_;  // Boot screens 0-7. Even: blank, odd: a word.
+static uint8_t boot_word_;  // Read position in boot_words.
 
 // Starts a new glyph screen and draws tall_font characters from column 0 of
 // both rows. Two passes, as in DisplayEditOverviewPage.
@@ -838,21 +855,15 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
-    if (popup_phase_ == 0xff) {
-      // Boot screen 2: the filter board, 1 s more.
-      memset(line_buffer_, ' ', sizeof(line_buffer_));
-      memcpy_P(line_buffer_ + 4, PSTR("POLIVOKS"), 8);
-      display.Print(0, line_buffer_);
-      display.Print(1, line_buffer_ + kLcdWidth + 1);
-      popup_until_ += 1000;
-      popup_phase_ = 0xfe;
+    if (popup_phase_ == 0xfe && ++boot_step_ < 8) {
+      BootStep();
       return false;
     }
     popup_until_ = 0;
     return true;
   }
   if (popup_phase_ >= 0xfe) {
-    return false;  // Boot screens: no blinking.
+    return false;  // Boot: no blinking.
   }
   uint8_t phase = static_cast<uint16_t>(left) / 167;
   if (phase != popup_phase_) {
@@ -1615,16 +1626,35 @@ uint8_t Editor::GetParameterValue(uint8_t offset) {
 
 /* static */
 void Editor::DisplaySplashScreen() {
-  // Boot screen 1: SHRUTHI 1, SHRUTHI in the tall font (all 8 glyphs).
-  uint8_t word[7] = { 10, 11, 12, 13, 14, 11, 15 };
+  // SHRUTHI, ONE, POLI, VOKS in the tall font, each popping on for 550 ms
+  // after 200 ms of blank (3 s), then the PRESET screen.
+  boot_step_ = 0;
+  boot_word_ = 0;
+  popup_phase_ = 0xfe;
+  BootStep();
+  ToggleLoadSaveAction();
+}
+
+/* static */
+void Editor::BootStep() {
+  if (boot_step_ & 1) {
+    display.Print(0, line_buffer_);
+    display.Print(1, line_buffer_ + kLcdWidth + 1);
+    popup_until_ = milliseconds() + 550;
+    return;
+  }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
-  PrintTall(word, 7, line_buffer_ + 3);
-  line_buffer_[kLcdWidth + 1 + 11] = '1';
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
-  popup_until_ = milliseconds() + 1000;
-  popup_phase_ = 0xff;
-  ToggleLoadSaveAction();  // PRESET screen once the boot screen ends.
+  // The next word's glyphs upload while the screen is blank.
+  uint8_t chars[7];
+  uint8_t n = 0;
+  uint8_t c;
+  while ((c = pgm_read_byte(boot_words + boot_word_++)) != 0xff) {
+    chars[n++] = c;
+  }
+  PrintTall(chars, n, line_buffer_ + ((kLcdWidth - n) >> 1));
+  popup_until_ = milliseconds() + 200;
 }
 
 /* static */

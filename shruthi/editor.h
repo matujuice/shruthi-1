@@ -179,6 +179,7 @@ class Editor {
   
   // Displays two lines of text read from a resource.
   static void DisplaySplashScreen();
+  static void BootStep();
 
   static inline ParameterPage current_page() { return current_page_; }
   static inline uint8_t current_mode() { return editor_mode_; }
