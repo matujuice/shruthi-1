@@ -141,7 +141,7 @@ static const prog_char init_patch[] PROGMEM = {
     MOD_SRC_ENV_1, MOD_DST_PWM_1, 0,
     MOD_SRC_LFO_1, MOD_DST_PWM_2, 0,
     MOD_SRC_LFO_2, MOD_DST_MIX_BALANCE, 0,
-    MOD_SRC_SEQ, MOD_DST_MIX_BALANCE, 0,
+    MOD_SRC_LFO_2, MOD_DST_MIX_BALANCE, 0,
     MOD_SRC_VELOCITY, MOD_DST_PWM_1, 0,
     MOD_SRC_VELOCITY, MOD_DST_PWM_2, 0,
     MOD_SRC_ENV_2, MOD_DST_VCA, 63,
@@ -158,7 +158,7 @@ static const prog_char init_patch[] PROGMEM = {
     // Settings for second filter
     0, 0, 0, 
     0, 0, 0, 0,
-    '!',
+    '\'',
     0, 0, 0, 0, 0, 0, 0, 0,
 };
 

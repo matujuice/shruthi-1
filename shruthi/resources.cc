@@ -209,13 +209,10 @@ static const prog_char str_res_gfx[] PROGMEM = ">fx";
 static const prog_char str_res_seq[] PROGMEM = "seq";
 static const prog_char str_res__sq1[] PROGMEM = "sq1";
 static const prog_char str_res__sq2[] PROGMEM = "sq2";
-static const prog_char str_res_arp[] PROGMEM = "arp";
 static const prog_char str_res_whl[] PROGMEM = "whl";
 static const prog_char str_res_aft[] PROGMEM = "aft";
 static const prog_char str_res_bnd[] PROGMEM = "bnd";
 static const prog_char str_res_ofs[] PROGMEM = "ofs";
-static const prog_char str_res_cv3[] PROGMEM = "cv3";
-static const prog_char str_res_cv4[] PROGMEM = "cv4";
 static const prog_char str_res_cca[] PROGMEM = "ccA";
 static const prog_char str_res_ccb[] PROGMEM = "ccB";
 static const prog_char str_res_bre[] PROGMEM = "bre";
@@ -233,15 +230,10 @@ static const prog_char str_res_e4[] PROGMEM = "=4";
 static const prog_char str_res_e8[] PROGMEM = "=8";
 static const prog_char str_res_e16[] PROGMEM = "=16";
 static const prog_char str_res_e32[] PROGMEM = "=32";
-static const prog_char str_res_stpseq[] PROGMEM = "stpseq";
-static const prog_char str_res_stpsq1[] PROGMEM = "stpsq1";
-static const prog_char str_res_stpsq2[] PROGMEM = "stpsq2";
 static const prog_char str_res_mwheel[] PROGMEM = "mwheel";
 static const prog_char str_res_afttch[] PROGMEM = "afttch";
 static const prog_char str_res_bender[] PROGMEM = "bender";
 static const prog_char str_res_offset[] PROGMEM = "offset";
-static const prog_char str_res_cv_3[] PROGMEM = "cv 3";
-static const prog_char str_res_cv_4[] PROGMEM = "cv 4";
 static const prog_char str_res_cc_a[] PROGMEM = "cc A";
 static const prog_char str_res_cc_b[] PROGMEM = "cc B";
 static const prog_char str_res_breath[] PROGMEM = "breath";
@@ -281,7 +273,6 @@ static const prog_char str_res_duo[] PROGMEM = "duo";
 static const prog_char str_res_2steps[] PROGMEM = "2steps";
 static const prog_char str_res_4steps[] PROGMEM = "4steps";
 static const prog_char str_res_8steps[] PROGMEM = "8steps";
-static const prog_char str_res_seqmix[] PROGMEM = "seqmix";
 static const prog_char str_res_free[] PROGMEM = "free";
 static const prog_char str_res_slave[] PROGMEM = "slave";
 static const prog_char str_res_master[] PROGMEM = "master";
@@ -545,18 +536,10 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_gfx,
   str_res__lf1,
   str_res__lf2,
-  str_res_seq,
-  str_res__sq1,
-  str_res__sq2,
-  str_res_arp,
   str_res_whl,
   str_res_aft,
   str_res_bnd,
   str_res_ofs,
-  str_res_cv1,
-  str_res_cv2,
-  str_res_cv3,
-  str_res_cv4,
   str_res_cca,
   str_res_ccb,
   str_res_bre,
@@ -577,18 +560,10 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_e32,
   str_res__lfo_1,
   str_res__lfo_2,
-  str_res_stpseq,
-  str_res_stpsq1,
-  str_res_stpsq2,
-  str_res_arp,
   str_res_mwheel,
   str_res_afttch,
   str_res_bender,
   str_res_offset,
-  str_res_cv_1,
-  str_res_cv_2,
-  str_res_cv_3,
-  str_res_cv_4,
   str_res_cc_a,
   str_res_cc_b,
   str_res_breath,
@@ -630,7 +605,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_2steps,
   str_res_4steps,
   str_res_8steps,
-  str_res_seqmix,
   str_res_free,
   str_res_slave,
   str_res_master,

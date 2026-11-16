@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '&';  // '&': tempo-locked LFOs (SPD/MUL).
+  version_ = '\'';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources.
   filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
@@ -57,11 +57,27 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
       return 0;
     }
   }
-  if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&') {
+  if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&' &&
+      buffer[91] != '\'') {
     memset(name, '-', 8);
     return 0;
   }
   return 1;
+}
+
+// Source number before version '\'' (SEQ, SEQ 1-2, STEP, CV 1-4 removed);
+// 0xff for a removed source.
+static uint8_t RemapSource(uint8_t s) {
+  if (s >= 14) {
+    return s - 8;
+  }
+  if (s >= 10) {
+    return 0xff;
+  }
+  if (s >= 6) {
+    return s - 4;
+  }
+  return s >= 2 ? 0xff : s;
 }
 
 void Patch::Update() {
@@ -92,6 +108,28 @@ void Patch::Update() {
     
   filter_2_mode_ = filter_topology_ & 0xf;
   filter_1_mode_ = filter_topology_ >> 4;
+
+  // ponytail: older LFO settings ('!', '%') are converted by shruthi/patch_translator.py.
+  if (version_ != '\'') {
+    for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
+      Modulation* m = &modulation_matrix.modulation[i];
+      uint8_t s = RemapSource(m->source);
+      if (s == 0xff) {
+        s = MOD_SRC_LFO_1;  // The removed sources were always 0 here.
+        m->amount = 0;
+      }
+      m->source = s;
+    }
+    for (uint8_t i = 0; i < 4; ++i) {
+      uint8_t* operand = &ops_[i >> 1].operands[i & 1];
+      uint8_t s = RemapSource(*operand);
+      *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
+    }
+    if (osc[0].option == OP_LAST) {
+      osc[0].option = OP_SUM;  // Was seq mix: silent without the sequencer.
+    }
+    version_ = '\'';
+  }
   
   if (version_ != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();

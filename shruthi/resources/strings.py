@@ -206,18 +206,10 @@ f>h
 >fx
 lf1
 lf2
-seq
- sq1
- sq2
-arp
 whl
 aft
 bnd
 ofs
-cv1
-cv2
-cv3
-cv4
 ccA
 ccB
 bre
@@ -238,18 +230,10 @@ op2
 =32
 lfo 1
 lfo 2
-stpseq
-stpsq1
-stpsq2
-arp
 mwheel
 afttch
 bender
 offset
-cv 1
-cv 2
-cv 3
-cv 4
 cc A
 cc B
 breath
@@ -291,7 +275,6 @@ duo
 2steps
 4steps
 8steps
-seqmix
 free
 slave
 master

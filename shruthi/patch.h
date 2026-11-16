@@ -125,18 +125,10 @@ enum ModulationSource {
   /* First the modulation sources common to all notes. */
   MOD_SRC_LFO_1 = 0,
   MOD_SRC_LFO_2,
-  MOD_SRC_SEQ,
-  MOD_SRC_SEQ_1,
-  MOD_SRC_SEQ_2,
-  MOD_SRC_STEP,
   MOD_SRC_WHEEL,
   MOD_SRC_AFTERTOUCH,
   MOD_SRC_PITCH_BEND,
   MOD_SRC_OFFSET,
-  MOD_SRC_CV_1,
-  MOD_SRC_CV_2,
-  MOD_SRC_CV_3,
-  MOD_SRC_CV_4,
   MOD_SRC_CC_A,
   MOD_SRC_CC_B,
   MOD_SRC_CC_C,
@@ -374,7 +366,6 @@ enum Operator {
   OP_PING_PONG_2,
   OP_PING_PONG_4,
   OP_PING_PONG_8,
-  OP_PING_PONG_SEQ,
   OP_LAST
 };
 

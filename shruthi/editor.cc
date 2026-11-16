@@ -218,8 +218,7 @@ static const prog_char long_op[] PROGMEM =
   "duo\0"
   "2 steps\0"
   "4 steps\0"
-  "8 steps\0"
-  "seq mix\0";
+  "8 steps\0";
 static const prog_char long_lfo_wave[] PROGMEM =
   "triangle\0"
   "square\0"
@@ -234,18 +233,10 @@ static const prog_char long_lfo_mode[] PROGMEM =
 static const prog_char long_src[] PROGMEM =
   "lfo 1\0"
   "lfo 2\0"
-  "seq\0"
-  "seq 1\0"
-  "seq 2\0"
-  "arp step\0"
   "modwheel\0"
   "pressure\0"
   "bender\0"
   "offset\0"
-  "cv 1\0"
-  "cv 2\0"
-  "cv 3\0"
-  "cv 4\0"
   "cc a\0"
   "cc b\0"
   "breath\0"

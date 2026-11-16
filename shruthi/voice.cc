@@ -530,8 +530,6 @@ void Voice::ProcessBlock() {
   } else if (op == OP_PING_PONG_8) {
     enabled_source_bitmask = pgm_read_byte(
         eight_step_sequence + (trigger_count_ & 7));
-  } else if (op == OP_PING_PONG_SEQ) {
-    enabled_source_bitmask = modulation_sources_[MOD_SRC_SEQ] >> 4;
   }
   
   uint8_t osc_2_gain = U14ShiftRight6(dst_[MOD_DST_MIX_BALANCE]);
