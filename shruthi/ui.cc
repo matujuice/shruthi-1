@@ -186,7 +186,9 @@ void Ui::DebounceSwitches() {
   }
   
   // Handle shift switch
-  if (switch_state_[SWITCH_SHIFT] == 0x7f) {
+  if (switch_state_[SWITCH_SHIFT] == 0x80) {
+    switch_delay_[SWITCH_SHIFT] = milliseconds();
+  } else if (switch_state_[SWITCH_SHIFT] == 0x7f) {
     if (!inhibit_shift_release_) {
       queue_.AddEvent(CONTROL_SWITCH, SWITCH_SHIFT, 0);
     }
@@ -317,6 +319,14 @@ void Ui::DoEvents() {
     idle_time_ = 0;
   }
   
+  // Holding FUNC shows every value as a number (delay: a tap doesn't flash).
+  bool numbers = switch_state_[SWITCH_SHIFT] == 0x00 &&
+      milliseconds() - switch_delay_[SWITCH_SHIFT] > 300;
+  if (numbers != editor.show_numbers()) {
+    editor.set_show_numbers(numbers);
+    refresh_display = true;
+  }
+
   if (!encoder_.immediate_value() && freeze_display_) {
     refresh_display = false;
   }

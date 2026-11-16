@@ -217,29 +217,15 @@ static char GlyphGet(const uint8_t* bits) {
   return 8 + i;
 }
 
-// Framed 4px meter. Unipolar: 0-6 rows from the bottom; bipolar: 0-3 rows
-// up or down from the middle.
-static char Meter(int16_t num, int16_t den, bool bipolar) {
-  uint8_t bits[8];
-  int8_t from, to;
-  if (!den) {
-    den = 1;
-  }
-  if (bipolar) {
-    int8_t n = (6 * num + (num < 0 ? -den : den)) / (2 * den);
-    if (n > 3) n = 3;
-    if (n < -3) n = -3;
-    from = n > 0 ? 4 - n : 4;
-    to = n > 0 ? 3 : 3 - n;
-  } else {
-    from = 7 - (12 * num + den) / (2 * den);
-    to = 6;
-  }
-  for (int8_t r = 0; r < 8; ++r) {
-    bits[r] = (r == 0 || r == 7 || (r >= from && r <= to)) ? 0x1e : 0x12;
-  }
-  return GlyphGet(bits);
-}
+// HD44780 ROM font rows for 0-9, '+', '-': inverted over value bars.
+static const prog_uint8_t bar_font[12 * 7] PROGMEM = {
+  14, 17, 19, 21, 25, 17, 14,  4, 12, 4, 4, 4, 4, 14,
+  14, 17, 1, 2, 4, 8, 31,  31, 2, 4, 2, 1, 17, 14,
+  2, 6, 10, 18, 31, 2, 2,  31, 16, 30, 1, 1, 17, 14,
+  6, 8, 16, 30, 17, 17, 14,  31, 1, 2, 4, 8, 8, 8,
+  14, 17, 17, 14, 17, 17, 14,  14, 17, 17, 15, 1, 2, 12,
+  0, 4, 4, 31, 4, 4, 0,  0, 0, 0, 31, 0, 0, 0,
+};
 
 static char Icon(uint8_t unit, uint8_t value) {
   uint8_t base, count;
@@ -300,6 +286,7 @@ uint8_t Editor::jam_mode_previous_page_;
 ConfirmPageSettings Editor::confirm_page_settings_;
 bool Editor::snapped_[4];
 bool Editor::title_flash_;
+bool Editor::show_numbers_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
 /* </static> */
@@ -760,7 +747,7 @@ void Editor::UploadGlyphs() {
 }
 
 /* static */
-char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
+char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool touched) {
   const Parameter& p = parameter_manager.parameter(id);
   uint8_t value = GetParameterValue(p.offset);
   char text[8];
@@ -794,19 +781,46 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
     memcpy(out, text, width + 1);
     return text[width];
   }
-  memset(out, ' ', width);
-  memcpy(right ? out + width - len : out, text, len);
-
-  int16_t den = p.max_value - p.min_value;
-  if (id == 7 || id == 9) {  // Detune, osc balance: centered fader.
-    return Meter(2 * (value - p.min_value) - den, den, true);
-  } else if (is_signed) {
-    return Meter(static_cast<int8_t>(value),
-                 static_cast<int8_t>(p.max_value), true);
-  } else if (p.unit <= UNIT_INT8) {
-    return Meter(value - p.min_value, den, false);
+  if (p.unit > UNIT_INT8) {
+    memset(out, ' ', width);
+    memcpy(out + width - len, text, len);
+    return Icon(p.unit, value);
   }
-  return Icon(p.unit, value);
+  // Numeric: 20px bar over all 4 cells, the number inverted on it while the
+  // knob is touched; plain number while FUNC is held.
+  while (text[len]) {
+    ++len;
+  }
+  memset(out, ' ', 4);
+  memcpy(out + 4 - len, text, len);
+  if (show_numbers_) {
+    return out[3];
+  }
+  int16_t num = value - p.min_value;
+  int16_t den = p.max_value - p.min_value;
+  if (is_signed) {
+    num = static_cast<int8_t>(value) - static_cast<int8_t>(p.min_value);
+    den = static_cast<int8_t>(p.max_value) - static_cast<int8_t>(p.min_value);
+  }
+  int8_t fill = den > 0 ? 1 + (19 * num + den / 2) / den : 20;
+  for (uint8_t k = 0; k < 4; ++k, fill -= 5) {
+    char c = touched ? out[k] : ' ';
+    uint8_t f = fill < 0 ? 0 : (fill > 5 ? 5 : fill);
+    int8_t g = c >= '0' && c <= '9' ? c - '0' : (c == '+' ? 10 : (c == '-' ? 11 : -1));
+    if (f == 0) {
+      out[k] = c;
+    } else if (g < 0 && f == 5) {
+      out[k] = 0xff;  // ROM solid block.
+    } else {
+      uint8_t mask = (0x3e0 >> f) & 0x1f;
+      uint8_t bits[8];
+      for (uint8_t r = 0; r < 8; ++r) {
+        bits[r] = mask ^ (g >= 0 && r < 7 ? pgm_read_byte(bar_font + 7 * g + r) : 0);
+      }
+      out[k] = GlyphGet(bits);
+    }
+  }
+  return out[3];
 }
 
 /* static */
@@ -838,7 +852,8 @@ void Editor::DisplayEditOverviewPage() {
       char* label = row_0 + i * kColumnWidth;
       memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
       char* value = row_1 + i * kColumnWidth;
-      value[3] = PrintParameter(id, value, 3, true);
+      value[3] = PrintParameter(id, value, 3,
+          i == cursor_ && display_mode_ != DISPLAY_MODE_OVERVIEW);
     }
     // If we are in latched mode, show it.
     if (part.latched()) {

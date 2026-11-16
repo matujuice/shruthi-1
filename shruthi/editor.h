@@ -186,6 +186,8 @@ class Editor {
     return page_definition_[current_page_].leds_pattern;
   }
   static inline uint8_t cursor() { return cursor_; }
+  static inline bool show_numbers() { return show_numbers_; }
+  static inline void set_show_numbers(bool b) { show_numbers_ = b; }
   static inline uint8_t subpage() { return subpage_; }
   
   static void Confirm(ConfirmPageSettings confirm_page_settings);
@@ -229,7 +231,7 @@ class Editor {
   // Output and Input handling for all the different category of pages.
   static void DisplayEditOverviewPage();
   // Prints a parameter value in `width` chars, returns its meter/icon glyph.
-  static char PrintParameter(uint8_t id, char* out, uint8_t width, bool right);
+  static char PrintParameter(uint8_t id, char* out, uint8_t width, bool touched);
   
   static void OnEditInput(uint8_t knob_index, uint8_t value);
   static void OnEditIncrement(int8_t increment);
@@ -294,6 +296,7 @@ class Editor {
   
   static bool snapped_[4];
   static bool title_flash_;
+  static bool show_numbers_;
   
   static uint16_t deferred_load_;
 
