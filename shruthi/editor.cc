@@ -120,7 +120,7 @@ static const prog_char page_labels[] PROGMEM =
   "OP MIX      "  // 8
   "MODOVDFM    "  // 9
   "PRTLEGOCT   "  // 10
-  "            "  // 11
+  "SLTSRCDSTAMT"  // 11
   "OP IN1IN2OUT"  // 12
   "OCTRAGPRTLEG"  // 13
   "TUNCHNOUT   "  // 14
@@ -138,8 +138,8 @@ static const prog_char page_titles[] PROGMEM =
   "FX              "
   "POLIVOKS        "
   "VOICE           "
-  "MATRIX          "
-  "MATH            "
+  "MATRIX       1/2"
+  "MATH         2/2"
   "SYS  KBD     1/3"
   "SYS  MIDI    2/3"
   "SYS  DISPLAY 3/3";
@@ -776,9 +776,7 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
   } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
-    if (value < 7 || value >= 10) {
-      *t++ = 'x';  // 128/256/512 need all 3 columns.
-    }
+    *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
       *t++ = value == 10 ? '1' : '2';
       *t = 'k';
@@ -791,6 +789,10 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool right) {
   uint8_t len = 0;
   while (len < width && text[len]) {
     ++len;
+  }
+  if (p.unit == UNIT_LFO_RATE && text[width]) {
+    memcpy(out, text, width + 1);
+    return text[width];
   }
   memset(out, ' ', width);
   memcpy(right ? out + width - len : out, text, len);
@@ -821,22 +823,6 @@ void Editor::DisplayEditOverviewPage() {
   if (title_flash_) {
     marker = kLcdNoCursor;
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
-  } else if (current_page_ == PAGE_MOD_MATRIX) {
-    // LFO1 > CUTOFF
-    // SLOT 3      +32#
-    PrintParameter(33, row_0, 6, false);
-    uint8_t n = 6;
-    while (n && row_0[n - 1] == ' ') {
-      --n;
-    }
-    // Marker cells (scan positions) for slot, source, destination, amount.
-    uint8_t marks[4] = { kLcdWidth + 4, n, n + 2, kLcdWidth + 11 };
-    marker = marks[cursor_];
-    row_0[n + 1] = '>';
-    PrintParameter(34, row_0 + n + 3, 7, false);
-    memcpy_P(row_1, PSTR("SLOT"), 4);
-    PrintParameter(32, row_1 + 5, 2, false);
-    row_1[15] = PrintParameter(35, row_1 + 12, 3, true);
   } else {
     uint8_t previous = 0xff;
     for (uint8_t i = 0; i < kNumEditingPots; ++i) {
