@@ -229,6 +229,7 @@ class Editor {
   // Returns the parameter id of the parameter that should be edited when
   // touching knob #knob_index.
   static uint8_t KnobIndexToParameterId(uint8_t knob_index);
+  static void DrawCloseup(uint8_t page, char* row_0);
 
   static void JumpToPageGroup(uint8_t id);
   static void PageChange();

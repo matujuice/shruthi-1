@@ -135,6 +135,7 @@ class Voice {
   static uint8_t buffer_[kAudioBlockSize];
   static uint8_t osc2_buffer_[kAudioBlockSize];
   static uint8_t sync_state_[kAudioBlockSize];
+  friend class Editor;  // Oscillator close-up renders with the sync buffers.
   static uint8_t no_sync_[kAudioBlockSize];
   static uint8_t dummy_sync_state_[kAudioBlockSize];
   static uint8_t trigger_count_;

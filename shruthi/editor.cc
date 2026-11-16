@@ -27,6 +27,7 @@
 #include "avrlib/deprecated/devices/switch_array.h"
 #include "shruthi/display.h"
 #include "shruthi/midi_dispatcher.h"
+#include "shruthi/oscillator.h"
 #include "shruthi/parameter.h"
 #include "shruthi/storage.h"
 #include "shruthi/part.h"
@@ -461,9 +462,16 @@ static char GlyphGet(const uint8_t* bits) {
   return 8 + slot;
 }
 
-// Close-up: tapping the page key again on an envelope or LFO page draws its
-// shape over the whole screen (80x16 px); the knobs still edit it.
+// Close-up: tapping the page key again on an oscillator, envelope or LFO
+// page draws its shape over the whole screen (80x16 px); the knobs still
+// edit it.
 static bool closeup_;
+static uint8_t scope_[kAudioBlockSize];  // One oscillator cycle.
+
+static bool HasCloseup(uint8_t page) {
+  return page <= PAGE_OSC_OSC_2 ||
+      (page >= PAGE_MOD_ENV_1 && page <= PAGE_MOD_LFO_2);
+}
 
 // exp(-4 i / 16) * 255.
 static const prog_uint8_t exp_decay[] PROGMEM = {
@@ -475,6 +483,13 @@ static uint8_t Decay(uint8_t t, uint8_t n) {  // t < n.
 
 // Level (0-255) of pixel column x (0-79) of an envelope or LFO page.
 static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
+  if (page <= PAGE_OSC_OSC_2) {  // 2 px per sample, odd columns in between.
+    uint8_t i = x >> 1;
+    if (!(x & 1)) {
+      return scope_[i];
+    }
+    return (scope_[i] + scope_[i + 1 == kAudioBlockSize ? 0 : i + 1]) >> 1;
+  }
   if (page <= PAGE_MOD_ENV_2) {
     const EnvelopeSettings& e = part.patch().env[page - PAGE_MOD_ENV_1];
     uint8_t a = (e.attack * 23 >> 7) + 1;
@@ -516,7 +531,21 @@ static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
 
 // Filled shape, cells from the bottom; full cells use the ROM block 0xff. If
 // more than 8 glyphs are needed, each cell gets one height (7 glyphs at most).
-static void DrawCloseup(uint8_t page, char* row_0) {
+void Editor::DrawCloseup(uint8_t page, char* row_0) {
+  if (page <= PAGE_OSC_OSC_2) {
+    // Live capture: the patch's oscillator code renders one cycle in one
+    // audio block, from phase 0 (PWM and other modulations not applied).
+    const OscillatorSettings& s = part.patch().osc[page];
+    Oscillator osc;
+    memset(&osc, 0, sizeof(osc));
+    osc.set_parameter(s.parameter);
+    osc.set_secondary_parameter(s.range + 24);
+    uint24_t increment;
+    increment.integral = 65536 / kAudioBlockSize;
+    increment.fractional = 102;  // 2^24 / 40 = 1638.4 x 256.
+    osc.Render(s.shape, 60, increment, Voice::no_sync_,
+        Voice::dummy_sync_state_, scope_);
+  }
   glyph_previous_ = glyph_used_;
   for (uint8_t coarse = 0; coarse < 2; ++coarse) {
     bool overflow = false;
@@ -890,10 +919,9 @@ void Editor::OnSwitch(const Event& event) {
     }
   } else if (id == SWITCH_MODE) {
     ToggleLoadSaveAction();
-  } else if (!closeup_ && current_page_ >= PAGE_MOD_ENV_1 &&
-      current_page_ <= PAGE_MOD_LFO_2 &&
+  } else if (!closeup_ && HasCloseup(current_page_) &&
       page_definition_[current_page_].group == id + GROUP_SYN) {
-    closeup_ = true;  // Envelope/LFO: the next tap shows the shape.
+    closeup_ = true;  // Osc/envelope/LFO: the next tap shows the shape.
   } else {
     JumpToPageGroup(id + GROUP_SYN);
   }
@@ -1493,8 +1521,7 @@ void Editor::DisplayEditOverviewPage() {
   // SAW#  0# +0#SQ1#
   char* row_0 = line_buffer_;
   char* row_1 = line_buffer_ + kLcdWidth + 1;
-  if (closeup_ && !show_numbers_ && current_page_ >= PAGE_MOD_ENV_1 &&
-      current_page_ <= PAGE_MOD_LFO_2) {
+  if (closeup_ && !show_numbers_ && HasCloseup(current_page_)) {
     DrawCloseup(current_page_, row_0);
     display.set_cursor_position(kLcdNoCursor);
     display.Print(0, row_0);
