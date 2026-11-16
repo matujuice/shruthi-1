@@ -45,7 +45,6 @@ static const prog_char str_res_sustain[] PROGMEM = "sustain";
 static const prog_char str_res_release[] PROGMEM = "release";
 static const prog_char str_res_rate[] PROGMEM = "rate";
 static const prog_char str_res_modulation[] PROGMEM = "modulation";
-static const prog_char str_res_operators[] PROGMEM = "operators";
 static const prog_char str_res_mod_[] PROGMEM = "mod.";
 static const prog_char str_res_source[] PROGMEM = "source";
 static const prog_char str_res_src[] PROGMEM = "src";
@@ -63,12 +62,6 @@ static const prog_char str_res_fdb[] PROGMEM = "fdb";
 static const prog_char str_res_feedback[] PROGMEM = "feedback";
 static const prog_char str_res_eq_[] PROGMEM = "eq.";
 static const prog_char str_res_fdbck_eq_[] PROGMEM = "fdbck eq.";
-static const prog_char str_res_tempo[] PROGMEM = "tempo";
-static const prog_char str_res_bpm[] PROGMEM = "bpm";
-static const prog_char str_res_groove[] PROGMEM = "groove";
-static const prog_char str_res_direction[] PROGMEM = "direction";
-static const prog_char str_res_pattern[] PROGMEM = "pattern";
-static const prog_char str_res_division[] PROGMEM = "division";
 static const prog_char str_res_start[] PROGMEM = "start";
 static const prog_char str_res_length[] PROGMEM = "length";
 static const prog_char str_res_octave[] PROGMEM = "octave";
@@ -83,27 +76,11 @@ static const prog_char str_res_midi_out[] PROGMEM = "midi out";
 static const prog_char str_res_pause[] PROGMEM = "pause";
 static const prog_char str_res_startpage[] PROGMEM = "startpage";
 static const prog_char str_res_snap[] PROGMEM = "snap";
-static const prog_char str_res_oscillator_1[] PROGMEM = "oscillator 1";
-static const prog_char str_res_oscillator_2[] PROGMEM = "oscillator 2";
-static const prog_char str_res_mixer[] PROGMEM = "mixer";
 static const prog_char str_res_filter[] PROGMEM = "filter";
-static const prog_char str_res_filterS[] PROGMEM = "filter+";
 static const prog_char str_res_mode_1[] PROGMEM = "mode 1";
 static const prog_char str_res_mode_2[] PROGMEM = "mode 2";
 static const prog_char str_res_md1[] PROGMEM = "md1";
 static const prog_char str_res_md2[] PROGMEM = "md2";
-static const prog_char str_res_envelope_1[] PROGMEM = "envelope 1";
-static const prog_char str_res_envelope_2[] PROGMEM = "envelope 2";
-static const prog_char str_res_sequencer[] PROGMEM = "sequencer";
-static const prog_char str_res_arpeggio[] PROGMEM = "arpeggio";
-static const prog_char str_res_ch1[] PROGMEM = "ch1";
-static const prog_char str_res_ch2[] PROGMEM = "ch2";
-static const prog_char str_res_11[] PROGMEM = "1";
-static const prog_char str_res_12[] PROGMEM = "2";
-static const prog_char str_res_step_sequencer[] PROGMEM = "step sequencer";
-static const prog_char str_res_keyboard[] PROGMEM = "keyboard";
-static const prog_char str_res_midi[] PROGMEM = "midi";
-static const prog_char str_res_system[] PROGMEM = "system";
 static const prog_char str_res_performance[] PROGMEM = "performance";
 static const prog_char str_res_param__1[] PROGMEM = "param. 1";
 static const prog_char str_res_param__2[] PROGMEM = "param. 2";
@@ -285,9 +262,6 @@ static const prog_char str_res_e_8[] PROGMEM = "= 8";
 static const prog_char str_res_e_16[] PROGMEM = "= 16";
 static const prog_char str_res_e_32[] PROGMEM = "= 32";
 static const prog_char str_res_patch[] PROGMEM = "patch";
-static const prog_char str_res_sequence[] PROGMEM = "sequence";
-static const prog_char str_res_save_midi_kbd[] PROGMEM = "save midi/kbd";
-static const prog_char str_res_settings_[] PROGMEM = "settings?";
 static const prog_char str_res_start_full_midi[] PROGMEM = "start full midi";
 static const prog_char str_res_backup_[] PROGMEM = "backup?";
 static const prog_char str_res_browse[] PROGMEM = "browse";
@@ -297,13 +271,6 @@ static const prog_char str_res_[] PROGMEM = "----";
 static const prog_char str_res_v[] PROGMEM = "v";
 static const prog_char str_res_671____sn__4370[] PROGMEM = "-1    SN #4370";
 static const prog_char str_res_v1_03[] PROGMEM = "v1.03";
-static const prog_char str_res_shruthi_classic[] PROGMEM = "shruthi classic";
-static const prog_char str_res_4_knobs[] PROGMEM = "(4 knobs)";
-static const prog_char str_res_shruthi_xt[] PROGMEM = "shruthi xt";
-static const prog_char str_res_classic_fcd72[] PROGMEM = "classic (fcd72)";
-static const prog_char str_res_full_control[] PROGMEM = "(full control)";
-static const prog_char str_res_lets_jam_[] PROGMEM = "let's jam!";
-static const prog_char str_res_extern[] PROGMEM = "extern";
 static const prog_char str_res_sum[] PROGMEM = "sum";
 static const prog_char str_res_sync[] PROGMEM = "sync";
 static const prog_char str_res_ring[] PROGMEM = "ring";
@@ -317,28 +284,11 @@ static const prog_char str_res_2steps[] PROGMEM = "2steps";
 static const prog_char str_res_4steps[] PROGMEM = "4steps";
 static const prog_char str_res_8steps[] PROGMEM = "8steps";
 static const prog_char str_res_seqmix[] PROGMEM = "seqmix";
-static const prog_char str_res_stp[] PROGMEM = "stp";
 static const prog_char str_res_free[] PROGMEM = "free";
 static const prog_char str_res_slave[] PROGMEM = "slave";
 static const prog_char str_res_master[] PROGMEM = "master";
 static const prog_char str_res_1shot[] PROGMEM = "1shot";
 static const prog_char str_res_1_1[] PROGMEM = "1/1";
-static const prog_char str_res_1_2[] PROGMEM = "1/2";
-static const prog_char str_res_1_3[] PROGMEM = "1/3";
-static const prog_char str_res_1_4[] PROGMEM = "1/4";
-static const prog_char str_res_1_6[] PROGMEM = "1/6";
-static const prog_char str_res_1_8[] PROGMEM = "1/8";
-static const prog_char str_res__12[] PROGMEM = "/12";
-static const prog_char str_res__16[] PROGMEM = "/16";
-static const prog_char str_res__24[] PROGMEM = "/24";
-static const prog_char str_res__32[] PROGMEM = "/32";
-static const prog_char str_res__48[] PROGMEM = "/48";
-static const prog_char str_res__96[] PROGMEM = "/96";
-static const prog_char str_res_swing[] PROGMEM = "swing";
-static const prog_char str_res_shuffle[] PROGMEM = "shuffle";
-static const prog_char str_res_push[] PROGMEM = "push";
-static const prog_char str_res_human[] PROGMEM = "human";
-static const prog_char str_res_monkey[] PROGMEM = "monkey";
 static const prog_char str_res_thru[] PROGMEM = "thru";
 static const prog_char str_res_ctrl[] PROGMEM = "ctrl";
 static const prog_char str_res_full[] PROGMEM = "full";
@@ -466,7 +416,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_release,
   str_res_rate,
   str_res_modulation,
-  str_res_operators,
   str_res_mod_,
   str_res_source,
   str_res_src,
@@ -484,12 +433,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_feedback,
   str_res_eq_,
   str_res_fdbck_eq_,
-  str_res_tempo,
-  str_res_bpm,
-  str_res_groove,
-  str_res_direction,
-  str_res_pattern,
-  str_res_division,
   str_res_start,
   str_res_length,
   str_res_octave,
@@ -504,27 +447,11 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_pause,
   str_res_startpage,
   str_res_snap,
-  str_res_oscillator_1,
-  str_res_oscillator_2,
-  str_res_mixer,
   str_res_filter,
-  str_res_filterS,
   str_res_mode_1,
   str_res_mode_2,
   str_res_md1,
   str_res_md2,
-  str_res_envelope_1,
-  str_res_envelope_2,
-  str_res_sequencer,
-  str_res_arpeggio,
-  str_res_ch1,
-  str_res_ch2,
-  str_res_11,
-  str_res_12,
-  str_res_step_sequencer,
-  str_res_keyboard,
-  str_res_midi,
-  str_res_system,
   str_res_performance,
   str_res_param__1,
   str_res_param__2,
@@ -720,9 +647,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_e_16,
   str_res_e_32,
   str_res_patch,
-  str_res_sequence,
-  str_res_save_midi_kbd,
-  str_res_settings_,
   str_res_start_full_midi,
   str_res_backup_,
   str_res_browse,
@@ -732,14 +656,6 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_v,
   str_res_671____sn__4370,
   str_res_v1_03,
-  str_res_shruthi_classic,
-  str_res_4_knobs,
-  str_res_shruthi_xt,
-  str_res_classic_fcd72,
-  str_res_shruthi_xt,
-  str_res_full_control,
-  str_res_lets_jam_,
-  str_res_extern,
   str_res_sum,
   str_res_sync,
   str_res_ring,
@@ -754,31 +670,11 @@ PROGMEM const prog_char* const string_table[] = {
   str_res_4steps,
   str_res_8steps,
   str_res_seqmix,
-  str_res_stp,
-  str_res_arp,
-  str_res_seq,
   str_res_free,
   str_res_slave,
   str_res_master,
   str_res_1shot,
   str_res_1_1,
-  str_res_1_2,
-  str_res_1_3,
-  str_res_1_4,
-  str_res_1_6,
-  str_res_1_8,
-  str_res__12,
-  str_res__16,
-  str_res__24,
-  str_res__32,
-  str_res__48,
-  str_res__96,
-  str_res_swing,
-  str_res_shuffle,
-  str_res_push,
-  str_res_lag,
-  str_res_human,
-  str_res_monkey,
   str_res___off,
   str_res_thru,
   str_res_seq,

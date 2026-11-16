@@ -58,12 +58,6 @@ uint8_t Parameter::Scale(uint8_t value_7bits) const {
         scaled_value += 4;
       }
     }
-    if (unit == UNIT_TEMPO_WITH_EXTERNAL_CLOCK) {
-      if (scaled_value >= 239) {
-        scaled_value = 240;
-      }
-      scaled_value &= 0xfe;
-    }
   }
   return scaled_value;
 }
@@ -170,13 +164,13 @@ static const prog_uint16_t units_definitions[UNIT_LAST]
   0,               // UNIT_INDEX
   STR_RES_LFO_1,   // UNIT_MODULATION_SOURCE
   STR_RES_PWM1,  // UNIT_MODULATION_DESTINATION
-  STR_RES_3,       // UNIT_ARPEGGIO_DIRECTION
+  0,               // UNIT_ARPEGGIO_DIRECTION
   STR_RES_EQUAL,   // UNIT_RAGA
   0,               // UNIT_TEMPO_WITH_EXTERNAL_CLOCK
   STR_RES__OFF,    // UNIT_MIDI_MODE
-  STR_RES_STP,     // UNIT_SEQUENCER_MODE
-  STR_RES_1_1,     // UNIT_SEQUENCER_DIVISION
-  STR_RES_SWING,   // UNIT_GROOVE_TEMPLATE
+  0,               // UNIT_SEQUENCER_MODE
+  0,               // UNIT_SEQUENCER_DIVISION
+  0,               // UNIT_GROOVE_TEMPLATE
   0,               // UNIT_ARPEGGIO_PATTERN
   STR_RES_FREE,    // UNIT_LFO_RETRIGGER_MODE
   STR_RES_SPLASH,  // UNIT_START_PAGE
@@ -191,10 +185,6 @@ static const prog_uint16_t units_definitions[UNIT_LAST]
   STR_RES_LIQUID,  // UNIT_FILTER_4P_FLAVOUR
   STR_RES_LP,      // UNIT_FILTER_SP_MODE
 };  // UNIT_LAST
-
-static const prog_char arp_pattern_prefix[4] PROGMEM = {
-  0x03, 0x04, 0x05, '?'  // Up, Down, UpDown, Random
-};
 
 void Parameter::PrintValue(uint8_t value, char* buffer, uint8_t width) const {
   ResourceId text = ResourcesManager::Lookup<uint16_t, uint8_t>(
@@ -227,24 +217,10 @@ void Parameter::PrintValue(uint8_t value, char* buffer, uint8_t width) const {
         prefix = 'w';
       }
       break;
-    case UNIT_TEMPO_WITH_EXTERNAL_CLOCK:
-      if (value < 40) {
-        value = 0;
-        text = STR_RES_EXTERN;
-      }
-      break;
     case UNIT_PAUSE:
       if (value >= 16) {
         value = value - 16;
         prefix = 's';
-      }
-      break;
-    case UNIT_ARPEGGIO_PATTERN:
-      if (value == kNumArpeggiatorPatterns) {
-        value = 0;
-        text = STR_RES_SEQUENCER;
-      } else {
-        ++value;
       }
       break;
   }
@@ -515,59 +491,59 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
 
   // 36
   { PRM_SEQ_MODE,
-    UNIT_SEQUENCER_MODE,
+    UNIT_UINT8,
     SEQUENCER_MODE_STEP, SEQUENCER_MODE_SEQ,
     { 75, 0 },
     STR_RES_MODE, STR_RES_MODE }, 
 
   // 37
   { PRM_SEQ_TEMPO,
-    UNIT_TEMPO_WITH_EXTERNAL_CLOCK,
+    UNIT_UINT8,
     39, 240,
     { 0, 0 },
-    STR_RES_BPM, STR_RES_TEMPO }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 38
   { PRM_SEQ_GROOVE_TEMPLATE,
-    UNIT_GROOVE_TEMPLATE,
-    0, STR_RES_MONKEY - STR_RES_SWING,
+    UNIT_UINT8,
+    0, 5,
     { 76, 0 },
-    STR_RES_GROOVE, STR_RES_GROOVE }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 39
   { PRM_SEQ_GROOVE_AMOUNT,
     UNIT_RAW_UINT8,
     0, 127,
     { 77, 0 },
-    STR_RES_AMT, STR_RES_AMOUNT }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 40
   { PRM_ARP_DIRECTION,
-    UNIT_ARPEGGIO_DIRECTION,
+    UNIT_UINT8,
     ARPEGGIO_DIRECTION_UP, ARPEGGIO_DIRECTION_PLAYED,
     { 78, 0 },
-    STR_RES_DIRECTION, STR_RES_DIRECTION }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 41
   { PRM_ARP_RANGE,
     UNIT_INT8,
     1, 4,
     { 79, 0 },
-    STR_RES_RNG, STR_RES_RANGE }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 42
   { PRM_ARP_PATTERN,
-    UNIT_ARPEGGIO_PATTERN,
+    UNIT_UINT8,
     0, kNumArpeggiatorPatterns,
     { 80, 0 },
-    STR_RES_PATTERN, STR_RES_PATTERN }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 43
   { PRM_ARP_DIVISION,
-    UNIT_SEQUENCER_DIVISION,
+    UNIT_UINT8,
     0, 11,
     { 81, 0 },
-    STR_RES_DIVISION, STR_RES_DIVISION }, 
+    STR_RES_MODE, STR_RES_MODE }, 
 
   // 44
   { PRM_SYS_OCTAVE,
