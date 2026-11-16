@@ -33,20 +33,30 @@ namespace shruthi {
 
 using namespace avrlib;
 
+static inline bool IsHiddenSource(int16_t v) {
+  return (v >= MOD_SRC_SEQ && v <= MOD_SRC_STEP) ||
+      (v >= MOD_SRC_CV_1 && v <= MOD_SRC_CV_4);
+}
+
 uint8_t Parameter::Scale(uint8_t value_7bits) const {
   uint8_t scaled_value;
   if (unit == UNIT_RAW_UINT8) {
     scaled_value = value_7bits;
   } else {
     uint8_t range = max_value - min_value + 1;
-    // CV 1-4 sources are hidden (inputs not wired on this unit).
+    // SEQ/arp and CV 1-4 sources are hidden (unused on this unit).
     if (unit == UNIT_MODULATION_SOURCE) {
-      range -= 4;
+      range -= 8;
     }
     scaled_value = U8U8MulShift8(range, value_7bits << 1);
     scaled_value += min_value;
-    if (unit == UNIT_MODULATION_SOURCE && scaled_value >= MOD_SRC_CV_1) {
-      scaled_value += 4;
+    if (unit == UNIT_MODULATION_SOURCE) {
+      if (scaled_value >= MOD_SRC_SEQ) {
+        scaled_value += 4;
+      }
+      if (scaled_value >= MOD_SRC_CV_1) {
+        scaled_value += 4;
+      }
     }
     if (unit == UNIT_TEMPO_WITH_EXTERNAL_CLOCK) {
       if (scaled_value >= 239) {
@@ -108,9 +118,10 @@ uint8_t Parameter::Increment(
     }
   } else {
     value += increment;
-    if (unit == UNIT_MODULATION_SOURCE &&
-        value >= MOD_SRC_CV_1 && value <= MOD_SRC_CV_4) {
-      value += increment > 0 ? 4 : -4;
+    if (unit == UNIT_MODULATION_SOURCE) {
+      while (IsHiddenSource(value)) {
+        value += increment > 0 ? 1 : -1;
+      }
     }
     if (value >= min_value && value <= max_value) {
       new_value = static_cast<uint8_t>(value);
@@ -134,8 +145,7 @@ uint8_t Parameter::RandomValue() const {
     value -= range;
   }
   value += min_value;
-  if (unit == UNIT_MODULATION_SOURCE &&
-      value >= MOD_SRC_CV_1 && value <= MOD_SRC_CV_4) {
+  if (unit == UNIT_MODULATION_SOURCE && IsHiddenSource(value)) {
     value = MOD_SRC_NOISE;
   }
   return value;

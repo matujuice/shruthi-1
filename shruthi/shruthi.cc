@@ -30,7 +30,6 @@ using namespace midi;
 using namespace shruthi;
 
 Serial<MidiPort, 31250, POLLED, POLLED> midi_io;
-Serial<CvTxPort, 115200, DISABLED, POLLED> cv_io;
 RingBuffer<SerialInput<MidiPort> > midi_buffer;
 
 PwmOutput<kPinVcfCutoffOut> vcf_cutoff_out;
@@ -40,8 +39,6 @@ PwmOutput<kPinCv1Out> cv_1_out;
 PwmOutput<kPinCv2Out> cv_2_out;
 
 MidiStreamParser<MidiDispatcher> midi_parser;
-
-bool aux_uart_enabled = false;
 
 ISR(TIMER2_OVF_vect) {
   static uint8_t clock_divider_midi = 0;
@@ -92,91 +89,22 @@ ISR(TIMER1_OVF_vect, ISR_NOBLOCK) {
   ui.Poll();
 }
 
-void DSPFilterBoardWrite() {
-  static uint8_t cv_io_round_robin = 0;
-  
-  uint8_t v;
-  if (!aux_uart_enabled) {
-    cv_io.Init();
-    aux_uart_enabled = true;
-  }
-  
-  // Shove two bytes to the serial output used for transmitting CVs to the
-  // digital filter board.
-  if (cv_io_round_robin == 0) {
-    cv_io.Overwrite(0xff);
-  } else if (cv_io_round_robin == 1) {
-    cv_io.Overwrite(part.fx_control_byte());
-  } else if (cv_io_round_robin == 2) {
-    cv_io.Overwrite(part.sequencer_settings().seq_tempo);
-  } else {
-    v = part.voice().modulation_destination(
-        MOD_DST_FILTER_RESONANCE + cv_io_round_robin - 3);
-    if (v == 0xff) {
-      v = 0xfe;
-    }
-    cv_io.Overwrite(v);
-  }
-  v = part.voice().modulation_destination(
-      MOD_DST_FILTER_CUTOFF + (cv_io_round_robin & 1));
-  if (v == 0xff) {
-    v = 0xfe;
-  }
-  cv_io.Overwrite(v);
-  cv_io_round_robin = (cv_io_round_robin + 1);
-  if (cv_io_round_robin == 6) {
-    cv_io_round_robin = 0;
-  }
-}
-
 void FillAudioBuffer() {
   if (!audio_out.writable_block()) {
     return;
   }
 
   part.ProcessBlock();
-  uint8_t filter_board = part.system_settings().expansion_filter_board;
   uint8_t resonance = part.voice().resonance();
   uint8_t gain = part.voice().vca();
   uint8_t cv_1 = part.voice().cv_1();
   uint8_t cv_2 = part.voice().cv_2();
   vcf_cutoff_out.Write(part.voice().cutoff());
 
-  if (filter_board == FILTER_BOARD_DSP) {
-    DSPFilterBoardWrite();
-  } else if (filter_board == FILTER_BOARD_PVK) {
-    // Apply a knee to the resonance curve.
-    resonance = (resonance >> 1) + (resonance < 128 ? resonance : 128);
-    if (resonance >= 252) {
-      resonance = 255;
-    }
-  } else if (filter_board == FILTER_BOARD_DLY) {
-    if (aux_uart_enabled) {
-      cv_io.Disable();
-      aux_uart_enabled = false;
-    }
-    uint8_t level = part.patch().filter_1_mode_;
-    uint8_t tilt = part.patch().filter_2_mode_ << 1;
-    uint8_t gain;
-    gain = U8U8Mul(level, tilt < 16 ? tilt : 16);
-    cv_2 = pgm_read_byte(wav_res_ssm2164_linearization + (gain >> 2));
-    gain = U8U8Mul(level, tilt > 16 ? (30 - tilt) : 16);
-    cv_1 = pgm_read_byte(wav_res_ssm2164_linearization + (gain >> 2));
-    // Apply a knee to the resonance curve.
-    resonance = ~resonance;
-    resonance = U8U8MulShift8(resonance, resonance);
-    resonance = U8U8MulShift8(~resonance, 160) + 48;
-  } else if (filter_board == FILTER_BOARD_4PM) {
-    // If the resonance overdrive mode is not selected, half the scale of
-    // the resonance setting. Resonance overdrive needs a very strong control
-    // current on the OTA to kick in.
-    if ((part.patch().filter_2_mode_ & 1) == 0) {
-      resonance = U8U8MulShift8(resonance, 92);
-    } else {
-      gain = ~gain;
-      gain = U8U8MulShift8(gain, gain);
-      gain = ~gain;
-    }
+  // Polivoks board: apply a knee to the resonance curve.
+  resonance = (resonance >> 1) + (resonance < 128 ? resonance : 128);
+  if (resonance >= 252) {
+    resonance = 255;
   }
   vcf_resonance_out.Write(resonance);
   vca_out.Write(gain);

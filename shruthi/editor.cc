@@ -105,7 +105,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 58, 59, 60, 61 },  // MATH
   { 44, 45, 46, 47 },  // SYS KBD
   { 48, 49, 50, 0xff },  // SYS MIDI
-  { 52, 53, 54, 55 },  // SYS DISPLAY
+  { 52, 53, 0xff, 55 },  // SYS DISPLAY (filter board fixed: PVK)
 };
 
 static const prog_char page_labels[] PROGMEM =
@@ -465,8 +465,7 @@ void Editor::OnSwitch(const Event& event) {
       }
     } else if (id == SWITCH_MODE) {
       JumpToPageGroup(GROUP_SYS);
-    } else if (id + GROUP_FX != GROUP_VCF ||
-               part.system_settings().expansion_filter_board) {
+    } else {
       JumpToPageGroup(id + GROUP_FX);
     }
   } else if (id == SWITCH_MODE) {
@@ -837,8 +836,6 @@ void Editor::DisplayEditOverviewPage() {
     PrintParameter(32, row_1 + 5, 2, false);
     row_1[15] = PrintParameter(35, row_1 + 12, 3, true);
   } else {
-    bool custom_labels = current_page_ != PAGE_FILTER_MULTIMODE ||
-        part.system_settings().expansion_filter_board == FILTER_BOARD_PVK;
     uint8_t previous = 0xff;
     for (uint8_t i = 0; i < kNumEditingPots; ++i) {
       uint8_t id = KnobIndexToParameterId(i);
@@ -851,12 +848,7 @@ void Editor::DisplayEditOverviewPage() {
       }
       previous = offset;
       char* label = row_0 + i * kColumnWidth;
-      if (custom_labels) {
-        memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
-      } else {
-        ResourcesManager::LoadStringResource(
-            parameter_manager.parameter(id).short_name, label, 3);
-      }
+      memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
       char* value = row_1 + i * kColumnWidth;
       value[3] = PrintParameter(id, value, 3, true);
     }
@@ -913,8 +905,7 @@ uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
   uint8_t id = pgm_read_byte(&page_parameters[current_page_][knob_index]);
   if (id != 0xff && (id & 0x80)) {
     // Expansion board n has its 4 parameters at 58 + 4 * n.
-    uint8_t n = part.system_settings().expansion_filter_board;
-    id = n ? 58 + 4 * n + (id & 0x7f) : 0xff;
+    id = 58 + 4 * FILTER_BOARD_PVK + (id & 0x7f);
   }
   return id;
 }

@@ -549,36 +549,6 @@ void Part::UpdateLfoRate(uint8_t i) {
       lfo.mode);
 }
 
-const prog_uint8_t filter_modes[15] PROGMEM = {
-  2, 10, 1, 9, 8, 11, 13, 0, 7, 14, 12, 3, 5, 6, 4
-};
-
-/* static */
-uint8_t Part::blinky_eyes() {
-  uint8_t blinky = 0;
-  if (modulation_source(0, MOD_SRC_WHEEL) > 224) {
-    uint8_t i = kModulationMatrixSize - 1;
-    uint8_t wheel_mod = patch_.modulation_matrix.modulation[i].source;
-    wheel_mod = voice_.modulation_source(wheel_mod);
-    if (wheel_mod >= 0xc0) {
-      blinky = 0x80;
-    } else if (wheel_mod < 0x40) {
-      blinky = 0x40;
-    }
-  } else if (patch_.filter_resonance > 56) {
-    blinky = 0xc0;
-  }
-  return blinky;
-}
-
-/* static */
-uint8_t Part::four_pole_routing_byte() {
-  uint8_t byte = pgm_read_byte(filter_modes + patch_.filter_1_mode_);
-  byte |= U8ShiftLeft4(patch_.filter_2_mode_);
-  byte |= blinky_eyes();
-  return byte;
-}
-
 /* static */
 void Part::ProcessBlock() {
   if (block_count_ != 0xffff) {

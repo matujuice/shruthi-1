@@ -244,11 +244,8 @@ inline void Voice::LoadSources() {
   }
   dst_[MOD_DST_CV_1] = 0;
   dst_[MOD_DST_CV_2] = 0;
-  if (part.system_settings_.expansion_filter_board >= FILTER_BOARD_SSM) {
-    dst_[MOD_DST_CV_1] = U8U8Mul(
-        part.patch_.filter_cutoff_2, 128);
-    dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
-  }
+  dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
+  dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
 }
 
 /* static */
@@ -341,24 +338,13 @@ inline void Voice::UpdateDestinations() {
   // a negative modulation from NOTE to CUTOFF.
   uint16_t cutoff = dst_[MOD_DST_FILTER_CUTOFF];
   if (part.patch_.osc[0].option != OP_DUO) {
-    if (part.system_settings().expansion_filter_board == FILTER_BOARD_PVK) {
-      cutoff = S16ClipU14(cutoff + pitch_value_ - 8192 + (16 << 7));
-    } else {
-      cutoff = S16ClipU14(cutoff + pitch_value_ - 8192);
-    }
+    cutoff = S16ClipU14(cutoff + pitch_value_ - 8192 + (16 << 7));
   }
   cutoff = S16ClipU14(cutoff + S8U8Mul(part.patch_.filter_env,
       modulation_sources_[MOD_SRC_ENV_1]));
   cutoff = S16ClipU14(cutoff + S8S8Mul(part.patch_.filter_lfo,
       modulation_sources_[MOD_SRC_LFO_2] + 128));
 
-  // If the secondary filter is linked to the first one, offset its cutoff
-  // by the cutoff value of the first filter.
-  if (part.system_settings_.expansion_filter_board == FILTER_BOARD_SVF &&
-      part.patch_.filter_1_mode_ >= FILTER_MODE_LP_COUPLED) {
-    dst_[MOD_DST_CV_1] = S16ClipU14(dst_[MOD_DST_CV_1] + cutoff - 8192);
-  }
-  
   // Store in memory all the updated parameters.
   modulation_destinations_[MOD_DST_FILTER_CUTOFF] = U14ShiftRight6(cutoff);
   modulation_destinations_[MOD_DST_FILTER_RESONANCE] = U14ShiftRight6(

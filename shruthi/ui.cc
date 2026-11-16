@@ -146,45 +146,9 @@ void Ui::ScanPotentiometers() {
 
 /* static */
 void Ui::WriteShiftRegister() {
-  uint8_t filter_board = part.system_settings().expansion_filter_board;
   led_pwm_counter_ += 16;
   io_.Begin();
-
-  switch (filter_board) {
-    case FILTER_BOARD_DLY:
-      {
-        Word w;
-        w.value = U8U8Mul(part.voice().cv_1(), 5);
-        aux_io_.End();
-        aux_io_.Send(w.bytes[1] | 0x90);
-        aux_io_.Begin();
-        aux_io_.Send(w.bytes[0]);
-
-        w.value = U8U8Mul(pgm_read_byte(wav_res_ssm2164_linearization + \
-            (part.voice().cv_2() >> 2)), 16);
-        aux_io_.Send(w.bytes[1] | 0x10);
-        aux_io_.End();
-        aux_io_.Begin();
-        aux_io_.Send(w.bytes[0]);
-      }
-      break;
-
-    case FILTER_BOARD_SVF:
-      io_.Send(part.svf_routing_byte());
-      break;
-
-    case FILTER_BOARD_PVK:
-      io_.Send(part.pvk_routing_byte());
-      break;
-
-    case FILTER_BOARD_4PM:
-      io_.Send(part.four_pole_routing_byte());
-      break;
-      
-    case FILTER_BOARD_SP:
-      io_.Send(part.sp_routing_byte());
-      break;
-  }
+  io_.Send(part.pvk_routing_byte());
 
   io_.Send(led_pattern_);
   io_.End();
