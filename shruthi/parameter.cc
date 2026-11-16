@@ -39,8 +39,15 @@ uint8_t Parameter::Scale(uint8_t value_7bits) const {
     scaled_value = value_7bits;
   } else {
     uint8_t range = max_value - min_value + 1;
+    // CV 1-4 sources are hidden (inputs not wired on this unit).
+    if (unit == UNIT_MODULATION_SOURCE) {
+      range -= 4;
+    }
     scaled_value = U8U8MulShift8(range, value_7bits << 1);
     scaled_value += min_value;
+    if (unit == UNIT_MODULATION_SOURCE && scaled_value >= MOD_SRC_CV_1) {
+      scaled_value += 4;
+    }
     if (unit == UNIT_TEMPO_WITH_EXTERNAL_CLOCK) {
       if (scaled_value >= 239) {
         scaled_value = 240;
@@ -101,6 +108,10 @@ uint8_t Parameter::Increment(
     }
   } else {
     value += increment;
+    if (unit == UNIT_MODULATION_SOURCE &&
+        value >= MOD_SRC_CV_1 && value <= MOD_SRC_CV_4) {
+      value += increment > 0 ? 4 : -4;
+    }
     if (value >= min_value && value <= max_value) {
       new_value = static_cast<uint8_t>(value);
     }
@@ -122,7 +133,12 @@ uint8_t Parameter::RandomValue() const {
   while (value >= range) {
     value -= range;
   }
-  return value + min_value;
+  value += min_value;
+  if (unit == UNIT_MODULATION_SOURCE &&
+      value >= MOD_SRC_CV_1 && value <= MOD_SRC_CV_4) {
+    value = MOD_SRC_NOISE;
+  }
+  return value;
 }
 
 static const prog_uint16_t units_definitions[UNIT_LAST]

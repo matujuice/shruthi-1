@@ -113,7 +113,7 @@ void Ui::ScanPotentiometers() {
   int16_t value = adc_.ReadOut();
   
   *PortA::Mode::ptr() = 0x00;
-  pots_multiplexer_address_ = (pots_multiplexer_address_ + 1) & 7;
+  pots_multiplexer_address_ = (pots_multiplexer_address_ + 1) & 3;
   if (adc_resume_scan_to_ == 0) {
     adc_resume_scan_to_ = pots_multiplexer_address_ + 1;
     pots_multiplexer_address_ = adc_hot_address_;
@@ -122,12 +122,6 @@ void Ui::ScanPotentiometers() {
     adc_resume_scan_to_ = 0;
   }
   adc_.StartConversion(pots_multiplexer_address_);
-  if (address >= 4) {
-    // Addresses 4-7 are the CV inputs.
-    part.mutable_voice()->set_modulation_source(
-        MOD_SRC_CV_1 + address - 4, value >> 2);
-    address = 0xff;
-  }
   
   if (address != 0xff) {
     if (adc_warm_up_cycles_) {
