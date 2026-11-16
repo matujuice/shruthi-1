@@ -109,22 +109,22 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
 };
 
 static const prog_char page_labels[] PROGMEM =
-  "SHAPRMRNGSUB"  // 0
-  "SHAPRMRNGTUN"  // 1
-  "MIXSUBNOI   "  // 2
-  "CUTRESENVLFO"  // 3
-  "ATKDECSUSREL"  // 4
-  "ATKDECSUSREL"  // 5
-  "WAVSPDMULMOD"  // 6
-  "WAVSPDMULMOD"  // 7
-  "OP MIX      "  // 8
-  "MODOVDFM    "  // 9
-  "PRTLEGOCT   "  // 10
-  "SLTSRCDSTAMT"  // 11
-  "OP IN1IN2OUT"  // 12
-  "OCTRAGPRTLEG"  // 13
-  "TUNCHNOUT   "  // 14
-  "PAUSNPFLTSTA";  // 15
+  "ShaPrmRngSub"  // 0
+  "ShaPrmRngTun"  // 1
+  "MixSubNoi   "  // 2
+  "CutResEnvLfo"  // 3
+  "AtkDecSusRel"  // 4
+  "AtkDecSusRel"  // 5
+  "WavSpdMulMod"  // 6
+  "WavSpdMulMod"  // 7
+  "Op Mix      "  // 8
+  "ModOvdFm    "  // 9
+  "PrtLegOct   "  // 10
+  "SltSrcDstAmt"  // 11
+  "Op In1In2Out"  // 12
+  "OctRagPrtLeg"  // 13
+  "TunChnOut   "  // 14
+  "PauSnpFltSta";  // 15
 
 static const prog_char page_titles[] PROGMEM =
   "SYN  OSC 1   1/3"
@@ -206,21 +206,8 @@ static char GlyphGet(const uint8_t* bits) {
       return 8 + i;
     }
   }
-  if (glyph_count_ == 8) {  // Out of CGRAM: reuse the closest glyph.
-    uint8_t best = 0, best_distance = 0xff;
-    for (uint8_t i = 0; i < 8; ++i) {
-      uint8_t distance = 0;
-      for (uint8_t r = 0; r < 8; ++r) {
-        for (uint8_t x = glyph_[i][r] ^ bits[r]; x; x >>= 1) {
-          distance += x & 1;
-        }
-      }
-      if (distance < best_distance) {
-        best_distance = distance;
-        best = i;
-      }
-    }
-    return 8 + best;
+  if (glyph_count_ == 8) {  // Pages are laid out to need at most 8.
+    return ' ';
   }
   uint8_t i = glyph_count_++;
   if (memcmp(glyph_[i], bits, 8)) {
@@ -790,6 +777,11 @@ char Editor::PrintParameter(
     memcpy(out + width - len, text, len);
     return Icon(p.unit, value);
   }
+  if (id == 2 || id == 6) {  // Osc range: plain number, keeps glyphs for bars.
+    memset(out, ' ', 4);
+    memcpy(out, text, len);
+    return out[3];
+  }
   // Numeric: 19 px box. Unipolar: inset fill; bipolar: 2 px marker, 2 dots
   // at 0. The number replaces the label while touched or FUNC is held.
   if (touched || show_numbers_) {
@@ -816,7 +808,12 @@ char Editor::PrintParameter(
     dots = true;
     to = 0;
   } else {
-    from = 2 + (13 * num + den / 2) / den;
+    // 11 marker positions; skipping px 4, 9, 14 keeps it inside one cell.
+    for (uint8_t j = (10 * num + den / 2) / den; j; --j) {
+      if (++from % 5 == 4) {
+        ++from;
+      }
+    }
     to = from + 1;
   }
   for (uint8_t k = 0; k < 4; ++k) {
@@ -883,7 +880,7 @@ void Editor::DisplayEditOverviewPage() {
     char c = line_buffer_[i];
     if (c == '\0' && i != kLcdWidth) {
       line_buffer_[i] = ' ';
-    } else if (c >= 'a' && c <= 'z') {
+    } else if (c >= 'a' && c <= 'z' && i > kLcdWidth) {  // Labels: Title case.
       line_buffer_[i] = c - 32;
     }
   }
