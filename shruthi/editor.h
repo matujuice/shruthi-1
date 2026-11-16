@@ -214,6 +214,7 @@ class Editor {
 
   // Sends at most one changed custom glyph to the LCD CGRAM.
   static void UploadGlyphs();
+  static bool display_idle();
   
  private:
   // A bunch of hacks for special values/pages.

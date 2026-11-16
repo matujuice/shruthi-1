@@ -67,6 +67,7 @@ class BufferedDisplay {
   }
 
   static void Print(uint8_t line, const char* text) {
+    clean_ticks_ = 0;
     uint8_t row = width;
     char* destination = line_buffer(line);
     while (*text && row) {
@@ -95,6 +96,9 @@ class BufferedDisplay {
 
   // Forces a cursor move before the next write (after CGRAM writes).
   static void InvalidateCursor() { scan_position_last_write_ = 255; }
+
+  // True once a full scan found nothing to send: the LCD shows local_.
+  static bool synced() { return clean_ticks_ >= lcd_buffer_size; }
 
   static inline void set_status(uint8_t status) {
     status_ = status + 1;
@@ -169,6 +173,9 @@ class BufferedDisplay {
       // We can now assume that the remote display will be updated.
       remote_[scan_position_] = character;
       scan_position_last_write_ = scan_position_;
+      clean_ticks_ = 0;
+    } else if (clean_ticks_ < 255) {
+      ++clean_ticks_;
     }
     ++scan_column_;
     ++scan_position_;
@@ -193,6 +200,7 @@ class BufferedDisplay {
   static uint8_t scan_row_;
   static uint8_t scan_column_;
   static uint8_t scan_position_last_write_;
+  static uint8_t clean_ticks_;
   static uint8_t blink_;
   static uint8_t previous_status_counter_;
   static uint8_t previous_blink_counter_;
@@ -226,6 +234,9 @@ uint8_t BufferedDisplay<Lcd>::scan_column_;
 /* static */
 template<typename Lcd>
 uint8_t BufferedDisplay<Lcd>::scan_position_last_write_;
+
+template<typename Lcd>
+uint8_t BufferedDisplay<Lcd>::clean_ticks_;
 
 /* static */
 template<typename Lcd>

@@ -330,7 +330,12 @@ void Ui::DoEvents() {
     refresh_display = false;
   }
   
-  if (refresh_display) {
+  // Redraw only once the LCD shows the previous screen: glyph slots are then
+  // reused only when no cell displays them (no flicker under fast knob moves).
+  static bool refresh_pending;
+  refresh_pending |= refresh_display;
+  if (refresh_pending && editor.display_idle()) {
+    refresh_pending = false;
     editor.Refresh();
   }
 
