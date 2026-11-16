@@ -985,6 +985,10 @@ bool Editor::FinishLoadingPatch() {
   uint16_t n = deferred_load_;
   Storage::LoadPatch(n);
   midi_dispatcher.OnProgramChange(n);
+  if (part.system_settings().last_patch != n) {
+    part.mutable_system_settings()->last_patch = n;  // Reloaded at power-up.
+    part.system_settings().EepromSave();
+  }
   part.Touch(true);
   // Reset the snap position of all pots.
   memset(snapped_, false, sizeof(snapped_));
@@ -1652,6 +1656,8 @@ void Editor::DisplaySplashScreen() {
   boot_word_ = 0;
   popup_phase_ = 0xfe;
   BootStep();
+  set_edited_item_number(part.system_settings().last_patch);
+  deferred_load_ = current_patch_number_;
   ToggleLoadSaveAction();
 }
 
