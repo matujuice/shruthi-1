@@ -44,21 +44,10 @@ void Patch::PrepareForWrite() {
     op_data_[2] |= 0x40;
   }
   
-  // Copy sequencer settings data into patch data.
   const SystemSettings system_settings = part.system_settings();
-  const SequencerSettings sequencer_settings = part.sequencer_settings();
   
   extra_data_[0] = system_settings.legato ? 0x40 : 0x00;
   extra_data_[0] |= system_settings.portamento;
-  
-  extra_data_[1] = sequencer_settings.seq_mode;
-  extra_data_[2] = sequencer_settings.seq_tempo;
-  extra_data_[3] = sequencer_settings.seq_groove_template;
-  extra_data_[4] = sequencer_settings.seq_groove_amount;
-  extra_data_[5] = (sequencer_settings.arp_direction << 4) | \
-      sequencer_settings.arp_range;
-  extra_data_[6] = sequencer_settings.arp_pattern;
-  extra_data_[7] = sequencer_settings.arp_clock_division;
 }
 
 uint8_t Patch::CheckBuffer(uint8_t* buffer) {
@@ -106,21 +95,9 @@ void Patch::Update() {
   
   if (version_ != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();
-    SequencerSettings* sequencer_settings = part.mutable_sequencer_settings();
-    
+
     system_settings->legato = extra_data_[0] & 0x40 ? 1 : 0;
     system_settings->portamento = extra_data_[0] & 0x3f;
-
-    if (!part.running()) {
-      sequencer_settings->seq_mode = extra_data_[1];
-      sequencer_settings->seq_tempo = extra_data_[2];
-      sequencer_settings->seq_groove_template = extra_data_[3];
-      sequencer_settings->seq_groove_amount = extra_data_[4];
-      sequencer_settings->arp_direction = extra_data_[5] >> 4;
-      sequencer_settings->arp_range = extra_data_[5] & 0xf;
-      sequencer_settings->arp_pattern = extra_data_[6];
-      sequencer_settings->arp_clock_division = extra_data_[7];
-    }
   }
 }
 

@@ -144,15 +144,7 @@ struct SequencerSettings {
   uint8_t mode() {
     return seq_mode;
   }
-  bool internal_clock() {
-    return seq_tempo >= 40;
-  }
-  
-  static void PrintNote(uint8_t note, char* buffer);
-  void PrintStep(uint8_t step, char* buffer) const;
-  
   uint8_t* saved_data() { return (uint8_t*)(&steps[0]); }
-  void PrepareForWrite();
   uint8_t CheckBuffer(uint8_t* buffer) { return 1; }
   void Update() {
     pattern_size = kNumSteps;

@@ -61,15 +61,11 @@ uint16_t Part::blocks_per_beat_ = 490;  // 120 BPM until the first beat is measu
 uint16_t Part::block_count_;
 uint8_t Part::beat_tick_;
 
-bool Part::arp_seq_running_;
-uint8_t Part::arp_seq_prescaler_;
-uint8_t Part::arp_seq_step_;
 /* </static> */
 
 /* static */
 void Part::Init() {
   ResetPatch();
-  ResetSequencerSettings();
   if (!system_settings_.EepromLoad()) {
     ResetSystemSettings();
     system_settings_.EepromSave();
@@ -80,7 +76,6 @@ void Part::Init() {
   poly_allocator_.Init();
   voice_.Init();
   dirty_ = false;
-  arp_seq_running_ = false;
   nrpn_parameter_number_ = 0xff;
 }
 
@@ -167,35 +162,6 @@ static const prog_char init_patch[] PROGMEM = {
     0, 0, 0, 0, 0, 0, 0, 0,
 };
 
-static const prog_char init_sequence[] PROGMEM = {
-    // Sequencer
-    SEQUENCER_MODE_STEP, 120, 0, 0,
-    ARPEGGIO_DIRECTION_UP, 1, 0, 7,
-    
-    // Pattern size and pattern
-    16,
-    0,
-    0x80 | 48, 0x00 | 0x70 | 0x0,
-    0x80 | 48, 0x80 | 0x50 | 0x0,
-    0x80 | 60, 0x00 | 0x50 | 0x0,
-    0x80 | 60, 0x80 | 0x50 | 0x0,
-
-    0x80 | 48, 0x00 | 0x70 | 0xf,
-    0x80 | 48, 0x80 | 0x50 | 0xf,
-    0x80 | 60, 0x00 | 0x50 | 0xf,
-    0x00 | 60, 0x00 | 0x50 | 0xf,
-
-    0x80 | 48, 0x00 | 0x70 | 0xc,
-    0x80 | 48, 0x80 | 0x50 | 0xc,
-    0x80 | 60, 0x00 | 0x50 | 0xc,
-    0x80 | 60, 0x80 | 0x50 | 0xc,
-
-    0x80 | 48, 0x00 | 0x70 | 0x4,
-    0x00 | 48, 0x00 | 0x50 | 0x4,
-    0x80 | 60, 0x00 | 0x70 | 0x4,
-    0x00 | 60, 0x00 | 0x50 | 0x4,
-};
-
 static const prog_char init_system_settings[] PROGMEM = {
     // System Settings,
     0, 0, 0, 0,
@@ -219,17 +185,6 @@ void Part::Touch(bool cascade) {
       Storage::SysExDump(&patch_);
     }
   }
-}
-
-/* static */
-void Part::ResetSequencerSettings() {
-  ResourcesManager::Load(init_sequence, 0, &sequencer_settings_);
-}
-
-/* static */
-void Part::ResetSequence() {
-  ResourcesManager::Load(init_sequence + 10, 0, &sequencer_settings_.steps);
-  sequencer_settings_.pattern_size = 16;
 }
 
 /* static */
@@ -387,14 +342,7 @@ void Part::Reset() {
 }
 
 /* static */
-void Part::Clock(bool internal) {
-  if (running()) {
-    if (!arp_seq_prescaler_) {
-      // Step counter kept for groove swing and the LEDs.
-      arp_seq_step_ = (arp_seq_step_ + 1) & 0x0f;
-    }
-  }
-
+void Part::Clock() {
   // Measure the beat (24 ticks) in control-rate blocks; LFO speeds lock to it.
   if (++beat_tick_ >= 24) {
     beat_tick_ = 0;
@@ -404,50 +352,21 @@ void Part::Clock(bool internal) {
     block_count_ = 0;
     UpdateModulationRates();
   }
-
-  ++arp_seq_prescaler_;
-  if (arp_seq_prescaler_ >= step_duration()) {
-    arp_seq_prescaler_ = 0;
-  }
 }
 /* static */
-void Part::Start(bool internal) {
-  if (internal) {
-    midi_dispatcher.OnStart();
-  }
-  
+void Part::Start() {
   release_latched_keys_on_next_note_on_ = false;
   ignore_note_off_messages_ = false;
-  
-  arp_seq_prescaler_ = 0;
-  arp_seq_step_ = 0xff;
-  arp_seq_running_ = true;
 }
 
 /* static */
-void Part::Stop(bool internal) {
-  arp_seq_running_ = false;
+void Part::Stop() {
   ignore_note_off_messages_ = false;
-  if (internal) {
-    midi_dispatcher.OnStop();
-  }
 }
 
 /* static */
 void Part::SetName(uint8_t* name) {
   memcpy(patch_.name, name, kPatchNameSize);
-  dirty_ = true;
-}
-
-/* static */
-void Part::SetPatternRotation(uint8_t rotation) {
-  sequencer_settings_.pattern_rotation = rotation;
-  dirty_ = true;
-}
-
-/* static */
-void Part::SetPatternLength(uint8_t length) {
-  sequencer_settings_.pattern_size = length & 0xf;
   dirty_ = true;
 }
 
@@ -609,15 +528,6 @@ void Part::InternalNoteOn(uint8_t note, uint8_t velocity) {
       voice_.set_bass_note(bass_note != after.note ? Tune(bass_note) : 0);
     }
   }
-}
-
-const prog_uint8_t clock_divisions[] PROGMEM = {
-  96, 48, 32, 24, 16, 12, 8, 6, 4, 3, 2, 1
-};
-
-/* static */
-uint8_t Part::step_duration() {
-  return pgm_read_byte(clock_divisions + sequencer_settings_.arp_clock_division);
 }
 
 /* static */

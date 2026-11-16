@@ -58,14 +58,12 @@ class Part {
   static void OmniModeOff(uint8_t channel);
   static void OmniModeOn();
   static void Reset();
-  static void Clock(bool internal);
-  static void Start(bool internal);
-  static void Stop(bool internal);
+  static void Clock();
+  static void Start();
+  static void Stop();
 
   static void ProcessBlock();  
   static void SetName(uint8_t* name);
-  static void SetPatternRotation(uint8_t rotation);
-  static void SetPatternLength(uint8_t length);
 
   // Patch manipulation stuff.
   static void SetParameter(uint8_t index, uint8_t offset, uint8_t value,
@@ -76,8 +74,6 @@ class Part {
     return data_access_byte_[offset + 1];
   }
   static void ResetPatch();
-  static void ResetSequencerSettings();
-  static void ResetSequence();
   static void ResetSystemSettings();
   // Variables dependent on parameters (increments) are recomputed in
   // SetParameter when the related parameter is modified. Sometimes, the patch
@@ -92,8 +88,6 @@ class Part {
     }
   }
   
-  static inline bool running() { return arp_seq_running_; }
-  static inline uint8_t step() { return arp_seq_step_; }
   
   static inline const Patch& patch() { return patch_; }
   static inline const SequencerSettings& sequencer_settings() {
@@ -139,7 +133,6 @@ class Part {
   }
   
   
-  inline bool internal_clock() { return false; }  // Internal tempo clock removed.
   inline bool latched() { return ignore_note_off_messages_; }
   inline static void Latch() {
     ignore_note_off_messages_ = true;
@@ -164,7 +157,6 @@ class Part {
   static void InternalNoteOff(uint8_t note);
   
   static uint16_t Tune(uint8_t note);
-  static uint8_t step_duration();
    
   static uint8_t data_access_byte_[1];
   static Patch patch_;
@@ -190,9 +182,6 @@ class Part {
   static uint8_t beat_tick_;
 
   // Sequencer stuff
-  static bool arp_seq_running_;
-  static uint8_t arp_seq_prescaler_;
-  static uint8_t arp_seq_step_;
 
   DISALLOW_COPY_AND_ASSIGN(Part);
 };

@@ -227,26 +227,18 @@ void Ui::RefreshLeds() {
   }
 
   uint8_t led_pattern = editor.leds_pattern();
-  if (editor.current_mode() == EDITOR_MODE_SEQUENCE) {
-    if (part.running()) {
-      if (!(part.step() & 3)) {
-        led_pattern |= LED_MODE_MASK;
-      }
+  if (editor.current_page() == PAGE_MOD_MATRIX) {
+    uint8_t current_modulation_source_value = part.modulation_source(0,
+        part.patch().modulation_matrix.modulation[
+            editor.subpage()].source);
+    if (current_modulation_source_value > led_pwm_counter_) {
+      led_pattern |= LED_6_MASK;
     }
-  } else {
-    if (editor.current_page() == PAGE_MOD_MATRIX) {
-      uint8_t current_modulation_source_value = part.modulation_source(0,
-          part.patch().modulation_matrix.modulation[
-              editor.subpage()].source);
-      if (current_modulation_source_value > led_pwm_counter_) {
-        led_pattern |= LED_6_MASK;
-      }
-    } else if (editor.current_page() == PAGE_MOD_OPERATORS) {
-      uint8_t current_operator_value = part.modulation_source(0,
-          MOD_SRC_OP_1 + editor.subpage());
-      if (current_operator_value > led_pwm_counter_) {
-        led_pattern |= LED_6_MASK;
-      }
+  } else if (editor.current_page() == PAGE_MOD_OPERATORS) {
+    uint8_t current_operator_value = part.modulation_source(0,
+        MOD_SRC_OP_1 + editor.subpage());
+    if (current_operator_value > led_pwm_counter_) {
+      led_pattern |= LED_6_MASK;
     }
   }
   led_pattern_ = led_pattern;

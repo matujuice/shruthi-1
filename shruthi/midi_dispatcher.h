@@ -109,26 +109,10 @@ class MidiDispatcher : public midi::MidiDevice {
   }
   
   static void Reset() { part.Reset(); }
-  static void Clock() { 
-    if (!part.internal_clock()) {
-      part.Clock(false);
-    }
-  }
-  static void Start() {
-    if (!part.internal_clock()) {
-      part.Start(false);
-    }
-  }
-  static void Continue() {
-    if (!part.internal_clock()) {
-      part.Start(false);
-    }
-  }
-  static void Stop() {
-    if (!part.internal_clock()) {
-      part.Stop(false);
-    }
-  }
+  static void Clock() { part.Clock(); }
+  static void Start() { part.Start(); }
+  static void Continue() { part.Start(); }
+  static void Stop() { part.Stop(); }
   
   static void SysExStart() {
     ProcessSysEx(0xf0);

@@ -688,7 +688,6 @@ void Editor::OnSwitch(const Event& event) {
         case SWITCH_1:
           display.set_status('x');
           part.ResetPatch();
-          part.ResetSequence();
           break;
 
         case SWITCH_2:
