@@ -183,6 +183,9 @@ void Ui::DebounceSwitches() {
       } else {
         switch_delay_[i] = milliseconds() | 1;
       }
+      if (i == SWITCH_MODE) {
+        switch_delay_[i] = milliseconds() | 1;  // Hold timer for perform mode.
+      }
     } else if (switch_state_[i] == 0x7f && i != SWITCH_MODE) {
       if (switch_delay_[i] && milliseconds() - switch_delay_[i] <= 300) {
         queue_.AddEvent(CONTROL_SWITCH, i, 0);
@@ -285,6 +288,15 @@ void Ui::DoEvents() {
         break;
     }
     idle_time_ = 0;
+    refresh_display = true;
+  }
+
+  // Perform mode: hold SYS (S5) for 1 s to leave.
+  if (editor.current_page() == PAGE_PERFORM &&
+      switch_state_[SWITCH_MODE] == 0x00 && switch_delay_[SWITCH_MODE] &&
+      milliseconds() - switch_delay_[SWITCH_MODE] > 1000) {
+    switch_delay_[SWITCH_MODE] = 0;
+    editor.ExitPerform();
     refresh_display = true;
   }
 

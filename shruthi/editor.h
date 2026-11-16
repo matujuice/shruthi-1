@@ -94,7 +94,8 @@ enum Page {
 
   PAGE_LOAD_SAVE,
   PAGE_CONFIRM,
-  PAGE_JAM
+  PAGE_JAM,
+  PAGE_PERFORM
 };
 
 enum Action {
@@ -217,6 +218,8 @@ class Editor {
   // Sends at most one changed custom glyph to the LCD CGRAM.
   static void UploadGlyphs();
   static bool display_idle();
+  // Holding SYS in perform mode: back to SETTINGS > PERFORM MODE.
+  static void ExitPerform();
   
  private:
   // A bunch of hacks for special values/pages.
@@ -313,6 +316,7 @@ class Editor {
   static bool show_numbers_;
   static bool sys_open_;  // false = SYS menu list, true = inside a sub-menu.
   static bool sys_dirty_;
+  static bool perf_setup_;  // PERFORM MODE > setup (knob targets) is open.
   static bool func_;  // FUNC held: pots and encoder jump to relevant values.
   
   static uint16_t deferred_load_;

@@ -95,6 +95,7 @@ PageDefinition Editor::page_definition_[] = {
   /* PAGE_LOAD_SAVE */ { PAGE_LOAD_SAVE, GROUP_LOAD_SAVE, LOAD_SAVE, LED_MODE_MASK },
   /* PAGE_CONFIRM */ { PAGE_CONFIRM, GROUP_CONFIRM, CONFIRM, 0x55 },
   /* PAGE_JAM */ { PAGE_JAM, GROUP_JAM, JAM, 0x00 },
+  /* PAGE_PERFORM */ { PAGE_PERFORM, GROUP_JAM, PARAMETER_EDITOR, 0x00 },
 };
 
 // Parameter ids for the 4 pots of each parameter page. 0xff = unused;
@@ -151,7 +152,7 @@ static const prog_char page_titles[] PROGMEM =
   "KEYBOARD        "
   "MIDI            "
   "DISPLAY         "
-  "PERFORMANCE     ";
+  "PERFORM MODE    ";
 
 static const prog_char lfo_mode_names[] PROGMEM = "FRETRGHLDONEHLF";
 
@@ -530,6 +531,7 @@ uint16_t Editor::deferred_load_;
 uint8_t Editor::perf_[4];
 bool Editor::sys_open_;
 bool Editor::sys_dirty_;
+bool Editor::perf_setup_;
 /* </static> */
 
 // Free bytes after the sequences (internal EEPROM ends at 2048).
@@ -595,15 +597,7 @@ bool Editor::Relax() {
   }
   // Disable the "get back to overview page" thing in the sequencer pages or
   // Load/save pages - in short, all pages where there's a moving cursor.
-  // The preset-page knob overlay stays until the encoder is used; only the
-  // numbers go back to labels, as on the synth pages.
   if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
-      current_page_ == PAGE_LOAD_SAVE) {
-    memset(touched_, false, sizeof(touched_));
-    return true;
-  }
-  if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY &&
-      current_page_ != PAGE_LOAD_SAVE &&
       display.cursor_position() == kLcdNoCursor) {
     display_mode_ = DISPLAY_MODE_OVERVIEW;
     return true;
@@ -701,6 +695,9 @@ void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
 /* static */
 void Editor::OnSwitch(const Event& event) {
   uint8_t id = event.control_id;
+  if (current_page_ == PAGE_PERFORM) {
+    return;  // Only holding SYS leaves perform mode.
+  }
   if (event.value == 0xff) {
     // FUNC + key.
     if (current_page_ == PAGE_LOAD_SAVE && id < SWITCH_MODE) {
@@ -793,9 +790,7 @@ void Editor::OnLongClick() {
 /* static */
 void Editor::OnClick() {
   title_flash_ = false;
-  if (current_page_ == PAGE_LOAD_SAVE &&
-      display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY) {
-    display_mode_ = DISPLAY_MODE_OVERVIEW;  // Click only closes the overlay.
+  if (current_page_ == PAGE_PERFORM) {
     return;
   }
   if (display_mode_ != DISPLAY_MODE_EDIT) {
@@ -962,7 +957,6 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
       }
     }
   } else {
-    display_mode_ = DISPLAY_MODE_OVERVIEW;  // Closes the knob overlay.
     set_edited_item_number(edited_item_number() + increment);
     if (action_ == ACTION_LOAD) {
       deferred_load_ = edited_item_number();
@@ -972,11 +966,6 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
 
 /* static */
 void Editor::DisplayLoadSavePage() {
-  if (display_mode_ == DISPLAY_MODE_EDIT_TEMPORARY
-      && action_ != ACTION_SAVE) {
-    DisplayEditOverviewPage();
-    return;
-  }
   ResourcesManager::LoadStringResource(
       STR_RES_BROWSE + action_,
       line_buffer_,
@@ -1162,7 +1151,9 @@ void Editor::DisplaySysPage() {
     row_0[kLcdWidth - 3] = '1' + cursor_;
     row_0[kLcdWidth - 2] = '/';
     row_0[kLcdWidth - 1] = '0' + count;
-    if (sys_open_) {
+    if (sys_open_ && current_page_ == PAGE_SYS_PERF && !perf_setup_) {
+      memcpy_P(row_1 + 1, cursor_ ? PSTR("setup") : PSTR("enter"), 5);
+    } else if (sys_open_) {
       NameValue(KnobIndexToParameterId(cursor_), row_1 + 1, true);
     } else {
       memcpy_P(row_1 + 1, page_titles + kLcdWidth * current_page_, 15);
@@ -1187,6 +1178,9 @@ void Editor::DisplaySysPage() {
 
 /* static */
 uint8_t Editor::SysItems() {
+  if (current_page_ == PAGE_SYS_PERF && !perf_setup_) {
+    return 2;  // enter, setup
+  }
   uint8_t n = 0;
   while (n < 4 && pgm_read_byte(&page_parameters[current_page_][n]) != 0xff) {
     ++n;
@@ -1196,7 +1190,8 @@ uint8_t Editor::SysItems() {
 
 /* static */
 void Editor::OnSysInput(uint8_t knob_index, uint8_t value) {
-  if (sys_open_ && cursor_ < SysItems()) {
+  if (sys_open_ && cursor_ < SysItems() &&
+      (current_page_ != PAGE_SYS_PERF || perf_setup_)) {
     OnEditInput(cursor_, value);  // Any pot sets the selected setting.
   }
 }
@@ -1225,14 +1220,36 @@ void Editor::OnSysIncrement(int8_t increment) {
 /* static */
 void Editor::OnSysClick() {
   if (sys_open_ && cursor_ == SysItems()) {
-    sys_open_ = false;  // back to the list
-    cursor_ = current_page_ - PAGE_SYS_KBD;
+    if (perf_setup_) {
+      perf_setup_ = false;  // back to enter/setup
+      cursor_ = 1;
+    } else {
+      sys_open_ = false;  // back to the list
+      cursor_ = current_page_ - PAGE_SYS_KBD;
+    }
     display_mode_ = DISPLAY_MODE_OVERVIEW;
   } else if (!sys_open_) {
     sys_open_ = true;
+    perf_setup_ = false;
     cursor_ = 0;
     display_mode_ = DISPLAY_MODE_OVERVIEW;
+  } else if (current_page_ == PAGE_SYS_PERF && !perf_setup_) {
+    display_mode_ = DISPLAY_MODE_OVERVIEW;
+    if (cursor_) {
+      perf_setup_ = true;
+      cursor_ = 0;
+    } else {
+      current_page_ = PAGE_PERFORM;
+      memset(snapped_, false, sizeof(snapped_));
+    }
   }
+}
+
+/* static */
+void Editor::ExitPerform() {
+  current_page_ = PAGE_SYS_PERF;  // sys_open_ is still set: enter/setup list.
+  cursor_ = 0;
+  display_mode_ = DISPLAY_MODE_OVERVIEW;
 }
 
 /* static */
@@ -1306,7 +1323,7 @@ void Editor::DisplayEditOverviewPage() {
     memset(touched_, false, sizeof(touched_));
   }
   // Encoder target: steady arrow when browsing, blinking when editing.
-  uint8_t marker = current_page_ == PAGE_LOAD_SAVE ?
+  uint8_t marker = current_page_ == PAGE_PERFORM ?
       kLcdNoCursor : cursor_ * kColumnWidth + 3;
   if (title_flash_) {
     marker = kLcdNoCursor;
@@ -1328,7 +1345,7 @@ void Editor::DisplayEditOverviewPage() {
       }
       previous = offset;
       char* label = row_0 + i * kColumnWidth;
-      if (current_page_ == PAGE_LOAD_SAVE) {
+      if (current_page_ == PAGE_PERFORM) {
         PerfLabel(id, label, false);
       } else {
         memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
@@ -1381,10 +1398,7 @@ void Editor::DisplayEditOverviewPage() {
 
 /* static */
 uint8_t Editor::KnobIndexToParameterId(uint8_t knob_index) {
-  if (current_page_ == PAGE_LOAD_SAVE) {
-    if (action_ != ACTION_LOAD) {
-      return 0xff;
-    }
+  if (current_page_ == PAGE_PERFORM) {
     return perf_[knob_index];
   }
   if (current_page_ > PAGE_SYS_PERF) {
