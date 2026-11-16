@@ -522,6 +522,9 @@ static const prog_uint8_t boot_words[] PROGMEM = {
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
 static uint8_t preset_status_;
 
+// Save page: the selected number is in the off phase of its blink.
+static uint8_t number_hidden_;
+
 static uint8_t boot_step_;  // Boot screens 0-9. Even: blank, odd: a word.
 static uint8_t boot_word_;  // Read position in boot_words.
 
@@ -856,6 +859,14 @@ void Editor::ReloadPatch() {
 /* static */
 bool Editor::PopupTick() {
   if (!popup_until_) {
+    // Save page: the whole number blinks while selected, faster while edited.
+    uint8_t hidden = current_page_ == PAGE_LOAD_SAVE &&
+        action_ == ACTION_SAVE && cursor_ == 0 &&
+        (milliseconds() >> (display_mode_ == DISPLAY_MODE_EDIT ? 7 : 8)) & 1;
+    if (hidden != number_hidden_) {
+      number_hidden_ = hidden;
+      return true;
+    }
     return false;
   }
   int32_t left = popup_until_ - milliseconds();
@@ -988,7 +999,10 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
   if (action_ == ACTION_SAVE) {
     if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
       int8_t new_cursor = static_cast<int8_t>(cursor_) + increment;
-      if (new_cursor >= 0 && new_cursor < kLcdWidth) {
+      if (new_cursor > 0 && new_cursor < 4) {
+        new_cursor = increment > 0 ? 4 : 0;  // The number is one slot.
+      }
+      if (new_cursor >= 0 && new_cursor <= kLcdWidth - 4) {  // 12 = ok.
         cursor_ = new_cursor;
       }
     } else {
@@ -1020,6 +1034,10 @@ void Editor::DisplayLoadSavePage() {
   uint16_t n = edited_item_number();
   uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
   PrintTall(digits, 3, line_buffer_);
+  if (number_hidden_ && action_ == ACTION_SAVE) {
+    memset(line_buffer_, ' ', 3);
+    memset(line_buffer_ + kLcdWidth + 1, ' ', 3);
+  }
   memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
   const prog_char* status =
       action_ == ACTION_SAVE ? PSTR("SAVE") :
@@ -1039,8 +1057,8 @@ void Editor::DisplayLoadSavePage() {
       row_1[12] = '[';
       row_1[15] = ']';
     } else if (is_cursor_at_valid_position()) {
-      // Number: under its digits. Name: on its letter, top row.
-      cursor = cursor_ < 3 ? kLcdWidth + cursor_ : cursor_ + 1;
+      // Name: on its letter, top row. The number blinks instead.
+      cursor = cursor_ ? cursor_ + 1 : kLcdNoCursor;
     }
   }
   display.set_cursor_position(cursor);
