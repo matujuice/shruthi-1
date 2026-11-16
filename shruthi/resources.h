@@ -40,7 +40,6 @@ extern const prog_char* const string_table[];
 
 extern const prog_uint16_t* const lookup_table_table[];
 
-extern const prog_uint32_t* const lookup_table32_table[];
 
 extern const prog_uint8_t* const waveform_table[];
 
@@ -80,14 +79,6 @@ extern const prog_uint16_t lut_res_scale_b_todi[] PROGMEM;
 extern const prog_uint16_t lut_res_scale_chandradeep[] PROGMEM;
 extern const prog_uint16_t lut_res_scale_kaushik_todi[] PROGMEM;
 extern const prog_uint16_t lut_res_scale_jogeshwari[] PROGMEM;
-extern const prog_uint16_t lut_res_arpeggiator_patterns[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_swing[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_shuffle[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_push[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_lag[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_human[] PROGMEM;
-extern const prog_uint16_t lut_res_groove_monkey[] PROGMEM;
-extern const prog_uint32_t lut_res_tempo_phase_increment[] PROGMEM;
 extern const prog_uint8_t wav_res_formant_sine[] PROGMEM;
 extern const prog_uint8_t wav_res_formant_square[] PROGMEM;
 extern const prog_uint8_t wav_res_sine[] PROGMEM;
@@ -110,7 +101,6 @@ extern const prog_uint8_t wav_res_bandlimited_triangle_5[] PROGMEM;
 extern const prog_uint8_t wav_res_vowel_data[] PROGMEM;
 extern const prog_uint8_t wav_res_distortion[] PROGMEM;
 extern const prog_uint8_t wav_res_env_expo[] PROGMEM;
-extern const prog_uint8_t wav_res_ssm2164_linearization[] PROGMEM;
 extern const prog_uint8_t wav_res_waves[] PROGMEM;
 extern const prog_uint8_t wav_res_wavetables[] PROGMEM;
 extern const prog_uint8_t wav_res_version[] PROGMEM;
@@ -581,22 +571,6 @@ extern const prog_uint8_t chr_res_special_characters[] PROGMEM;
 #define LUT_RES_SCALE_JOGESHWARI_SIZE 12
 #define LUT_RES_SCALE_RASIA 35
 #define LUT_RES_SCALE_RASIA_SIZE 12
-#define LUT_RES_ARPEGGIATOR_PATTERNS 36
-#define LUT_RES_ARPEGGIATOR_PATTERNS_SIZE 15
-#define LUT_RES_GROOVE_SWING 37
-#define LUT_RES_GROOVE_SWING_SIZE 16
-#define LUT_RES_GROOVE_SHUFFLE 38
-#define LUT_RES_GROOVE_SHUFFLE_SIZE 16
-#define LUT_RES_GROOVE_PUSH 39
-#define LUT_RES_GROOVE_PUSH_SIZE 16
-#define LUT_RES_GROOVE_LAG 40
-#define LUT_RES_GROOVE_LAG_SIZE 16
-#define LUT_RES_GROOVE_HUMAN 41
-#define LUT_RES_GROOVE_HUMAN_SIZE 16
-#define LUT_RES_GROOVE_MONKEY 42
-#define LUT_RES_GROOVE_MONKEY_SIZE 16
-#define LUT_RES_TEMPO_PHASE_INCREMENT 0
-#define LUT_RES_TEMPO_PHASE_INCREMENT_SIZE 201
 #define WAV_RES_FORMANT_SINE 0
 #define WAV_RES_FORMANT_SINE_SIZE 256
 #define WAV_RES_FORMANT_SQUARE 1
