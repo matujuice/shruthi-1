@@ -45,7 +45,8 @@ class Ui {
   static void Poll() {
     lcd.Tick();
     
-    int8_t increment = encoder_.ReadEncoder();
+    // Negated: this unit's encoder has A/B swapped (turned the wrong way).
+    int8_t increment = -encoder_.ReadEncoder();
     if (increment != 0) {        
       if (switch_state_[SWITCH_SHIFT] == 0x00) {
         increment = increment < 0 ? -10 : 10;
