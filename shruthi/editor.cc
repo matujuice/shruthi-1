@@ -642,13 +642,6 @@ bool Editor::Relax() {
 }
 
 /* static */
-void Editor::ShowEditCursor() {
-  display.set_cursor_position(kLcdWidth + cursor_);
-  display.set_cursor_character(
-      display_mode_ == DISPLAY_MODE_EDIT ? kLcdEditCursor : kLcdCursor);
-}
-
-/* static */
 void Editor::RandomizeParameter(uint8_t subpage, uint8_t parameter_index) {
   const Parameter& parameter = parameter_manager.parameter(parameter_index);
   uint8_t value = parameter.RandomValue();
@@ -805,8 +798,8 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 /* static */
 void Editor::Refresh() {
   if (popup_until_) {
-    if (popup_phase_ == 0xff) {
-      return;  // Boot screen stays up.
+    if (popup_phase_ >= 0xfe) {
+      return;  // Boot screens stay up.
     }
     // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks blink 3x.
     memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
@@ -845,11 +838,21 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
+    if (popup_phase_ == 0xff) {
+      // Boot screen 2: the filter board, 1 s more.
+      memset(line_buffer_, ' ', sizeof(line_buffer_));
+      memcpy_P(line_buffer_ + 4, PSTR("POLIVOKS"), 8);
+      display.Print(0, line_buffer_);
+      display.Print(1, line_buffer_ + kLcdWidth + 1);
+      popup_until_ += 1000;
+      popup_phase_ = 0xfe;
+      return false;
+    }
     popup_until_ = 0;
     return true;
   }
-  if (popup_phase_ == 0xff) {
-    return false;  // Boot screen: no blinking.
+  if (popup_phase_ >= 0xfe) {
+    return false;  // Boot screens: no blinking.
   }
   uint8_t phase = static_cast<uint16_t>(left) / 167;
   if (phase != popup_phase_) {
@@ -994,58 +997,41 @@ void Editor::OnLoadSaveIncrement(int8_t increment) {
 
 /* static */
 void Editor::DisplayLoadSavePage() {
-  if (action_ == ACTION_LOAD) {
-    // 012  FUNK WAH / 012  INT: number in the tall font (at most 6 glyphs).
-    memset(line_buffer_, ' ', sizeof(line_buffer_));
-    uint16_t n = edited_item_number();
-    uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
-    PrintTall(digits, 3, line_buffer_);
-    memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
-    memcpy_P(line_buffer_ + kLcdWidth + 1 + 5,
-        preset_status_ == 1 ? PSTR("EDITED *") :
-        preset_status_ == 2 ? PSTR("RELOADED") :
-        n < StorageConfiguration<Patch>::num_internal ? PSTR("INT") : PSTR("EXT"),
-        preset_status_ ? 8 : 3);
-    display.set_cursor_position(kLcdNoCursor);
-    display.Print(0, line_buffer_);
-    display.Print(1, line_buffer_ + kLcdWidth + 1);
-    return;
-  }
-  ResourcesManager::LoadStringResource(
-      STR_RES_BROWSE + action_,
-      line_buffer_,
-      8);
-  ResourcesManager::LoadStringResource(
-      STR_RES_PATCH,
-      line_buffer_ + 8,
-      kLcdWidth - 8);
-  AlignLeft(line_buffer_, 8);
-  AlignLeft(line_buffer_ + 8, kLcdWidth - 8);
-  line_buffer_[7] = ':';
-  display.Print(0, line_buffer_);
-
-  UnsafeItoa<int16_t>(edited_item_number() + 1, 3, line_buffer_);
-  AlignRight(line_buffer_, 3);
-  memcpy(line_buffer_ + 4, part.patch().name, kPatchNameSize);
-  memset(
-        line_buffer_ + 4 + kPatchNameSize,
-        ' ',
-        kLcdWidth - kPatchNameSize - 4);
-  line_buffer_[3] = empty_patch_ ? '*' : ' ';
+  // 012  FUNK WAH / 012  INT: number in the tall font (at most 6 glyphs),
+  // name on top, then the memory, EDITED *, RELOADED, SAVE [ok] or COMPARE.
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  char* row_1 = line_buffer_ + kLcdWidth + 1;
+  uint16_t n = edited_item_number();
+  uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
+  PrintTall(digits, 3, line_buffer_);
+  memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
+  const prog_char* status =
+      action_ == ACTION_SAVE ? PSTR("SAVE") :
+      action_ == ACTION_COMPARE ? PSTR("COMPARE") :
+      preset_status_ == 1 ? PSTR("EDITED *") :
+      preset_status_ == 2 ? PSTR("RELOADED") :
+      n < StorageConfiguration<Patch>::num_internal ? PSTR("INT") : PSTR("EXT");
+  memcpy_P(row_1 + 5, status, strlen_P(status));
+  uint8_t cursor = kLcdNoCursor;
   if (action_ == ACTION_SAVE) {
-    line_buffer_[kLcdWidth - 3] = 'o';
-    line_buffer_[kLcdWidth - 2] = 'k';
+    if (empty_patch_) {
+      row_1[10] = '*';  // Target slot is empty.
+    }
+    row_1[13] = 'o';
+    row_1[14] = 'k';
     if (cursor_ >= kLcdWidth - 4) {
-      line_buffer_[kLcdWidth - 4] = '[';
-      line_buffer_[kLcdWidth - 1] = ']';
+      row_1[12] = '[';
+      row_1[15] = ']';
+    } else if (is_cursor_at_valid_position()) {
+      // Number: under its digits. Name: on its letter, top row.
+      cursor = cursor_ < 3 ? kLcdWidth + cursor_ : cursor_ + 1;
     }
   }
-  if (action_ == ACTION_SAVE && is_cursor_at_valid_position()) {
-    ShowEditCursor();
-  } else {
-    display.set_cursor_position(kLcdNoCursor);
-  }
-  display.Print(1, line_buffer_);
+  display.set_cursor_position(cursor);
+  display.set_cursor_character(
+      display_mode_ == DISPLAY_MODE_EDIT ? kLcdEditCursor : kLcdCursor);
+  display.Print(0, line_buffer_);
+  display.Print(1, row_1);
 }
 
 /* static */
@@ -1629,13 +1615,11 @@ uint8_t Editor::GetParameterValue(uint8_t offset) {
 
 /* static */
 void Editor::DisplaySplashScreen() {
-  // SHRUTHI -1 / SHRUTHI POLIVOKS, SHRUTHI in the tall font (all 8 glyphs).
+  // Boot screen 1: SHRUTHI 1, SHRUTHI in the tall font (all 8 glyphs).
   uint8_t word[7] = { 10, 11, 12, 13, 14, 11, 15 };
   memset(line_buffer_, ' ', sizeof(line_buffer_));
-  PrintTall(word, 7, line_buffer_);
-  line_buffer_[8] = '-';
-  line_buffer_[9] = '1';
-  memcpy_P(line_buffer_ + kLcdWidth + 1 + 8, PSTR("POLIVOKS"), 8);
+  PrintTall(word, 7, line_buffer_ + 3);
+  line_buffer_[kLcdWidth + 1 + 11] = '1';
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
   popup_until_ = milliseconds() + 1000;

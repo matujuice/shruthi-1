@@ -231,7 +231,6 @@ class Editor {
 
   static void JumpToPageGroup(uint8_t id);
   static void PageChange();
-  static void ShowEditCursor();
 
   // Output and Input handling for all the different category of pages.
   static void DisplayEditOverviewPage();
