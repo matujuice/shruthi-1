@@ -210,7 +210,10 @@ class Editor {
   static bool FinishLoadingPatch();
 
   // FUNC + encoder click: reload the stored version of the current patch.
-  static inline void ReloadPatch() { deferred_load_ = current_patch_number_; }
+  // Also shows PATCH RELOADED for 1 s.
+  static void ReloadPatch();
+  // True once, when the popup has timed out (redraw the page).
+  static bool PopupDone();
 
   // Sends at most one changed custom glyph to the LCD CGRAM.
   static void UploadGlyphs();
@@ -308,6 +311,7 @@ class Editor {
   static bool func_;  // FUNC held: pots and encoder jump to relevant values.
   
   static uint16_t deferred_load_;
+  static uint32_t popup_until_;  // 0 = no popup.
 
   DISALLOW_COPY_AND_ASSIGN(Editor);
 };

@@ -32,6 +32,7 @@
 #include "shruthi/part.h"
 #include "shruthi/ui.h"
 #include "avrlib/string.h"
+#include "avrlib/time.h"
 
 using namespace avrlib;
 using namespace avrlib;
@@ -520,6 +521,7 @@ bool Editor::show_numbers_;
 bool Editor::func_;
 bool Editor::empty_patch_;
 uint16_t Editor::deferred_load_;
+uint32_t Editor::popup_until_;
 uint8_t Editor::perf_[4];
 bool Editor::sys_open_;
 bool Editor::sys_dirty_;
@@ -775,6 +777,15 @@ uint8_t Editor::OnNoteOn(uint8_t note, uint16_t velocity) {
 
 /* static */
 void Editor::Refresh() {
+  if (popup_until_) {
+    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    memcpy_P(line_buffer_ + 5, PSTR("PATCH"), 5);
+    memcpy_P(line_buffer_ + kLcdWidth + 1 + 4, PSTR("RELOADED"), 8);
+    display.set_cursor_position(kLcdNoCursor);
+    display.Print(0, line_buffer_);
+    display.Print(1, line_buffer_ + kLcdWidth + 1);
+    return;
+  }
   // SYS settings auto-save once SYS is left (one EEPROM write, not per step).
   if (sys_dirty_ && page_definition_[current_page_].group != GROUP_SYS) {
     sys_dirty_ = false;
@@ -785,6 +796,21 @@ void Editor::Refresh() {
   } else {
     (*ui_handler_[page_definition_[current_page_].ui_type].edit_page)();
   }
+}
+
+/* static */
+void Editor::ReloadPatch() {
+  deferred_load_ = current_patch_number_;
+  popup_until_ = milliseconds() + 1000;
+}
+
+/* static */
+bool Editor::PopupDone() {
+  if (popup_until_ && static_cast<int32_t>(milliseconds() - popup_until_) >= 0) {
+    popup_until_ = 0;
+    return true;
+  }
+  return false;
 }
 
 /* static */
