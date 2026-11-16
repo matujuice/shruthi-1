@@ -206,8 +206,21 @@ static char GlyphGet(const uint8_t* bits) {
       return 8 + i;
     }
   }
-  if (glyph_count_ == 8) {
-    return ' ';
+  if (glyph_count_ == 8) {  // Out of CGRAM: reuse the closest glyph.
+    uint8_t best = 0, best_distance = 0xff;
+    for (uint8_t i = 0; i < 8; ++i) {
+      uint8_t distance = 0;
+      for (uint8_t r = 0; r < 8; ++r) {
+        for (uint8_t x = glyph_[i][r] ^ bits[r]; x; x >>= 1) {
+          distance += x & 1;
+        }
+      }
+      if (distance < best_distance) {
+        best_distance = distance;
+        best = i;
+      }
+    }
+    return 8 + best;
   }
   uint8_t i = glyph_count_++;
   if (memcmp(glyph_[i], bits, 8)) {
@@ -216,16 +229,6 @@ static char GlyphGet(const uint8_t* bits) {
   }
   return 8 + i;
 }
-
-// HD44780 ROM font rows for 0-9, '+', '-': inverted over value bars.
-static const prog_uint8_t bar_font[12 * 7] PROGMEM = {
-  14, 17, 19, 21, 25, 17, 14,  4, 12, 4, 4, 4, 4, 14,
-  14, 17, 1, 2, 4, 8, 31,  31, 2, 4, 2, 1, 17, 14,
-  2, 6, 10, 18, 31, 2, 2,  31, 16, 30, 1, 1, 17, 14,
-  6, 8, 16, 30, 17, 17, 14,  31, 1, 2, 4, 8, 8, 8,
-  14, 17, 17, 14, 17, 17, 14,  14, 17, 17, 15, 1, 2, 12,
-  0, 4, 4, 31, 4, 4, 0,  0, 0, 0, 31, 0, 0, 0,
-};
 
 static char Icon(uint8_t unit, uint8_t value) {
   uint8_t base, count;
@@ -747,7 +750,8 @@ void Editor::UploadGlyphs() {
 }
 
 /* static */
-char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool touched) {
+char Editor::PrintParameter(
+    uint8_t id, char* out, uint8_t width, char* label, bool touched) {
   const Parameter& p = parameter_manager.parameter(id);
   uint8_t value = GetParameterValue(p.offset);
   char text[8];
@@ -786,15 +790,14 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool touched) 
     memcpy(out + width - len, text, len);
     return Icon(p.unit, value);
   }
-  // Numeric: 20px bar over all 4 cells, the number inverted on it while the
-  // knob is touched; plain number while FUNC is held.
-  while (text[len]) {
-    ++len;
-  }
-  memset(out, ' ', 4);
-  memcpy(out + 4 - len, text, len);
-  if (show_numbers_) {
-    return out[3];
+  // Numeric: 19 px box. Unipolar: inset fill; bipolar: 2 px marker, 2 dots
+  // at 0. The number replaces the label while touched or FUNC is held.
+  if (touched || show_numbers_) {
+    while (text[len]) {
+      ++len;
+    }
+    memset(label, ' ', 4);
+    memcpy(label, text, len);
   }
   int16_t num = value - p.min_value;
   int16_t den = p.max_value - p.min_value;
@@ -802,23 +805,35 @@ char Editor::PrintParameter(uint8_t id, char* out, uint8_t width, bool touched) 
     num = static_cast<int8_t>(value) - static_cast<int8_t>(p.min_value);
     den = static_cast<int8_t>(p.max_value) - static_cast<int8_t>(p.min_value);
   }
-  int8_t fill = den > 0 ? 1 + (19 * num + den / 2) / den : 20;
-  for (uint8_t k = 0; k < 4; ++k, fill -= 5) {
-    char c = touched ? out[k] : ' ';
-    uint8_t f = fill < 0 ? 0 : (fill > 5 ? 5 : fill);
-    int8_t g = c >= '0' && c <= '9' ? c - '0' : (c == '+' ? 10 : (c == '-' ? 11 : -1));
-    if (f == 0) {
-      out[k] = c;
-    } else if (g < 0 && f == 5) {
-      out[k] = 0xff;  // ROM solid block.
-    } else {
-      uint8_t mask = (0x3e0 >> f) & 0x1f;
-      uint8_t bits[8];
-      for (uint8_t r = 0; r < 8; ++r) {
-        bits[r] = mask ^ (g >= 0 && r < 7 ? pgm_read_byte(bar_font + 7 * g + r) : 0);
+  if (den <= 0) {
+    den = 1;
+  }
+  bool dots = false;
+  uint8_t from = 2, to;  // Lit pixel columns on rows 2-5; empty if to < from.
+  if (!is_signed && id != 7 && id != 9) {
+    to = 1 + (15 * num + den / 2) / den;
+  } else if (2 * num == den) {
+    dots = true;
+    to = 0;
+  } else {
+    from = 2 + (13 * num + den / 2) / den;
+    to = from + 1;
+  }
+  for (uint8_t k = 0; k < 4; ++k) {
+    uint8_t bits[8];
+    for (uint8_t r = 0; r < 8; ++r) {
+      uint8_t b = 0;
+      for (uint8_t x = 0; x < 5; ++x) {
+        uint8_t px = 5 * k + x;
+        bool on = px < 19 && (r == 0 || r == 7 || px == 0 || px == 18);
+        if (r >= 2 && r <= 5) {
+          on |= (px >= from && px <= to) || (dots && px == 9 && r != 3 && r != 4);
+        }
+        b = (b << 1) | on;
       }
-      out[k] = GlyphGet(bits);
+      bits[r] = b;
     }
+    out[k] = GlyphGet(bits);
   }
   return out[3];
 }
@@ -852,7 +867,7 @@ void Editor::DisplayEditOverviewPage() {
       char* label = row_0 + i * kColumnWidth;
       memcpy_P(label, page_labels + 12 * current_page_ + 3 * i, 3);
       char* value = row_1 + i * kColumnWidth;
-      value[3] = PrintParameter(id, value, 3,
+      value[3] = PrintParameter(id, value, 3, label,
           i == cursor_ && display_mode_ != DISPLAY_MODE_OVERVIEW);
     }
     // If we are in latched mode, show it.

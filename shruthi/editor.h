@@ -231,7 +231,8 @@ class Editor {
   // Output and Input handling for all the different category of pages.
   static void DisplayEditOverviewPage();
   // Prints a parameter value in `width` chars, returns its meter/icon glyph.
-  static char PrintParameter(uint8_t id, char* out, uint8_t width, bool touched);
+  static char PrintParameter(
+      uint8_t id, char* out, uint8_t width, char* label, bool touched);
   
   static void OnEditInput(uint8_t knob_index, uint8_t value);
   static void OnEditIncrement(int8_t increment);
