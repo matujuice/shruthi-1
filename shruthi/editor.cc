@@ -198,40 +198,24 @@ static const prog_uint8_t icon_map[] PROGMEM = {
 // Custom glyphs: allocated per screen, uploaded to CGRAM by UploadGlyphs().
 static uint8_t glyph_[8][8];
 static uint8_t glyph_dirty_ = 0xff;
-static uint8_t glyph_used_;  // Slots used by the screen being drawn.
-static uint8_t glyph_previous_;  // Slots used by the previous screen.
-static bool glyph_probe_;  // First pass: only claim slots that still match.
+static uint8_t glyph_count_;
 
-// A glyph keeps its slot while it stays on screen, and a new one goes to a
-// slot the LCD is not showing, so a redraw never changes a visible cell.
+// Sequential slots (as in fw-ui12); a slot is rewritten only when it changes.
 static char GlyphGet(const uint8_t* bits) {
-  for (uint8_t i = 0; i < 8; ++i) {
+  for (uint8_t i = 0; i < glyph_count_; ++i) {
     if (!memcmp(glyph_[i], bits, 8)) {
-      glyph_used_ |= 1 << i;
       return 8 + i;
     }
   }
-  if (glyph_probe_) {
+  if (glyph_count_ == 8) {  // Pages are laid out to need at most 8.
     return ' ';
   }
-  uint8_t slot = 0xff;
-  for (uint8_t i = 0; i < 8; ++i) {
-    uint8_t mask = 1 << i;
-    if (!(glyph_used_ & mask) &&
-        (slot == 0xff || !(glyph_previous_ & mask))) {
-      slot = i;
-      if (!(glyph_previous_ & mask)) {
-        break;
-      }
-    }
+  uint8_t i = glyph_count_++;
+  if (memcmp(glyph_[i], bits, 8)) {
+    memcpy(glyph_[i], bits, 8);
+    glyph_dirty_ |= 1 << i;
   }
-  if (slot == 0xff) {  // Pages are laid out to need at most 8.
-    return ' ';
-  }
-  memcpy(glyph_[slot], bits, 8);
-  glyph_dirty_ |= 1 << slot;
-  glyph_used_ |= 1 << slot;
-  return 8 + slot;
+  return 8 + i;
 }
 
 static char Icon(uint8_t unit, uint8_t value) {
@@ -861,18 +845,13 @@ void Editor::DisplayEditOverviewPage() {
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   row_0[kLcdWidth] = '\0';
-  glyph_previous_ = glyph_used_;
-  glyph_used_ = 0;
+  glyph_count_ = 0;
   // Encoder target: steady arrow when browsing, blinking when editing.
   uint8_t marker = cursor_ * kColumnWidth + 3;
   if (title_flash_) {
     marker = kLcdNoCursor;
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
   } else {
-    // Two passes: glyphs that stay on screen claim their slots before a new
-    // glyph may take one, else it steals a slot a later cell still needs.
-    for (uint8_t pass = 0; pass < 2; ++pass) {
-    glyph_probe_ = pass == 0;
     uint8_t previous = 0xff;
     for (uint8_t i = 0; i < kNumEditingPots; ++i) {
       uint8_t id = KnobIndexToParameterId(i);
@@ -889,7 +868,6 @@ void Editor::DisplayEditOverviewPage() {
       char* value = row_1 + i * kColumnWidth;
       value[3] = PrintParameter(id, value, 3, label,
           i == cursor_ && display_mode_ != DISPLAY_MODE_OVERVIEW);
-    }
     }
     // If we are in latched mode, show it.
     if (part.latched()) {
