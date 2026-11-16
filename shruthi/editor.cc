@@ -1663,7 +1663,7 @@ void Editor::BootStep() {
   if (boot_step_ & 1) {
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
-    popup_until_ = milliseconds() + 550;
+    popup_until_ = milliseconds() + (boot_step_ == 9 ? 1000 : 550);
     return;
   }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
