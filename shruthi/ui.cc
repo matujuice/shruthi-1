@@ -235,6 +235,9 @@ void Ui::RefreshLeds() {
       led_pattern |= LED_6_MASK;
     }
   }
+  if (switch_state_[SWITCH_SHIFT] == 0x00) {
+    led_pattern |= LED_WRITE_MASK;  // FUNC held.
+  }
   led_pattern_ = led_pattern;
 }
 
