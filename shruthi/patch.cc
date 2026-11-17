@@ -125,9 +125,6 @@ void Patch::Update() {
       uint8_t s = RemapSource(*operand);
       *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
     }
-    if (osc[0].option == OP_LAST) {
-      osc[0].option = OP_SUM;  // Was seq mix: silent without the sequencer.
-    }
     version_ = '\'';
   }
   

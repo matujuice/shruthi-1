@@ -139,6 +139,7 @@ class Voice {
   static uint8_t no_sync_[kAudioBlockSize];
   static uint8_t dummy_sync_state_[kAudioBlockSize];
   static uint8_t trigger_count_;
+  static uint8_t cc_mix_;  // Source bitmask for OP_CC_MIX, 0 = all on.
   
   static uint8_t volume_;
 

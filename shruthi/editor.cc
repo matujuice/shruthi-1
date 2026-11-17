@@ -218,7 +218,8 @@ static const prog_char long_op[] PROGMEM =
   "duo\0"
   "2 steps\0"
   "4 steps\0"
-  "8 steps\0";
+  "8 steps\0"
+  "cc mix\0";
 static const prog_char long_lfo_wave[] PROGMEM =
   "triangle\0"
   "square\0"
@@ -1238,6 +1239,8 @@ char Editor::PrintParameter(
   }
   if (p.unit == UNIT_WAVEFORM) {
     memcpy_P(t, osc_names + 3 * value, 3);
+  } else if (p.unit == UNIT_OPERATOR && value == OP_CC_MIX) {
+    strcpy_P(t, PSTR("ccmix"));  // No resource string: resources.cc stays as is.
   } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.

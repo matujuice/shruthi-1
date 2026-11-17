@@ -10,7 +10,7 @@ copied unchanged.
 - All older versions: SEQ, SEQ 1-2, ARP STEP and CV 1-4 modulation sources
   are gone (they were always 0 on this unit): those slots get amount 0; the
   other sources and the operator inputs are renumbered; the "seq mix" option
-  becomes "sum".
+  stays and becomes "cc mix" (sources switched by CC 3).
 - '!' and '%' (original firmware): the LFOs become tempo-locked SPD/MUL.
   Step-synced rates keep their length (one cycle = n sixteenths); free rates
   are matched at --bpm. Fade-in is dropped. STEP SEQ waveform -> triangle.
@@ -93,8 +93,6 @@ def convert_patch(p, bpm):
     b = 0 if b is None else b
     p[j] = (p[j] & 0x80) | a | (0x40 if b & 0x20 else 0)
     p[j + 1] = ((b & 0x1f) << 3) | (p[j + 1] & 7)
-  if p[3] == 13:
-    p[3] = 0  # Seq mix -> sum.
   if p[91] in (ord('!'), ord('%')):
     for i in range(2):
       w, r, _, m = p[24 + 4 * i:28 + 4 * i]

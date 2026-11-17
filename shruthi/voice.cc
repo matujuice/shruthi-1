@@ -58,6 +58,7 @@ uint8_t Voice::sync_state_[kAudioBlockSize];
 uint8_t Voice::no_sync_[kAudioBlockSize];
 uint8_t Voice::dummy_sync_state_[kAudioBlockSize];
 uint8_t Voice::trigger_count_;
+uint8_t Voice::cc_mix_;
 uint8_t Voice::volume_;
 /* </static> */
 
@@ -269,6 +270,9 @@ void Voice::ControlChange(uint8_t controller, uint8_t value) {
       break;
     case midi::kVolume:
       volume_ = value;
+      break;
+    case 3:  // Unassigned CC: osc 2 = 8, osc 1 = 16, sub = 32, noise = 64.
+      cc_mix_ = value >> 4;
       break;
   }
 }
@@ -530,6 +534,8 @@ void Voice::ProcessBlock() {
   } else if (op == OP_PING_PONG_8) {
     enabled_source_bitmask = pgm_read_byte(
         eight_step_sequence + (trigger_count_ & 7));
+  } else if (op == OP_CC_MIX && cc_mix_) {
+    enabled_source_bitmask = cc_mix_;
   }
   
   uint8_t osc_2_gain = U14ShiftRight6(dst_[MOD_DST_MIX_BALANCE]);
