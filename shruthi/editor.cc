@@ -1014,7 +1014,7 @@ void Editor::BackupEditBuffer() {
 void Editor::ToggleLoadSaveAction() {
   empty_patch_ = false;
   if (current_page_ == PAGE_LOAD_SAVE && action_ == ACTION_LOAD) {
-    JumpToPageGroup(last_visited_group_[0]);
+    set_edited_item_number(loaded_patch_);  // Browse back to the loaded slot.
     return;
   }
   if (action_ == ACTION_COMPARE) {
