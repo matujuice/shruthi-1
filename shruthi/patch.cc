@@ -48,6 +48,7 @@ void Patch::PrepareForWrite() {
   
   extra_data_[0] = system_settings.legato ? 0x40 : 0x00;
   extra_data_[0] |= system_settings.portamento;
+  extra_data_[0] |= system_settings.retrigger ? 0x80 : 0x00;
 }
 
 uint8_t Patch::CheckBuffer(uint8_t* buffer) {
@@ -133,6 +134,7 @@ void Patch::Update() {
 
     system_settings->legato = extra_data_[0] & 0x40 ? 1 : 0;
     system_settings->portamento = extra_data_[0] & 0x3f;
+    system_settings->retrigger = extra_data_[0] & 0x80 ? 1 : 0;
   }
 }
 

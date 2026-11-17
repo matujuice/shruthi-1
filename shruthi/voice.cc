@@ -123,6 +123,9 @@ void Voice::NoteOn(
   if (trigger || pitch_value_ == 0) {
     for (uint8_t i = 0; i < kNumEnvelopes; ++i) {
       if (!disable_envelope_auto_retriggering_[i]) {
+        if (part.system_settings().retrigger) {
+          envelope_[i].Trigger(DEAD);  // Attack starts from 0.
+        }
         envelope_[i].Trigger(ATTACK);
       }
     }

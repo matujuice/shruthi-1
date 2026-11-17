@@ -109,7 +109,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 28, 29, 30, 31 },  // LFO 2
   { 8, 9, 0xff, 0xff },  // FX
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
-  { 46, 47, 44, 0xff },  // VOICE
+  { 46, 47, 44, 45 },  // VOICE
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
   { 0xff, 0xff, 0xff, 0xff },  // SYS KBD (unused; not in the list)
@@ -129,7 +129,7 @@ static const prog_char page_labels[] PROGMEM =
   "wavspdmulmod"  // 7
   "op mix      "  // 8
   "modovdfm    "  // 9
-  "prtlegoct   "  // 10
+  "prtlegoctrst"  // 10
   "sltsrcdstamt"  // 11
   "op in1in2out";  // 12 (SYS pages are menus: no labels)
 
@@ -315,7 +315,7 @@ static const prog_char long_f1[] PROGMEM =
   "highpass\0";
 // Top-row names that replace the stock long names.
 static const prog_uint8_t long_name_ids[] PROGMEM = {
-  0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77
+  0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77, 45
 };
 static const prog_char long_names[] PROGMEM =
   "osc1\0"
@@ -337,7 +337,8 @@ static const prog_char long_names[] PROGMEM =
   "type\0"
   "filter\0"
   "drive\0"
-  "fm fdbk\0";
+  "fm fdbk\0"
+  "retrig\0";
 
 // Copies the n-th '\0'-separated string of a PROGMEM list.
 static void CopyNth(const prog_char* list, uint8_t n, char* out) {

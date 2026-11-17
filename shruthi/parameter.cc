@@ -525,12 +525,12 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     { 82, 0 },
     STR_RES_OCTAVE, STR_RES_OCTAVE }, 
 
-  // 45 (was raga: removed, id kept)
-  { PRM_SYS_RAGA,
-    UNIT_UINT8,
-    0, 0,
+  // 45 (was raga): envelope hard retrigger.
+  { PRM_SYS_RETRIGGER,
+    UNIT_BOOLEAN,
+    0, 1,
     { 0, 0 },
-    STR_RES_OCTAVE, STR_RES_OCTAVE }, 
+    STR_RES_LEGATO, STR_RES_LEGATO }, 
 
   // 46
   { PRM_SYS_PORTAMENTO,

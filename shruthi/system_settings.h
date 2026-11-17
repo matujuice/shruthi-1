@@ -27,7 +27,7 @@ namespace shruthi {
 class SystemSettings {
  public:
   int8_t octave;
-  uint8_t raga;
+  uint8_t retrigger;  // Was raga: hard envelope reset on each note.
   uint8_t portamento;
   uint8_t legato;
 
@@ -90,7 +90,7 @@ enum START_PAGE {
 
 enum SystemParameter {
   PRM_SYS_OCTAVE = sizeof(Patch) + sizeof(SequencerSettings),
-  PRM_SYS_RAGA,
+  PRM_SYS_RETRIGGER,
   PRM_SYS_PORTAMENTO,
   PRM_SYS_LEGATO,
 
