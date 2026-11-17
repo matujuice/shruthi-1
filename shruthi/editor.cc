@@ -924,10 +924,10 @@ void Editor::Refresh() {
     if (popup_phase_ >= 0xfe) {
       return;  // Boot screens stay up.
     }
-    // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks lit.
+    // [][][][]NAME....[][][][] / [][][][]RELOADED[][][][], blocks lit.
     memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
     memset(line_buffer_ + 4, ' ', 8);
-    memcpy_P(line_buffer_ + 5, PSTR("PATCH"), 5);
+    memcpy(line_buffer_ + 4, part.patch().name, kPatchNameSize);
     memcpy_P(line_buffer_ + kLcdWidth + 1 + 4, popup_text_, 8);
     display.set_cursor_position(kLcdNoCursor);
     display.Print(0, line_buffer_);
@@ -1045,6 +1045,12 @@ void Editor::set_edited_item_number(int16_t value) {
   current_patch_number_ = value;
   
   Storage::LoadPatchName(browse_name_, edited_item_number());
+  for (uint8_t i = 0; i < 8; ++i) {
+    if (browse_name_[i] >= 0x80) {  // Blank EEPROM: show the stock name.
+      memcpy_P(browse_name_, default_name, 8);
+      break;
+    }
+  }
   empty_patch_ = true;
   for (uint8_t i = 0; i < 8; ++i) {
     if (browse_name_[i] != pgm_read_byte(default_name + i)) {
@@ -1085,9 +1091,9 @@ void Editor::OnLoadSaveClick() {
 
 // PATCH menu items, 10 chars each.
 static const prog_char patch_items[] PROGMEM =
-  "load      save      compare   init      random    send patchbackup all"
+  "load      reload    save      compare   init      random    send patchbackup all"
   "back      ";
-static const uint8_t kPatchItems = 8;
+static const uint8_t kPatchItems = 9;
 
 /* static */
 void Editor::OnPatchMenuClick() {
@@ -1099,19 +1105,23 @@ void Editor::OnPatchMenuClick() {
       preset_status_ = 0;
       break;
     case 1:
+      action_ = ACTION_LOAD;
+      ReloadPatch();
+      break;
+    case 2:
       action_ = ACTION_SAVE;
       cursor_ = 0;
       set_edited_item_number(edited_item_number());
       break;
-    case 2:
+    case 3:
       // Hear the stored version of this patch; click again for the edit.
       BackupEditBuffer();
       deferred_load_ = loaded_patch_;
       action_ = ACTION_COMPARE;
       break;
-    case 3:
     case 4:
-      if (cursor_ == 3) {
+    case 5:
+      if (cursor_ == 4) {
         part.ResetPatch();
         ShowPatchPopup(PSTR("  INIT  "));
       } else {
@@ -1122,13 +1132,13 @@ void Editor::OnPatchMenuClick() {
       action_ = ACTION_LOAD;
       set_edited_item_number(loaded_patch_);
       break;
-    case 5:
+    case 6:
       Storage::SysExDump(part.mutable_patch());
       ShowPatchPopup(PSTR("  SENT  "));
       action_ = ACTION_LOAD;
       set_edited_item_number(loaded_patch_);
       break;
-    case 6:
+    case 7:
       {
         ConfirmPageSettings confirm_midi_backup;
         confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
@@ -1137,7 +1147,7 @@ void Editor::OnPatchMenuClick() {
         Confirm(confirm_midi_backup);
       }
       break;
-    case 7:
+    case 8:
       action_ = ACTION_LOAD;  // back
       break;
   }
@@ -1150,7 +1160,7 @@ bool Editor::FinishLoadingPatch() {
   }
   uint16_t n = deferred_load_;
   Storage::LoadPatch(n);
-  if (!popup_until_ && action_ == ACTION_LOAD) {
+  if (!popup_until_ && action_ != ACTION_COMPARE) {
     ShowPatchPopup(PSTR(" LOADED "));
   }
   loaded_patch_ = n;

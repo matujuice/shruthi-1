@@ -103,8 +103,6 @@ class MidiDispatcher : public midi::MidiDevice {
     uint16_t n = program + (current_bank_ << 7);
     if (n < Storage::size<Patch>()) {
       editor.set_current_patch_number(n);
-      Storage::LoadPatch(n);
-      part.Touch(false);
     }
   }
   

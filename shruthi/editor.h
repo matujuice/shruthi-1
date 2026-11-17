@@ -205,6 +205,7 @@ class Editor {
   static inline void set_current_patch_number(uint16_t patch_number) {
     current_patch_number_ = patch_number;
     loaded_patch_ = patch_number;  // MIDI program change.
+    deferred_load_ = patch_number;  // Loaded with the LOADED popup.
   }
   
   static bool FinishLoadingPatch();
