@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Converts Shruthi-1 patches in a .syx file to the elektron-ui format (version ').
 
-Usage: patch_translator.py in.syx out.syx [--bpm 120]
+Usage: patch_translator.py in.syx out.syx [--bpm 160]
 
 Handles single patch dumps (command 0x01) and full backups (bulk dump,
 commands 0x40-0x43: internal and external patch memory). Other messages are
@@ -193,7 +193,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
   parser.add_argument('input')
   parser.add_argument('output')
-  parser.add_argument('--bpm', type=float, default=120,
+  parser.add_argument('--bpm', type=float, default=160,
                       help='tempo used for the free LFO rates of old patches')
   args = parser.parse_args()
   data, n = translate(open(args.input, 'rb').read(), args.bpm)
