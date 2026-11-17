@@ -1110,16 +1110,23 @@ void Editor::OnPatchMenuClick() {
       action_ = ACTION_COMPARE;
       break;
     case 3:
-      display.set_status('x');
-      part.ResetPatch();
-      break;
     case 4:
-      display.set_status('?');
-      RandomizePatch();
+      if (cursor_ == 3) {
+        part.ResetPatch();
+        ShowPatchPopup(PSTR("  INIT  "));
+      } else {
+        RandomizePatch();
+        ShowPatchPopup(PSTR(" RANDOM "));
+      }
+      preset_status_ = 1;  // EDITED *
+      action_ = ACTION_LOAD;
+      set_edited_item_number(loaded_patch_);
       break;
     case 5:
-      display.set_status('>');
       Storage::SysExDump(part.mutable_patch());
+      ShowPatchPopup(PSTR("  SENT  "));
+      action_ = ACTION_LOAD;
+      set_edited_item_number(loaded_patch_);
       break;
     case 6:
       {
