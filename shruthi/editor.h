@@ -87,7 +87,6 @@ enum Page {
   PAGE_VOICE,
   PAGE_MOD_MATRIX,
   PAGE_MOD_OPERATORS,
-  PAGE_SYS_KBD,
   PAGE_SYS_MIDI,
   PAGE_SYS_DISPLAY,
   PAGE_SYS_PERF,
@@ -101,6 +100,7 @@ enum Action {
   ACTION_LOAD,
   ACTION_SAVE,
   ACTION_COMPARE,
+  ACTION_MENU,  // PATCH list on the PRESET screen.
 };
 
 // We do not use enums here because they take 2 bytes, not 1.
@@ -251,6 +251,8 @@ class Editor {
 
   static void DisplayLoadSavePage();
   static void ToggleLoadSaveAction();
+  static void OnPatchMenuClick();
+  static void ShowPatchPopup(const prog_char* text);
   static void OnLoadSaveIncrement(int8_t increment);
   static void OnLoadSaveClick();
 

@@ -110,6 +110,7 @@ class Ui {
   static int8_t adc_thresholds_[4];
 
   static uint32_t idle_time_;
+  static uint32_t encoder_time_;  // Last encoder or switch event.
   static bool freeze_display_;
   
   static EventQueue<> queue_;

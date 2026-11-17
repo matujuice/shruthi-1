@@ -141,27 +141,7 @@ class MidiDispatcher : public midi::MidiDevice {
       uint8_t status,
       uint8_t* data,
       uint8_t data_size,
-      uint8_t accepted_channel) {
-    uint8_t hi = status & 0xf0;
-    
-    // When is parsed midi data forwarded to the MIDI out?
-    // - When the data is a channel different from the RX channel.
-    // - When we are in "Full" mode.
-    // - When the midi message is not a note on/note off.
-    if (mode() >= MIDI_OUT_FULL) {
-      if (status != 0xf0 && status != 0xf7) {
-        if ((hi != 0x80 && hi != 0x90) ||
-            mode() == MIDI_OUT_FULL ||
-            !accepted_channel) {
-          Send(status, data, data_size);
-        }
-      }
-    } else if (mode() == MIDI_OUT_SEQUENCER) {
-      if ((hi == 0xf0 && status != 0xf0 && status != 0xf7)) {
-        Send(status, NULL, 0);
-      }
-    }
-  }
+      uint8_t accepted_channel) { }  // MIDI out is off or soft thru only.
   
   static void RawByte(uint8_t byte) {
     // Report that some data has been received. The MIDI Out filter might
@@ -179,89 +159,7 @@ class MidiDispatcher : public midi::MidiDevice {
     return OutputBuffer::ImmediateRead();
   }
   
-  // ------ MIDI out handling --------------------------------------------------
-  static inline void OnInternalNoteOff(uint8_t note) {
-    if (mode() == MIDI_OUT_SEQUENCER) {
-      Send3(0x90 | channel(), note, 0);
-    }
-  }
-  
-  static inline void OnInternalNoteOn(uint8_t note, uint8_t velocity) {
-    if (mode() == MIDI_OUT_SEQUENCER) {
-      Send3(0x90 | channel(), note, velocity);
-    }
-  }
-  
-  static inline void ForwardNoteOn(
-      uint8_t channel,
-      uint8_t note,
-      uint8_t velocity) {
-    Send3(0x90 | channel, note, velocity);
-  }
-  
-  static inline void ForwardNoteOff(uint8_t channel, uint8_t note) {
-    Send3(0x90 | channel, note, 0);
-  }
-
-  static inline void OnStart() {
-    if (mode() == MIDI_OUT_SEQUENCER) {
-      SendNow(0xfa);
-    }
-  }
-
-  static inline void OnStop() {
-    if (mode() == MIDI_OUT_SEQUENCER) {
-      SendNow(0xfc);
-    }
-  }
-  
-  static inline void OnClock() {
-    if (mode() == MIDI_OUT_SEQUENCER) {
-      SendNow(0xf8);
-    }
-  }
-  
-  static inline void OnProgramChange(uint16_t n) {
-    uint8_t channel = (part.system_settings().midi_channel - 1) & 0xf;
-    if (mode() >= MIDI_OUT_FULL) {
-      Send3(0xb0 | channel, midi::kBankMsb, n >> 7);
-      Send3(0xc0 | channel, n & 0x7f, 0xfe /* Dummy active sensing */);
-    }
-  }
-  
-  static inline void OnEdit(uint8_t index, uint8_t offset, uint8_t value) {
-    // Do not forward changes of system settings!
-    if (offset >= PRM_SYS_MASTER_TUNING) {
-      return;
-    }
-    if (mode() < MIDI_OUT_FULL && mode() != MIDI_OUT_CONTROLLER) {
-      return;
-    }
-    
-    const Parameter& parameter = parameter_manager.parameter(index);
-    if (parameter.midi_cc[0]) {
-      uint8_t original = value;
-      if (parameter.unit != UNIT_RAW_UINT8) {
-        value -= parameter.min_value;
-        uint8_t range = parameter.max_value - parameter.min_value + 1;
-        value = U8U8Mul(value, 128) / range;
-        if (value != 127 && parameter.Scale(value) != original) {
-          ++value;
-        }
-        if (value != 0 && parameter.Scale(value) != original) {
-          --value;
-        }
-      }
-      Send3(0xb0 | channel(), parameter.midi_cc[0], value);
-    } else {
-      Send3(0xb0 | channel(), midi::kNrpnMsb, 0);
-      Send3(0xb0 | channel(), midi::kNrpnLsb, offset);
-      uint8_t msb = (value & 0x80) ? 1 : 0;
-      Send3(0xb0 | channel(), midi::kDataEntryMsb, msb);
-      Send3(0xb0 | channel(), midi::kDataEntryLsb, value & 0x7f);
-    }
-  }
-  
+  // ------ MIDI out handling (patch dumps only) -----------------------------
   static void Flush() {
     running_status_ = 0;
     while (OutputBuffer::readable());
@@ -275,13 +173,8 @@ class MidiDispatcher : public midi::MidiDevice {
   }
   
  private:
-  static void Send(uint8_t status, uint8_t* data, uint8_t size);
-  static void SendNow(uint8_t byte);
   
   static void ProcessSysEx(uint8_t byte) {
-    if (mode() >= MIDI_OUT_FULL) {
-      Send(byte, NULL, 0);
-    }
     Storage::SysExReceive(byte);
   }
   

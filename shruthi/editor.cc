@@ -83,8 +83,6 @@ PageDefinition Editor::page_definition_[] = {
     PARAMETER_EDITOR, LED_6_MASK | LED_WRITE_MASK },
   /* PAGE_MOD_OPERATORS */ { PAGE_MOD_MATRIX, GROUP_MOD_MATRIX,
     PARAMETER_EDITOR, LED_6_MASK | LED_WRITE_MASK },
-  /* PAGE_SYS_KBD */ { PAGE_SYS_MIDI, GROUP_SYS, SYS_MENU,
-    LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_SYS_MIDI */ { PAGE_SYS_DISPLAY, GROUP_SYS, SYS_MENU,
     LED_MODE_MASK | LED_WRITE_MASK },
   /* PAGE_SYS_DISPLAY */ { PAGE_SYS_PERF, GROUP_SYS, SYS_MENU,
@@ -112,7 +110,6 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 46, 47, 44, 45 },  // VOICE
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
-  { 0xff, 0xff, 0xff, 0xff },  // SYS KBD (unused; not in the list)
   { 48, 49, 50, 44 },  // SYS MIDI (octave stays global)
   { 52, 53, 0xff, 0xff },  // SYS DISPLAY (filter board fixed: PVK)
   { 90, 91, 92, 93 },  // SYS PERF: preset-page knob targets
@@ -147,7 +144,6 @@ static const prog_char page_titles[] PROGMEM =
   "VOICE           "
   "MATRIX       1/2"
   "MATH         2/2"
-  "KEYBOARD        "
   "MIDI            "
   "DISPLAY         "
   "PERFORM MODE    ";
@@ -297,18 +293,7 @@ static const prog_char long_cv_op[] PROGMEM =
   "lag\0";
 static const prog_char long_midi[] PROGMEM =
   "off\0"
-  "thru\0"
-  "sequence\0"
-  "control\0"
-  "full\0"
-  "chain 1\0"
-  "chain 2\0"
-  "chain 3\0"
-  "chain 4\0"
-  "chain 5\0"
-  "chain 6\0"
-  "chain 7\0"
-  "chain 8\0";
+  "thru\0";
 static const prog_char long_f1[] PROGMEM =
   "low pass\0"
   "bandpass\0"
@@ -651,6 +636,7 @@ static const prog_uint8_t boot_words[] PROGMEM = {
 
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
 static uint8_t preset_status_;
+static const prog_char* popup_text_;  // 8 chars, second popup row.
 
 // Save page: the selected number is in the off phase of its blink.
 static uint8_t number_hidden_;
@@ -872,36 +858,7 @@ void Editor::OnSwitch(const Event& event) {
   }
   if (event.value == 0xff) {
     // FUNC + key.
-    // Patch tools only on the SAVE screen; on PRESET, FUNC+key opens pages.
-    if (current_page_ == PAGE_LOAD_SAVE && action_ != ACTION_LOAD &&
-        id < SWITCH_MODE) {
-      switch (id) {
-        case SWITCH_1:
-          display.set_status('x');
-          part.ResetPatch();
-          break;
-
-        case SWITCH_2:
-          display.set_status('?');
-          RandomizePatch();
-          break;
-
-        case SWITCH_3:
-          display.set_status('>');
-          Storage::SysExDump(part.mutable_patch());
-          break;
-
-        case SWITCH_4:
-          {
-            ConfirmPageSettings confirm_midi_backup;
-            confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
-            confirm_midi_backup.return_group = GROUP_SYN;
-            confirm_midi_backup.callback = &StartMidiBackup;
-            Confirm(confirm_midi_backup);
-          }
-          break;
-      }
-    } else if (id == SWITCH_MODE) {
+    if (id == SWITCH_MODE) {
       // FUNC + SYS: open the SETTINGS list, or go back to it from a sub-menu.
       if (page_definition_[current_page_].group != GROUP_SYS) {
         JumpToPageGroup(GROUP_SYS);
@@ -931,6 +888,9 @@ void Editor::OnInput(uint8_t knob_index, uint8_t value) {
 
 /* static */
 void Editor::OnIncrement(int8_t increment) {
+  if (popup_phase_ < 0xfe) {
+    popup_until_ = 0;
+  }
   (*ui_handler_[page_definition_[current_page_].ui_type].increment_handler)(
       increment);
 }
@@ -966,7 +926,7 @@ void Editor::Refresh() {
     memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
     memset(line_buffer_ + 4, ' ', 8);
     memcpy_P(line_buffer_ + 5, PSTR("PATCH"), 5);
-    memcpy_P(line_buffer_ + kLcdWidth + 1 + 4, PSTR("RELOADED"), 8);
+    memcpy_P(line_buffer_ + kLcdWidth + 1 + 4, popup_text_, 8);
     display.set_cursor_position(kLcdNoCursor);
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
@@ -988,6 +948,12 @@ void Editor::Refresh() {
 void Editor::ReloadPatch() {
   deferred_load_ = current_patch_number_;
   preset_status_ = 2;
+  ShowPatchPopup(PSTR("RELOADED"));
+}
+
+/* static */
+void Editor::ShowPatchPopup(const prog_char* text) {
+  popup_text_ = text;
   popup_until_ = milliseconds() + 1000;
   popup_phase_ = 5;
 }
@@ -1046,12 +1012,14 @@ void Editor::BackupEditBuffer() {
 /* static */
 void Editor::ToggleLoadSaveAction() {
   empty_patch_ = false;
-  if (current_page_ != PAGE_LOAD_SAVE || action_ == ACTION_SAVE) {
-    action_ = ACTION_LOAD;
-  } else {
-    action_ = ACTION_SAVE;
-    set_edited_item_number(edited_item_number());
+  if (current_page_ == PAGE_LOAD_SAVE && action_ == ACTION_LOAD) {
+    JumpToPageGroup(last_visited_group_[0]);
+    return;
   }
+  if (action_ == ACTION_COMPARE) {
+    RestoreEditBuffer();  // Leaving compare keeps the edits.
+  }
+  action_ = ACTION_LOAD;
   cursor_ = 0;
   display.set_cursor_position(kLcdNoCursor);
   display_mode_ = DISPLAY_MODE_OVERVIEW;
@@ -1093,10 +1061,11 @@ uint8_t Editor::is_cursor_at_valid_position() {
 /* static */
 void Editor::OnLoadSaveClick() {
   if (action_ == ACTION_LOAD) {
-    // Compare: hear the stored version of this patch; click again for the edit.
-    BackupEditBuffer();
-    deferred_load_ = current_patch_number_;
-    action_ = ACTION_COMPARE;
+    action_ = ACTION_MENU;
+    cursor_ = 0;
+    display_mode_ = DISPLAY_MODE_OVERVIEW;
+  } else if (action_ == ACTION_MENU) {
+    OnPatchMenuClick();
   } else if (action_ == ACTION_COMPARE) {
     RestoreEditBuffer();
     action_ = ACTION_LOAD;
@@ -1112,6 +1081,50 @@ void Editor::OnLoadSaveClick() {
   }
 }
 
+// PATCH menu items, 10 chars each.
+static const prog_char patch_items[] PROGMEM =
+  "save      compare   init      random    send patchbackup all";
+static const uint8_t kPatchItems = 6;
+
+/* static */
+void Editor::OnPatchMenuClick() {
+  display_mode_ = DISPLAY_MODE_OVERVIEW;
+  switch (cursor_) {
+    case 0:
+      action_ = ACTION_SAVE;
+      cursor_ = 0;
+      set_edited_item_number(edited_item_number());
+      break;
+    case 1:
+      // Hear the stored version of this patch; click again for the edit.
+      BackupEditBuffer();
+      deferred_load_ = current_patch_number_;
+      action_ = ACTION_COMPARE;
+      break;
+    case 2:
+      display.set_status('x');
+      part.ResetPatch();
+      break;
+    case 3:
+      display.set_status('?');
+      RandomizePatch();
+      break;
+    case 4:
+      display.set_status('>');
+      Storage::SysExDump(part.mutable_patch());
+      break;
+    case 5:
+      {
+        ConfirmPageSettings confirm_midi_backup;
+        confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
+        confirm_midi_backup.return_group = GROUP_SYN;
+        confirm_midi_backup.callback = &StartMidiBackup;
+        Confirm(confirm_midi_backup);
+      }
+      break;
+  }
+}
+
 /* static */
 bool Editor::FinishLoadingPatch() {
   if (deferred_load_ == 0xffff) {
@@ -1119,7 +1132,9 @@ bool Editor::FinishLoadingPatch() {
   }
   uint16_t n = deferred_load_;
   Storage::LoadPatch(n);
-  midi_dispatcher.OnProgramChange(n);
+  if (!popup_until_ && action_ == ACTION_LOAD) {
+    ShowPatchPopup(PSTR(" LOADED "));
+  }
   if (part.system_settings().last_patch != n) {
     part.mutable_system_settings()->last_patch = n;  // Reloaded at power-up.
     part.system_settings().EepromSave();
@@ -1133,7 +1148,13 @@ bool Editor::FinishLoadingPatch() {
 
 /* static */
 void Editor::OnLoadSaveIncrement(int8_t increment) {
-  if (action_ == ACTION_SAVE) {
+  if (action_ == ACTION_MENU) {
+    if (increment > 0 && cursor_ < kPatchItems - 1) {
+      ++cursor_;
+    } else if (increment < 0 && cursor_ > 0) {
+      --cursor_;
+    }
+  } else if (action_ == ACTION_SAVE) {
     if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
       int8_t new_cursor = static_cast<int8_t>(cursor_) + increment;
       if (new_cursor > 0 && new_cursor < 4) {
@@ -1168,6 +1189,21 @@ void Editor::DisplayLoadSavePage() {
   // name on top, then the memory, EDITED *, RELOADED, SAVE [ok] or COMPARE.
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   char* row_1 = line_buffer_ + kLcdWidth + 1;
+  if (action_ == ACTION_MENU) {
+    // PATCH        1/6
+    // >save
+    memcpy_P(line_buffer_, PSTR("PATCH"), 5);
+    line_buffer_[kLcdWidth - 3] = '1' + cursor_;
+    line_buffer_[kLcdWidth - 2] = '/';
+    line_buffer_[kLcdWidth - 1] = '0' + kPatchItems;
+    line_buffer_[kLcdWidth] = '\0';
+    row_1[0] = 0x7e;
+    memcpy_P(row_1 + 1, patch_items + 10 * cursor_, 10);
+    display.set_cursor_position(kLcdNoCursor);
+    display.Print(0, line_buffer_);
+    display.Print(1, row_1);
+    return;
+  }
   uint16_t n = edited_item_number();
   uint8_t digits[3] = { n / 100, n / 10 % 10, n % 10 };
   PrintTall(digits, 3, line_buffer_);

@@ -30,35 +30,6 @@ uint8_t MidiDispatcher::running_status_ = 0;
 MidiDispatcher midi_dispatcher;
 
 /* static */
-void MidiDispatcher::Send(uint8_t status, uint8_t* data, uint8_t size) {
-  if ((status & 0xf0) == 0xf0) {
-    running_status_ = 0;
-  }
-  if (size == 0) {
-    OutputBuffer::Overwrite(status);
-    return;
-  } else {
-    if (status != running_status_) {
-      OutputBuffer::Overwrite(status);
-      running_status_ = status;
-    }
-    if (size) {
-      OutputBuffer::Overwrite(*data++);
-      --size;
-    }
-    if (size) {
-      OutputBuffer::Overwrite(*data++);
-      --size;
-    }
-  }
-}
-
-/* static */
-void MidiDispatcher::SendNow(uint8_t byte) {
-  OutputBuffer::Overwrite(byte);
-}
-
-/* static */
 void MidiDispatcher::Send3(uint8_t status, uint8_t a, uint8_t b) {
   if ((status & 0xf0) == 0xf0) {
     running_status_ = 0;

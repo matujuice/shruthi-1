@@ -171,7 +171,6 @@ class Part {
   static Voice voice_;
   static NoteStack mono_allocator_;
   static NoteStack pressed_keys_;
-  static VoiceAllocator poly_allocator_;
   static bool release_latched_keys_on_next_note_on_;
   static bool ignore_note_off_messages_;
 

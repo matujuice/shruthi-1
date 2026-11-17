@@ -42,6 +42,7 @@ uint8_t Ui::adc_warm_up_cycles_;
 uint8_t Ui::adc_hot_address_;
 uint8_t Ui::adc_resume_scan_to_;
 uint32_t Ui::idle_time_;
+uint32_t Ui::encoder_time_;
 bool Ui::freeze_display_;
 Adc Ui::adc_;
 EventQueue<> Ui::queue_;
@@ -250,11 +251,10 @@ void Ui::DoEvents() {
 
   while (queue_.available()) {
     Event e = queue_.PullEvent();
-    if (e.control_type == CONTROL_POT &&
-        editor.current_page() == PAGE_LOAD_SAVE) {
-      continue;  // A noisy pot would hold off the deferred patch load forever.
-    }
     queue_.Touch();
+    if (e.control_type != CONTROL_POT) {
+      encoder_time_ = milliseconds();
+    }
     switch (e.control_type) {
       case CONTROL_ENCODER:
         editor.OnIncrement(e.value);
@@ -309,7 +309,9 @@ void Ui::DoEvents() {
     }
   }
   
-  if (queue_.idle_time_ms() > 80 &&
+  // Patch loads and MIDI redraws wait for the encoder only: a knob being
+  // turned (or a noisy pot) must not hold them back.
+  if (milliseconds() - encoder_time_ > 80 &&
       (editor.FinishLoadingPatch() || part.dirty())) {
     queue_.Touch();
     refresh_display = true;

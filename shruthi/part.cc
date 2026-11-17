@@ -47,7 +47,6 @@ bool Part::dirty_;
 Voice Part::voice_;
 NoteStack Part::pressed_keys_;
 NoteStack Part::mono_allocator_;
-VoiceAllocator Part::poly_allocator_;
 bool Part::release_latched_keys_on_next_note_on_;
 bool Part::ignore_note_off_messages_;
 
@@ -70,10 +69,12 @@ void Part::Init() {
     ResetSystemSettings();
     system_settings_.EepromSave();
   }
+  if (system_settings_.midi_out_mode > MIDI_OUT_SOFT_THRU) {
+    system_settings_.midi_out_mode = MIDI_OUT_SOFT_THRU;  // Old ctrl/full/chain.
+  }
   Reset();
   pressed_keys_.Init();
   mono_allocator_.Init();
-  poly_allocator_.Init();
   voice_.Init();
   dirty_ = false;
   nrpn_parameter_number_ = 0xff;
@@ -180,11 +181,6 @@ void Part::ResetPatch() {
 void Part::Touch(bool cascade) {
   UpdateModulationRates();
   dirty_ = true;
-  if (cascade) {
-    if (system_settings_.midi_out_mode >= MIDI_OUT_2_1) {
-      Storage::SysExDump(&patch_);
-    }
-  }
 }
 
 /* static */
@@ -397,9 +393,6 @@ void Part::SetParameter(
   if (offset >= PRM_ENV_ATTACK_1 && offset <= PRM_LFO_RETRIGGER_2) {
     UpdateModulationRates();
   }
-  if (user_initiated) {
-    midi_dispatcher.OnEdit(parameter_index, offset, value);
-  }
 }
 
 /* static */
@@ -464,7 +457,6 @@ void Part::AllNotesOff() {
     // message every time all keys in a chord are released.
     return;
   }
-  poly_allocator_.Clear();
   mono_allocator_.Clear();
   pressed_keys_.Clear();
   voice_.NoteOff();
@@ -489,59 +481,34 @@ uint16_t Part::Tune(uint8_t note) {
 
 /* static */
 void Part::InternalNoteOn(uint8_t note, uint8_t velocity) {
-  midi_dispatcher.OnInternalNoteOn(note, velocity);
-  
-  if (system_settings_.midi_out_mode >= MIDI_OUT_1_0) {
-    // Polyphonic mode.
-    poly_allocator_.set_size(system_settings_.midi_out_mode - MIDI_OUT_1_0 + 1);
-    if (poly_allocator_.NoteOn(note) == 0) {
-      voice_.NoteOn(Tune(note), velocity, 0, true);
-      voice_.set_bass_note(0);
-    } else { 
-      midi_dispatcher.ForwardNoteOn(midi_dispatcher.channel(), note, velocity);
-    }
-  } else {
-    const NoteEntry& before = mono_allocator_.most_recent_note();
-    mono_allocator_.NoteOn(note, velocity);
-    const NoteEntry& after = mono_allocator_.most_recent_note();
-    if (before.note != after.note) {
-      bool legato = mono_allocator_.size() > 1;
-      voice_.NoteOn(
-          Tune(after.note),
-          after.velocity,
-          !system_settings_.legato || legato ? system_settings_.portamento : 0,
-          !system_settings_.legato || !legato);
-      uint8_t bass_note = mono_allocator_.least_recent_note().note;
-      voice_.set_bass_note(bass_note != after.note ? Tune(bass_note) : 0);
-    }
+  const NoteEntry& before = mono_allocator_.most_recent_note();
+  mono_allocator_.NoteOn(note, velocity);
+  const NoteEntry& after = mono_allocator_.most_recent_note();
+  if (before.note != after.note) {
+    bool legato = mono_allocator_.size() > 1;
+    voice_.NoteOn(
+        Tune(after.note),
+        after.velocity,
+        !system_settings_.legato || legato ? system_settings_.portamento : 0,
+        !system_settings_.legato || !legato);
+    uint8_t bass_note = mono_allocator_.least_recent_note().note;
+    voice_.set_bass_note(bass_note != after.note ? Tune(bass_note) : 0);
   }
 }
 
 /* static */
 void Part::InternalNoteOff(uint8_t note) {
-  midi_dispatcher.OnInternalNoteOff(note);
-  
-  if (system_settings_.midi_out_mode >= MIDI_OUT_1_0) {
-    // Polyphonic mode.
-    poly_allocator_.set_size(system_settings_.midi_out_mode - MIDI_OUT_1_0 + 1);
-    if (poly_allocator_.NoteOff(note) == 0) {
-      voice_.NoteOff();
-    } else {
-      midi_dispatcher.ForwardNoteOff(midi_dispatcher.channel(), note);
-    }
-  } else {
-    const NoteEntry& before = mono_allocator_.most_recent_note();
-    mono_allocator_.NoteOff(note);
-    const NoteEntry& after = mono_allocator_.most_recent_note();
-    if (mono_allocator_.size() == 0) {
-      voice_.NoteOff();
-    } else if (before.note != after.note && patch_.osc[0].option != OP_DUO) {
-      voice_.NoteOn(
-          Tune(after.note),
-          after.velocity,
-          system_settings_.portamento,
-          !system_settings_.legato);
-    }
+  const NoteEntry& before = mono_allocator_.most_recent_note();
+  mono_allocator_.NoteOff(note);
+  const NoteEntry& after = mono_allocator_.most_recent_note();
+  if (mono_allocator_.size() == 0) {
+    voice_.NoteOff();
+  } else if (before.note != after.note && patch_.osc[0].option != OP_DUO) {
+    voice_.NoteOn(
+        Tune(after.note),
+        after.velocity,
+        system_settings_.portamento,
+        !system_settings_.legato);
   }
 }
 
