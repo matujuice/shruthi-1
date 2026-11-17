@@ -142,7 +142,6 @@ struct UiHandler {
 
 struct ConfirmPageSettings {
   ResourceId text;
-  ParameterPage return_group;
   void (*callback)();
 };
 
@@ -254,6 +253,11 @@ class Editor {
   static void DisplayLoadSavePage();
   static void ToggleLoadSaveAction();
   static void OnPatchMenuClick();
+  static uint8_t PatchMenu(uint8_t* items);
+  static void QuickSave();
+ public:
+  static void QuickSaveConfirm();  // FUNC + encoder hold.
+ private:
   static void ShowPatchPopup(const prog_char* text);
   static void OnLoadSaveIncrement(int8_t increment);
   static void OnLoadSaveClick();
@@ -300,6 +304,7 @@ class Editor {
   static uint16_t loaded_patch_;
   static uint16_t current_sequence_number_;
   static ConfirmPageSettings confirm_page_settings_;
+  static ParameterPage confirm_return_page_;
 
   static bool empty_patch_;
 

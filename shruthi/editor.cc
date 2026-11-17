@@ -697,6 +697,7 @@ uint16_t Editor::loaded_patch_ = 0;
 
 
 ConfirmPageSettings Editor::confirm_page_settings_;
+ParameterPage Editor::confirm_return_page_;
 bool Editor::snapped_[4];
 bool Editor::touched_[4];
 bool Editor::title_flash_;
@@ -847,6 +848,8 @@ void Editor::StartMidiBackup() {
 /* static */
 void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
   confirm_page_settings_ = confirm_page_settings;
+  confirm_return_page_ = current_page_;
+  cursor_ = confirm_page_settings.callback == &QuickSave;
   current_page_ = PAGE_CONFIRM;
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   Refresh();
@@ -1046,8 +1049,8 @@ void Editor::set_edited_item_number(int16_t value) {
   
   Storage::LoadPatchName(browse_name_, edited_item_number());
   for (uint8_t i = 0; i < 8; ++i) {
-    if (browse_name_[i] >= 0x80) {  // Blank EEPROM: show the stock name.
-      memcpy_P(browse_name_, default_name, 8);
+    if (browse_name_[i] >= 0x80) {  // Blank EEPROM: dashes, as stock.
+      memset(browse_name_, '-', 8);
       break;
     }
   }
@@ -1089,39 +1092,106 @@ void Editor::OnLoadSaveClick() {
   }
 }
 
-// PATCH menu items, 10 chars each.
+// PATCH menu items, 10 chars each, in PatchItem order.
 static const prog_char patch_items[] PROGMEM =
-  "load      reload    save      compare   init      random    send patchbackup all"
-  "back      ";
-static const uint8_t kPatchItems = 9;
+  "load      quick savesave as   save here reload    compare   "
+  "init      random    send patchbackup all back      ";
+
+enum PatchItem {
+  PI_LOAD, PI_QUICK_SAVE, PI_SAVE_AS, PI_SAVE_HERE, PI_RELOAD, PI_COMPARE,
+  PI_INIT, PI_RANDOM, PI_SEND, PI_BACKUP, PI_BACK
+};
+
+/* static */
+uint8_t Editor::PatchMenu(uint8_t* items) {
+  uint8_t n = 0;
+  if (current_patch_number_ != loaded_patch_) {
+    // Browsed slot: only what applies to a stored patch.
+    items[n++] = PI_LOAD;
+    items[n++] = PI_SAVE_HERE;
+  } else {
+    bool edited = preset_status_ == 1;
+    if (edited) {
+      items[n++] = PI_QUICK_SAVE;
+    }
+    items[n++] = PI_SAVE_AS;
+    if (edited) {
+      items[n++] = PI_RELOAD;
+      items[n++] = PI_COMPARE;
+    }
+    items[n++] = PI_INIT;
+    items[n++] = PI_RANDOM;
+    items[n++] = PI_SEND;
+  }
+  items[n++] = PI_BACKUP;
+  items[n++] = PI_BACK;
+  if (cursor_ >= n) {
+    cursor_ = n - 1;
+  }
+  return n;
+}
+
+/* static */
+void Editor::QuickSave() {
+  // Overwrite the loaded slot, keeping its stored name.
+  uint8_t* name = part.mutable_patch()->name;
+  Storage::LoadPatchName(name, loaded_patch_);
+  for (uint8_t i = 0; i < kPatchNameSize; ++i) {
+    if (name[i] >= 0x80) {  // Blank slot: the empty name.
+      memcpy_P(name, default_name, kPatchNameSize);
+      break;
+    }
+  }
+  Storage::WritePatch(loaded_patch_);
+  preset_status_ = 0;
+  set_edited_item_number(current_patch_number_);
+  ShowPatchPopup(PSTR(" SAVED  "));
+}
+
+/* static */
+void Editor::QuickSaveConfirm() {
+  if (current_page_ >= PAGE_CONFIRM) {
+    return;  // Already confirming, or perform mode.
+  }
+  ConfirmPageSettings settings;
+  settings.text = 0;
+  settings.callback = &QuickSave;
+  Confirm(settings);
+}
 
 /* static */
 void Editor::OnPatchMenuClick() {
   display_mode_ = DISPLAY_MODE_OVERVIEW;
-  switch (cursor_) {
-    case 0:
-      action_ = ACTION_LOAD;
+  uint8_t items[11];
+  PatchMenu(items);
+  uint8_t item = items[cursor_];
+  action_ = ACTION_LOAD;
+  switch (item) {
+    case PI_LOAD:
       deferred_load_ = current_patch_number_;
       preset_status_ = 0;
       break;
-    case 1:
-      action_ = ACTION_LOAD;
-      ReloadPatch();
+    case PI_QUICK_SAVE:
+      QuickSave();
       break;
-    case 2:
+    case PI_SAVE_AS:
+    case PI_SAVE_HERE:
       action_ = ACTION_SAVE;
       cursor_ = 0;
       set_edited_item_number(edited_item_number());
       break;
-    case 3:
+    case PI_RELOAD:
+      ReloadPatch();
+      break;
+    case PI_COMPARE:
       // Hear the stored version of this patch; click again for the edit.
       BackupEditBuffer();
       deferred_load_ = loaded_patch_;
       action_ = ACTION_COMPARE;
       break;
-    case 4:
-    case 5:
-      if (cursor_ == 4) {
+    case PI_INIT:
+    case PI_RANDOM:
+      if (item == PI_INIT) {
         part.ResetPatch();
         ShowPatchPopup(PSTR("  INIT  "));
       } else {
@@ -1129,26 +1199,19 @@ void Editor::OnPatchMenuClick() {
         ShowPatchPopup(PSTR(" RANDOM "));
       }
       preset_status_ = 1;  // EDITED *
-      action_ = ACTION_LOAD;
-      set_edited_item_number(loaded_patch_);
       break;
-    case 6:
+    case PI_SEND:
       Storage::SysExDump(part.mutable_patch());
       ShowPatchPopup(PSTR("  SENT  "));
-      action_ = ACTION_LOAD;
-      set_edited_item_number(loaded_patch_);
       break;
-    case 7:
+    case PI_BACKUP:
       {
+        action_ = ACTION_MENU;  // The confirm window returns to the menu.
         ConfirmPageSettings confirm_midi_backup;
         confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
-        confirm_midi_backup.return_group = GROUP_SYN;
         confirm_midi_backup.callback = &StartMidiBackup;
         Confirm(confirm_midi_backup);
       }
-      break;
-    case 8:
-      action_ = ACTION_LOAD;  // back
       break;
   }
 }
@@ -1162,6 +1225,9 @@ bool Editor::FinishLoadingPatch() {
   Storage::LoadPatch(n);
   if (!popup_until_ && action_ != ACTION_COMPARE) {
     ShowPatchPopup(PSTR(" LOADED "));
+  }
+  if (action_ != ACTION_COMPARE && preset_status_ == 1) {
+    preset_status_ = 0;
   }
   loaded_patch_ = n;
   if (part.system_settings().last_patch != n) {
@@ -1178,7 +1244,8 @@ bool Editor::FinishLoadingPatch() {
 /* static */
 void Editor::OnLoadSaveIncrement(int8_t increment) {
   if (action_ == ACTION_MENU) {
-    if (increment > 0 && cursor_ < kPatchItems - 1) {
+    uint8_t items[11];
+    if (increment > 0 && cursor_ < PatchMenu(items) - 1) {
       ++cursor_;
     } else if (increment < 0 && cursor_ > 0) {
       --cursor_;
@@ -1215,15 +1282,17 @@ void Editor::DisplayLoadSavePage() {
   memset(line_buffer_, ' ', sizeof(line_buffer_));
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   if (action_ == ACTION_MENU) {
-    // PATCH        1/6
-    // >save
+    // PATCH        1/9
+    // >quick save
+    uint8_t items[11];
+    uint8_t count = PatchMenu(items);
     memcpy_P(line_buffer_, PSTR("PATCH"), 5);
     line_buffer_[kLcdWidth - 3] = '1' + cursor_;
     line_buffer_[kLcdWidth - 2] = '/';
-    line_buffer_[kLcdWidth - 1] = '0' + kPatchItems;
+    line_buffer_[kLcdWidth - 1] = '0' + count;
     line_buffer_[kLcdWidth] = '\0';
     row_1[0] = 0x7e;
-    memcpy_P(row_1 + 1, patch_items + 10 * cursor_, 10);
+    memcpy_P(row_1 + 1, patch_items + 10 * items[cursor_], 10);
     display.set_cursor_position(kLcdNoCursor);
     display.Print(0, line_buffer_);
     display.Print(1, row_1);
@@ -1894,10 +1963,13 @@ void Editor::BootStep() {
 
 /* static */
 void Editor::OnConfirmClick() {
-  if (cursor_) {
+  bool yes = cursor_;
+  current_page_ = confirm_return_page_;  // Back where you were.
+  display_mode_ = DISPLAY_MODE_OVERVIEW;
+  cursor_ = 0;
+  if (yes) {
     (*confirm_page_settings_.callback)();
   }
-  JumpToPageGroup(confirm_page_settings_.return_group);
   Refresh();
 }
 
@@ -1913,6 +1985,21 @@ void Editor::OnConfirmInput(uint8_t knob_index, uint8_t value) {
 /* static */
 void Editor::DisplayConfirmPage() {
   display.set_cursor_position(kLcdNoCursor);
+  if (confirm_page_settings_.callback == &QuickSave) {
+    // SAVE NAME....?
+    //  yes  no        (arrow on the choice)
+    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    char* row_1 = line_buffer_ + kLcdWidth + 1;
+    memcpy_P(line_buffer_, PSTR("SAVE"), 4);
+    memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
+    line_buffer_[5 + kPatchNameSize] = '?';
+    line_buffer_[kLcdWidth] = '\0';
+    memcpy_P(row_1, PSTR(" yes  no"), 8);
+    row_1[cursor_ ? 0 : 5] = 0x7e;
+    display.Print(0, line_buffer_);
+    display.Print(1, row_1);
+    return;
+  }
   for (uint8_t i = 0; i < 2; ++i) {
     ResourcesManager::LoadStringResource(
         confirm_page_settings_.text + i,

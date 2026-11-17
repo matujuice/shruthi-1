@@ -197,7 +197,9 @@ void Ui::DebounceSwitches() {
     uint32_t now = milliseconds();
     int32_t delta = now - switch_delay_[SWITCH_ENCODER];
     if (!inhibit_encoder_release_ && delta > 0) {
-      queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER, 6);
+      // Hold: 7 with FUNC (quick save), 6 alone (unused).
+      queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER,
+          switch_state_[SWITCH_SHIFT] == 0x00 ? 7 : 6);
       inhibit_encoder_release_ = true;
     }
   } else if (switch_state_[SWITCH_ENCODER] == 0x7f) {
@@ -266,6 +268,8 @@ void Ui::DoEvents() {
         } else if (e.control_id == SWITCH_ENCODER) {
           if (e.value == 1) {
             editor.ReloadPatch();
+          } else if (e.value == 7) {
+            editor.QuickSaveConfirm();
           } else if (e.value < 6) {
             editor.OnClick();  // Long press (6): unused.
           }
