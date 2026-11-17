@@ -872,7 +872,9 @@ void Editor::OnSwitch(const Event& event) {
   }
   if (event.value == 0xff) {
     // FUNC + key.
-    if (current_page_ == PAGE_LOAD_SAVE && id < SWITCH_MODE) {
+    // Patch tools only on the SAVE screen; on PRESET, FUNC+key opens pages.
+    if (current_page_ == PAGE_LOAD_SAVE && action_ != ACTION_LOAD &&
+        id < SWITCH_MODE) {
       switch (id) {
         case SWITCH_1:
           display.set_status('x');
