@@ -250,6 +250,10 @@ void Ui::DoEvents() {
 
   while (queue_.available()) {
     Event e = queue_.PullEvent();
+    if (e.control_type == CONTROL_POT &&
+        editor.current_page() == PAGE_LOAD_SAVE) {
+      continue;  // A noisy pot would hold off the deferred patch load forever.
+    }
     queue_.Touch();
     switch (e.control_type) {
       case CONTROL_ENCODER:
