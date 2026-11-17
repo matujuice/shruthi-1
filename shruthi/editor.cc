@@ -924,7 +924,7 @@ void Editor::Refresh() {
     if (popup_phase_ >= 0xfe) {
       return;  // Boot screens stay up.
     }
-    // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks blink 3x.
+    // [][][][] PATCH  [][][][] / [][][][]RELOADED[][][][], blocks lit.
     memset(line_buffer_, popup_phase_ & 1 ? 0xff : ' ', sizeof(line_buffer_));
     memset(line_buffer_ + 4, ' ', 8);
     memcpy_P(line_buffer_ + 5, PSTR("PATCH"), 5);
@@ -957,8 +957,10 @@ void Editor::ReloadPatch() {
 /* static */
 void Editor::ShowPatchPopup(const prog_char* text) {
   popup_text_ = text;
-  popup_until_ = milliseconds() + 1000;
-  popup_phase_ = 5;
+  // Shown once, as long as a page title (SYS display delay).
+  popup_until_ = milliseconds() +
+      ((part.system_settings().display_delay & 0xf) << 7) + 100;
+  popup_phase_ = 1;
 }
 
 /* static */
@@ -983,12 +985,8 @@ bool Editor::PopupTick() {
     popup_until_ = 0;
     return true;
   }
-  if (popup_phase_ >= 0xfe) {
-    return false;  // Boot: no blinking.
-  }
-  uint8_t phase = static_cast<uint16_t>(left) / 167;
-  if (phase != popup_phase_) {
-    popup_phase_ = phase;
+  if (popup_phase_ == 1) {
+    popup_phase_ = 3;  // Draw once; no blinking.
     return true;
   }
   return false;

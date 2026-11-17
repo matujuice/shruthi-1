@@ -314,7 +314,7 @@ class Editor {
   
   static uint16_t deferred_load_;
   static uint32_t popup_until_;  // 0 = no popup.
-  static uint8_t popup_phase_;  // 5..0; odd = side blocks lit.
+  static uint8_t popup_phase_;  // 1 = to draw, 3 = shown, 0xfe+ = boot.
 
   DISALLOW_COPY_AND_ASSIGN(Editor);
 };
