@@ -204,6 +204,7 @@ class Editor {
   
   static inline void set_current_patch_number(uint16_t patch_number) {
     current_patch_number_ = patch_number;
+    loaded_patch_ = patch_number;  // MIDI program change.
   }
   
   static bool FinishLoadingPatch();
@@ -294,7 +295,8 @@ class Editor {
 
   static uint8_t subpage_;
   static uint8_t action_;
-  static uint16_t current_patch_number_;
+  static uint16_t current_patch_number_;  // Shown (browsed) on PRESET.
+  static uint16_t loaded_patch_;
   static uint16_t current_sequence_number_;
   static ConfirmPageSettings confirm_page_settings_;
 
