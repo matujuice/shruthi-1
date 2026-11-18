@@ -837,7 +837,7 @@ void Editor::RandomizePatch() {
 /* static */
 void Editor::SaveSystemSettings() {
   part.mutable_system_settings()->EepromSave();
-  eeprom_write_block(perf_, kPerfEeprom, 4);
+  EepromUpdate(kPerfEeprom, perf_, 4);
 }
 
 // Labels of patch parameter ids 0-31 come from the synth pages 0-8.
@@ -1253,7 +1253,7 @@ bool Editor::FinishLoadingPatch() {
   loaded_patch_ = n;
   if (part.system_settings().last_patch != n) {
     part.mutable_system_settings()->last_patch = n;  // Reloaded at power-up.
-    part.system_settings().EepromSave();
+    sys_save_at_ = (milliseconds() + 1000) | 1;  // Deferred: notes may follow.
   }
   part.Touch(true);
   // Reset the snap position of all pots.

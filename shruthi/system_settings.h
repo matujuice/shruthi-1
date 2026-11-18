@@ -48,6 +48,8 @@ class SystemSettings {
   uint8_t EepromLoad();
 };
 
+void EepromUpdate(uint8_t* address, const uint8_t* data, uint8_t size);
+
 enum FilterBoard {
   FILTER_BOARD_LPF,
   FILTER_BOARD_SSM,

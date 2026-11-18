@@ -25,15 +25,25 @@
 
 namespace shruthi {
 
+// Writes only bytes that differ: each EEPROM write blocks ~3.4 ms, and the
+// 32-byte MIDI input buffer overflows after ~10 ms.
+void EepromUpdate(uint8_t* address, const uint8_t* data, uint8_t size) {
+  for (uint8_t i = 0; i < size; ++i) {
+    if (eeprom_read_byte(address + i) != data[i]) {
+      eeprom_write_byte(address + i, data[i]);
+    }
+  }
+}
+
 void SystemSettings::EepromSave() const {
-  uint8_t* data = (uint8_t *)(this);
+  const uint8_t* data = (const uint8_t *)(this);
   uint8_t checksum = 0;
-  uint8_t* destination = (uint8_t*)(0);
   for (int16_t i = 0; i < sizeof(SystemSettings); ++i) {
     checksum += data[i];
   }
-  eeprom_write_block(data, destination, sizeof(SystemSettings));
-  eeprom_write_byte(destination + sizeof(SystemSettings), -checksum);
+  checksum = -checksum;
+  EepromUpdate((uint8_t*)(0), data, sizeof(SystemSettings));
+  EepromUpdate((uint8_t*)(sizeof(SystemSettings)), &checksum, 1);
 }
 
 uint8_t SystemSettings::EepromLoad() {
