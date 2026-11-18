@@ -315,7 +315,7 @@ class Editor {
   static bool title_flash_;
   static bool show_numbers_;
   static bool sys_open_;  // false = SYS menu list, true = inside a sub-menu.
-  static bool sys_dirty_;
+  static uint32_t sys_save_at_;  // 0: settings saved.
   static bool perf_setup_;  // PERFORM MODE > setup (knob targets) is open.
   static bool func_;  // FUNC held: pots and encoder jump to relevant values.
   

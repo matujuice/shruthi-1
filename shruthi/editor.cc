@@ -730,7 +730,7 @@ uint32_t Editor::popup_until_;
 uint8_t Editor::popup_phase_;
 uint8_t Editor::perf_[4];
 bool Editor::sys_open_;
-bool Editor::sys_dirty_;
+uint32_t Editor::sys_save_at_;
 bool Editor::perf_setup_;
 /* </static> */
 
@@ -958,11 +958,6 @@ void Editor::Refresh() {
     display.Print(1, line_buffer_ + kLcdWidth + 1);
     return;
   }
-  // SYS settings auto-save once SYS is left (one EEPROM write, not per step).
-  if (sys_dirty_ && page_definition_[current_page_].group != GROUP_SYS) {
-    sys_dirty_ = false;
-    SaveSystemSettings();
-  }
   if (display_mode_ == DISPLAY_MODE_OVERVIEW) {
     (*ui_handler_[page_definition_[current_page_].ui_type].overview_page)();
   } else {
@@ -989,6 +984,11 @@ void Editor::ShowPatchPopup(const prog_char* text) {
 
 /* static */
 bool Editor::PopupTick() {
+  // Global settings auto-save 1 s after the last change (one EEPROM write per edit burst).
+  if (sys_save_at_ && static_cast<int32_t>(milliseconds() - sys_save_at_) >= 0) {
+    sys_save_at_ = 0;
+    SaveSystemSettings();
+  }
   if (!popup_until_) {
     // Save page: the selected number or OK blinks, faster while edited.
     uint8_t hidden = current_page_ == PAGE_LOAD_SAVE &&
@@ -1900,8 +1900,9 @@ void Editor::SetParameterValue(
     uint8_t index,
     uint8_t offset,
     uint8_t value) {
-  if (page_definition_[current_page_].group == GROUP_SYS) {
-    sys_dirty_ = true;
+  if (offset >= PRM_SYS_OCTAVE) {
+    // System settings (also octave on VOICE) and perf knob targets.
+    sys_save_at_ = (milliseconds() + 1000) | 1;
   }
   // Dirty hack for the modulation page.
   if (offset >= 0xf0) {
