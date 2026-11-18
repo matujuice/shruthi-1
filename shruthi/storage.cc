@@ -340,6 +340,11 @@ void Storage::SysExAcceptBuffer() {
               sysex_rx_buffer_,
               (void*)(address),
               kSysExBulkDumpBlockSize);
+          if (address == 0 || address + kSysExBulkDumpBlockSize >= 2044) {
+            // A library carries patches: keep this unit's settings and perf
+            // knobs (EEPROM 0-15, 2044-2047), which RAM still holds.
+            Editor::SaveSystemSettings();
+          }
         } else {
           address -= kInternalEepromSize;
           WriteExternal(

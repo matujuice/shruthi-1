@@ -109,7 +109,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 8, 9, 0xff, 0xff },  // OPERATOR
   { 94, 95, 96, 0xff },  // FX
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
-  { 46, 47, 44, 45 },  // VOICE
+  { 46, 47, 45, 0xff },  // VOICE (octave is global: SYS MIDI)
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
   { 48, 49, 50, 44 },  // SYS MIDI (octave stays global)
@@ -129,7 +129,7 @@ static const prog_char page_labels[] PROGMEM =
   "op mix      "  // 8
   "typamtprm   "  // 9
   "modovdfm    "  // 9
-  "prtlegoctrst"  // 10
+  "prtlegrst   "  // 10
   "sltsrcdstamt"  // 11
   "op in1in2out";  // 12 (SYS pages are menus: no labels)
 
@@ -1552,10 +1552,7 @@ uint8_t Editor::SysItems() {
 
 /* static */
 void Editor::OnSysInput(uint8_t knob_index, uint8_t value) {
-  if (sys_open_ && cursor_ < SysItems() &&
-      (current_page_ != PAGE_SYS_PERF || perf_setup_)) {
-    OnEditInput(cursor_, value);  // Any pot sets the selected setting.
-  }
+  // Pots never change settings: a noisy pot would rewrite the MIDI channel.
 }
 
 /* static */
@@ -1628,6 +1625,8 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
   } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
     strcpy_P(text, PSTR("wave "));
     UnsafeItoa<int16_t>(value - LFO_WAVEFORM_WAVE_1 + 1, 3, text + 5);
+  } else if (p.offset == PRM_SYS_MIDI_CHANNEL && value == 0) {
+    strcpy_P(text, PSTR("omni"));
   } else if (values) {
     CopyNth(values, value, text);
   } else {

@@ -174,6 +174,7 @@ static const prog_char init_system_settings[] PROGMEM = {
 /* static */
 void Part::ResetPatch() {
   ResourcesManager::Load(init_patch, 0, &patch_);
+  patch_.Update();  // Portamento, legato, retrigger off too.
   Touch(true);
 }
 

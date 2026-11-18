@@ -278,7 +278,9 @@ class Editor {
   
   static void LoadPatch(uint8_t index);
   
+ public:
   static void SaveSystemSettings();
+ private:
   static void StartMidiBackup();
   static void PerfLabel(uint8_t id, char* out, bool long_name);
   static uint8_t perf_[4];  // Patch parameter ids of the preset-page knobs.
