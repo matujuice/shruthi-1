@@ -159,7 +159,7 @@ static const prog_char init_patch[] PROGMEM = {
     // Settings for second filter
     0, 0, 0, 
     0, 0, 0, 0,
-    '\'',
+    '(',
     0, 0, 0, 0, 0, 0, 0, 0,
 };
 

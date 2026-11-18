@@ -100,7 +100,7 @@ class Patch {
   // Offset: 68-76
   uint8_t name[kPatchNameSize];
 
-  // Offset: 76-84
+  // Offset: 76-84. [1..3]: FX type, amount, param (offsets 77-79).
   uint8_t extra_data_[8];
 
   // Offset: 84-92
@@ -185,10 +185,13 @@ enum ModulationDestination {
   MOD_DST_DECAY_2,
   MOD_DST_SUSTAIN_2,
   MOD_DST_RELEASE_2,
+  MOD_DST_FX,  // FX amount.
   MOD_DST_LAST
 };
 
 static const uint8_t kNumModulationDestinations = MOD_DST_LAST;
+
+enum FxType { FX_OFF, FX_DRIVE, FX_FOLD, FX_CRUSH };
 
 enum PatchParameter {
   PRM_OSC_SHAPE_1,

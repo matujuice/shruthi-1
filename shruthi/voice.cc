@@ -52,6 +52,8 @@ int16_t Voice::pitch_bass_note_;
 uint8_t Voice::modulation_sources_[kNumModulationSources];
 int8_t Voice::modulation_destinations_[kNumModulationDestinations];
 int16_t Voice::dst_[kNumModulationDestinations];
+static uint8_t crush_phase_;  // FX crush: sample clock and held sample.
+static uint8_t crush_hold_;
 uint8_t Voice::buffer_[kAudioBlockSize];
 uint8_t Voice::osc2_buffer_[kAudioBlockSize];
 uint8_t Voice::sync_state_[kAudioBlockSize];
@@ -250,6 +252,7 @@ inline void Voice::LoadSources() {
   dst_[MOD_DST_CV_2] = 0;
   dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
   dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
+  dst_[MOD_DST_FX] = part.patch_.extra_data_[2] << 7;
 }
 
 /* static */
@@ -647,6 +650,43 @@ void Voice::ProcessBlock() {
     }
   }
   
+  // Insert FX (FX 2/2 page), before the analog filter. One at a time.
+  uint8_t fx = part.patch_.extra_data_[1];
+  if (fx) {
+    uint8_t amount = U14ShiftRight6(dst_[MOD_DST_FX]);  // 0..254
+    uint8_t param = part.patch_.extra_data_[3];
+    if (fx == FX_CRUSH) {
+      // amount: sample-rate reduction; param: bits removed (0-7).
+      uint8_t mask = 0xff << (param >> 4);
+      uint16_t step = 256 - amount;
+      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+        uint16_t phase = crush_phase_ + step;
+        if (phase >= 256) {
+          crush_hold_ = buffer_[i] & mask;
+        }
+        crush_phase_ = phase;
+        buffer_[i] = crush_hold_;
+      }
+    } else {
+      // drive: x1..x8.9 then clip, param = bias (even harmonics).
+      // fold: x1..x17 then fold back, param = offset (64 = centered).
+      bool fold = fx == FX_FOLD;
+      uint8_t gain = fold ? 16 + amount : 16 + (amount >> 1);
+      int8_t bias = fold ? param - 64 : param >> 2;
+      int16_t dc = fold ? 0 : (bias * gain) >> 4;
+      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+        int16_t x = ((static_cast<int16_t>(buffer_[i]) - 128 + bias) * gain) >> 4;
+        if (fold) {
+          uint16_t u = (x + 128) & 511;  // Triangle fold, period 512.
+          buffer_[i] = u > 255 ? 511 - u : u;
+        } else {
+          x = (x > 127 ? 127 : (x < -128 ? -128 : x)) - dc;  // Clip, then remove the bias DC.
+          buffer_[i] = (x > 127 ? 127 : (x < -128 ? -128 : x)) + 128;
+        }
+      }
+    }
+  }
+
   // Mix with noise and output.
   uint8_t noise = Random::GetByte();
   uint8_t noise_gain = S16ShiftRight8(dst_[MOD_DST_MIX_NOISE]);

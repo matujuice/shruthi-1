@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '\'';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources.
+  version_ = '(';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX.
   filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
@@ -59,7 +59,7 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
     }
   }
   if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&' &&
-      buffer[91] != '\'') {
+      buffer[91] != '\'' && buffer[91] != '(') {
     memset(name, '-', 8);
     return 0;
   }
@@ -111,7 +111,7 @@ void Patch::Update() {
   filter_1_mode_ = filter_topology_ >> 4;
 
   // ponytail: older LFO settings ('!', '%') are converted by shruthi/patch_translator.py.
-  if (version_ != '\'') {
+  if (version_ != '(' && version_ != '\'') {
     for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
       Modulation* m = &modulation_matrix.modulation[i];
       uint8_t s = RemapSource(m->source);
@@ -126,7 +126,10 @@ void Patch::Update() {
       uint8_t s = RemapSource(*operand);
       *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
     }
-    version_ = '\'';
+  }
+  if (version_ != '(') {
+    extra_data_[1] = extra_data_[2] = extra_data_[3] = 0;  // FX off.
+    version_ = '(';
   }
   
   if (version_ != '!') {

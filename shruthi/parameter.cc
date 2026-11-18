@@ -867,6 +867,27 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     0, 31,
     { 0, 0 },
     STR_RES_PERFORMANCE, STR_RES_PERFORMANCE },
+
+  // 94: FX type (DSP-board FX unit, unused on PVK: names in the editor)
+  { 77,
+    UNIT_FX_PROGRAM,
+    0, 3,
+    { 0, 0 },
+    STR_RES_FX_, STR_RES_FX_ },
+
+  // 95: FX amount
+  { 78,
+    UNIT_UINT8,
+    0, 127,
+    { 0, 0 },
+    STR_RES_AMT, STR_RES_AMOUNT },
+
+  // 96: FX param
+  { 79,
+    UNIT_UINT8,
+    0, 127,
+    { 0, 0 },
+    STR_RES_PRM, STR_RES_PRM },
 };
 
 /* static */

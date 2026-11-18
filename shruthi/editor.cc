@@ -75,7 +75,8 @@ PageDefinition Editor::page_definition_[] = {
   /* PAGE_MOD_ENV_2 */ { PAGE_MOD_ENV_2, GROUP_AMP, PARAMETER_EDITOR, LED_4_MASK },
   /* PAGE_MOD_LFO_1 */ { PAGE_MOD_LFO_2, GROUP_MOD, PARAMETER_EDITOR, LED_6_MASK },
   /* PAGE_MOD_LFO_2 */ { PAGE_MOD_LFO_1, GROUP_MOD, PARAMETER_EDITOR, LED_6_MASK },
-  /* PAGE_FX */ { PAGE_FX, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
+  /* PAGE_FX */ { PAGE_FX_2, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
+  /* PAGE_FX_2 */ { PAGE_FX, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
   /* PAGE_FILTER_MULTIMODE */ { PAGE_FILTER_MULTIMODE, GROUP_VCF,
     PARAMETER_EDITOR, LED_3_MASK | LED_WRITE_MASK },
   /* PAGE_VOICE */ { PAGE_VOICE, GROUP_VOICE, PARAMETER_EDITOR, LED_5_MASK | LED_WRITE_MASK },
@@ -105,7 +106,8 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 20, 21, 22, 23 },  // AMP ENV
   { 24, 25, 26, 27 },  // LFO 1
   { 28, 29, 30, 31 },  // LFO 2
-  { 8, 9, 0xff, 0xff },  // FX
+  { 8, 9, 0xff, 0xff },  // OPERATOR
+  { 94, 95, 96, 0xff },  // FX
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
   { 46, 47, 44, 45 },  // VOICE
   { 32, 33, 34, 35 },  // MATRIX
@@ -125,6 +127,7 @@ static const prog_char page_labels[] PROGMEM =
   "wavspdmulmod"  // 6
   "wavspdmulmod"  // 7
   "op mix      "  // 8
+  "typamtprm   "  // 9
   "modovdfm    "  // 9
   "prtlegoctrst"  // 10
   "sltsrcdstamt"  // 11
@@ -139,7 +142,8 @@ static const prog_char page_titles[] PROGMEM =
   "AMP  AMP ENV    "
   "MOD  LFO 1   1/2"
   "MOD  LFO 2   2/2"
-  "FX              "
+  "OPERATOR     1/2"
+  "FX           2/2"
   "POLIVOKS        "
   "VOICE           "
   "MATRIX       1/2"
@@ -279,7 +283,8 @@ static const prog_char long_dst[] PROGMEM =
   "release2\0"
   "attacks\0"
   "lfo 1\0"
-  "lfo 2\0";
+  "lfo 2\0"
+  "fx amt\0";
 static const prog_char long_cv_op[] PROGMEM =
   "off\0"
   "sum\0"
@@ -294,13 +299,26 @@ static const prog_char long_cv_op[] PROGMEM =
 static const prog_char long_midi[] PROGMEM =
   "off\0"
   "thru\0";
+static const prog_char long_fx[] PROGMEM =
+  "off\0"
+  "drive\0"
+  "fold\0"
+  "crush\0";
+static const char fx_names[] PROGMEM = "offdrvfldcrs";
+// FX param name, per FX type.
+static const prog_char fx_param_names[] PROGMEM =
+  "param\0"
+  "bias\0"
+  "offset\0"
+  "bits\0";
 static const prog_char long_f1[] PROGMEM =
   "low pass\0"
   "bandpass\0"
   "highpass\0";
 // Top-row names that replace the stock long names.
 static const prog_uint8_t long_name_ids[] PROGMEM = {
-  0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77, 45
+  0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77, 45,
+  94, 95
 };
 static const prog_char long_names[] PROGMEM =
   "osc1\0"
@@ -323,7 +341,9 @@ static const prog_char long_names[] PROGMEM =
   "filter\0"
   "drive\0"
   "fm fdbk\0"
-  "retrig\0";
+  "retrig\0"
+  "fx\0"
+  "amount\0";
 
 // Copies the n-th '\0'-separated string of a PROGMEM list.
 static void CopyNth(const prog_char* list, uint8_t n, char* out) {
@@ -345,6 +365,7 @@ static const prog_char* LongValues(uint8_t unit) {
     case UNIT_CV_OPERATOR: return long_cv_op;
     case UNIT_MIDI_MODE: return long_midi;
     case UNIT_FILTER_1_MODE: return long_f1;
+    case UNIT_FX_PROGRAM: return long_fx;
   }
   return NULL;
 }
@@ -1380,6 +1401,10 @@ char Editor::PrintParameter(
     strcpy_P(t, PSTR("ccmix"));  // No resource string: resources.cc stays as is.
   } else if (p.unit == UNIT_LFO_RETRIGGER_MODE) {
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
+  } else if (p.unit == UNIT_FX_PROGRAM) {
+    memcpy_P(t, fx_names + 3 * value, 3);
+  } else if (p.unit == UNIT_MODULATION_DESTINATION && value == MOD_DST_FX) {
+    strcpy_P(t, PSTR("fx"));  // Display index; the stock short names stop before.
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
     *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
@@ -1598,7 +1623,7 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
   memset(text, 0, sizeof(text));
   uint8_t value = GetParameterValue(p.offset);
   const prog_char* values = LongValues(p.unit);
-  if (id >= 90) {
+  if (id >= 90 && id <= 93) {
     PerfLabel(value, text, true);
   } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
     strcpy_P(text, PSTR("wave "));
@@ -1624,9 +1649,11 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
   while (n < sizeof(long_name_ids) && pgm_read_byte(long_name_ids + n) != id) {
     ++n;
   }
-  if (id >= 90) {
+  if (id >= 90 && id <= 93) {
     strcpy_P(row, PSTR("knob "));
     row[5] = '1' + id - 90;
+  } else if (id == 96) {
+    CopyNth(fx_param_names, part.patch().extra_data_[1], row);
   } else if (n < sizeof(long_name_ids)) {
     CopyNth(long_names, n, row);
   } else {
@@ -1865,6 +1892,7 @@ const prog_uint8_t modulation_destination_map[] PROGMEM = {
   MOD_DST_ATTACK,
   MOD_DST_LFO_1,
   MOD_DST_LFO_2,
+  MOD_DST_FX,
 };
 
 /* static */
