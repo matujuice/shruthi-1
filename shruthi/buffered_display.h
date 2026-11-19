@@ -106,19 +106,6 @@ class BufferedDisplay {
     previous_status_counter_ = 0;
   }
   
-  static inline void ForceStatus(uint8_t status) {
-    if (Lcd::writable() < 4) {
-      return;
-    }
-    status_ = status + 1;
-    scan_position_ = 0;
-    scan_row_ = 0;
-    scan_column_ = 0;
-    Lcd::MoveCursor(scan_row_, scan_column_);
-    Lcd::WriteData(status_ - 1);
-    remote_[scan_position_] = status_ - 1;
-  }
-  
   static void BlinkCursor() {
     ++blink_;
   }
@@ -203,7 +190,6 @@ class BufferedDisplay {
   static uint8_t clean_ticks_;
   static uint8_t blink_;
   static uint8_t previous_status_counter_;
-  static uint8_t previous_blink_counter_;
   static uint8_t cursor_position_;
   static uint8_t cursor_character_;
   static uint8_t status_;

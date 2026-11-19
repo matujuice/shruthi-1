@@ -152,6 +152,11 @@ void Patch::Update() {
       *operand = 0;
     }
   }
+  for (uint8_t i = 0; i < 2; ++i) {
+    if (osc[i].shape >= WAVEFORM_LAST) {
+      osc[i].shape = 0;  // Else the wavetable lookup reads past its table.
+    }
+  }
   
   if (version_ != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();
