@@ -98,6 +98,15 @@ class Oscillator {
   
   inline void Reset() {
     data_.no.rng_reset_value = Random::GetByte() + 1;
+    if (shape_ == WAVEFORM_PLUCK) {
+      Pluck();
+    }
+  }
+
+  // Karplus-Strong string: one 256-byte line per oscillator, set at boot.
+  static uint8_t pluck_lines_[2][256];
+  inline void set_pluck_line(uint8_t* line) {
+    pluck_line_ = line;
   }
 
   inline void Render(
@@ -120,6 +129,8 @@ class Oscillator {
       } else {
         RenderBandlimitedPwm(buffer);
       }
+    } else if (shape_ == WAVEFORM_PLUCK) {
+      RenderPluck(buffer);
     } else {
       uint8_t index = shape > WAVEFORM_VOWEL ? WAVEFORM_WAVETABLE_1 : shape;
       RenderFn fn;
@@ -162,6 +173,7 @@ class Oscillator {
   // position of phrase wraps
   uint8_t* sync_input_;
   uint8_t* sync_output_;
+  uint8_t* pluck_line_;
   
   void RenderSilence(uint8_t* buffer);
   
@@ -183,6 +195,8 @@ class Oscillator {
   void RenderDirtyPwm(uint8_t* buffer);
   void RenderQuadSawPad(uint8_t* buffer);
   void RenderFilteredNoise(uint8_t* buffer);
+  void RenderPluck(uint8_t* buffer);
+  void Pluck();
 
   DISALLOW_COPY_AND_ASSIGN(Oscillator);
 };

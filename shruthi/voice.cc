@@ -76,6 +76,9 @@ void Voice::Init() {
   }
   memset(no_sync_, 0, kAudioBlockSize);
   memset(delay_line_, 128, kDelaySize);  // Silence, not a DC step.
+  memset(Oscillator::pluck_lines_, 128, sizeof(Oscillator::pluck_lines_));
+  osc_1.set_pluck_line(Oscillator::pluck_lines_[0]);
+  osc_2.set_pluck_line(Oscillator::pluck_lines_[1]);
   
   NoteOff();
   

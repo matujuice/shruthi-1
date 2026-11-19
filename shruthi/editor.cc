@@ -155,7 +155,7 @@ static const prog_char page_titles[] PROGMEM =
 
 static const prog_char lfo_mode_names[] PROGMEM = "fretrghldonehlf";
 
-static const prog_char osc_names[] PROGMEM = "offsawsqrtrizswzrsztrzplzsypad fmwavtmpdigmetbowslporgmalusr8btcrupwmnoivowbelpolcelclpfemfmtfrmreselevib";
+static const prog_char osc_names[] PROGMEM = "offsawsqrtrizswzrsztrzplzsypad fmwavtmpdigmetbowslporgmalusr8btcrupwmnoivowbelpolcelclpfemfmtfrmreselevibplk";
 
 // Full lowercase values for the top row, '\0'-separated in value order.
 static const prog_char long_wave[] PROGMEM =
@@ -193,7 +193,8 @@ static const prog_char long_wave[] PROGMEM =
   "formant2\0"
   "reso 3hp\0"
   "e.piano\0"
-  "vibes\0";
+  "vibes\0"
+  "pluck\0";
 static const prog_char long_sub[] PROGMEM =
   "square-1\0"
   "tri-1\0"
@@ -421,7 +422,7 @@ static const prog_uint8_t icons[] PROGMEM = {
 
 // Icon index for each value of the units that have icons. 0xff = no icon.
 static const prog_uint8_t icon_map[] PROGMEM = {
-  5, 0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 24, 14, 15, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
+  5, 0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 24, 14, 15, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 16,
   1, 3, 2, 1, 3, 2, 18, 19, 20, 21, 22,
   25, 10, 26, 27, 23, 24, 24, 28, 13, 29, 30, 31, 32, 0xff,
   3, 1, 4, 0, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 35, 36,
@@ -577,6 +578,7 @@ void Editor::DrawCloseup(uint8_t page, char* row_0) {
     memset(&osc, 0, sizeof(osc));
     osc.set_parameter(s.parameter);
     osc.set_secondary_parameter(s.range + 24);
+    osc.set_pluck_line(Oscillator::pluck_lines_[page]);  // Shows the live string.
     uint24_t increment;
     increment.integral = 65536 / kAudioBlockSize;
     increment.fractional = 102;  // 2^24 / 40 = 1638.4 x 256.
@@ -637,11 +639,11 @@ void Editor::DrawCloseup(uint8_t page, char* row_0) {
 static char Icon(uint8_t unit, uint8_t value) {
   uint8_t base, count;
   switch (unit) {
-    case UNIT_WAVEFORM: base = 0; count = 35; break;
-    case UNIT_SUB_OSC_WAVEFORM: base = 35; count = 11; break;
-    case UNIT_OPERATOR: base = 46; count = 14; break;
-    case UNIT_LFO_WAVEFORM: base = 60; count = 22; break;
-    case UNIT_FILTER_1_MODE: base = 82; count = 2; break;
+    case UNIT_WAVEFORM: base = 0; count = 36; break;
+    case UNIT_SUB_OSC_WAVEFORM: base = 36; count = 11; break;
+    case UNIT_OPERATOR: base = 47; count = 14; break;
+    case UNIT_LFO_WAVEFORM: base = 61; count = 22; break;
+    case UNIT_FILTER_1_MODE: base = 83; count = 2; break;
     default: return ' ';
   }
   uint8_t icon = value < count ? pgm_read_byte(icon_map + base + value) : 0xff;
