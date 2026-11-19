@@ -292,14 +292,7 @@ void Part::ControlChange(uint8_t controller, uint8_t value) {
       break;
       
     default:
-      {
-        uint8_t index = parameter_manager.for_cc(controller);
-        if (index == 0xff) {
-          voice_.ControlChange(controller, value);
-        } else {
-          SetScaledParameter(index, value, false);          
-        }
-      }
+      voice_.ControlChange(controller, value);
       break;
   }
 }
@@ -365,20 +358,6 @@ void Part::Stop() {
 void Part::SetName(uint8_t* name) {
   memcpy(patch_.name, name, kPatchNameSize);
   dirty_ = true;
-}
-
-/* static */
-void Part::SetScaledParameter(
-    uint8_t parameter_index,
-    uint8_t value,
-    bool user_initiated) {
-  dirty_ = true;
-  const Parameter& parameter = parameter_manager.parameter(parameter_index);
-  SetParameter(
-      parameter_index,
-      parameter.offset,
-      parameter.Scale(value),
-      user_initiated);
 }
 
 /* static */

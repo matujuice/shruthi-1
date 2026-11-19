@@ -68,8 +68,6 @@ class Part {
   // Patch manipulation stuff.
   static void SetParameter(uint8_t index, uint8_t offset, uint8_t value,
       bool user_initiated);
-  static void SetScaledParameter(uint8_t index, uint8_t value,
-      bool user_initiated);
   static inline uint8_t GetParameter(uint8_t offset) {
     return data_access_byte_[offset + 1];
   }
