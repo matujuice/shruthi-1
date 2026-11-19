@@ -187,6 +187,7 @@ enum ModulationDestination {
   MOD_DST_SUSTAIN_2,
   MOD_DST_RELEASE_2,
   MOD_DST_FX,  // FX amount.
+  MOD_DST_VOLUME,  // Patch volume (VOICE page).
   MOD_DST_LAST
 };
 

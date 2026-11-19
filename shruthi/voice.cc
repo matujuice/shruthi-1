@@ -220,10 +220,7 @@ inline void Voice::LoadSources() {
     }
   }
 
-  // MIDI CC7 volume, scaled by the patch volume (VOICE page). The matrix
-  // "volume" destination (stock VCA, env2 by default) scales this.
-  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(
-      volume_, (part.patch_.extra_data_[4] << 1) | 1);
+  modulation_destinations_[MOD_DST_VCA] = volume_;
   
   // Load and scale to 0-16383 the initial value of each modulated parameter.
   dst_[MOD_DST_FILTER_CUTOFF] = U8U8Mul(
@@ -256,6 +253,7 @@ inline void Voice::LoadSources() {
   dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
   dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
   dst_[MOD_DST_FX] = part.patch_.extra_data_[2] << 7;
+  dst_[MOD_DST_VOLUME] = part.patch_.extra_data_[4] << 7;
 }
 
 /* static */
@@ -363,6 +361,10 @@ inline void Voice::UpdateDestinations() {
   modulation_destinations_[MOD_DST_FILTER_RESONANCE] = U14ShiftRight6(
       dst_[MOD_DST_FILTER_RESONANCE]);
 
+  // Patch volume (knob + matrix "volume") scales the VCA result.
+  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(
+      modulation_destinations_[MOD_DST_VCA],
+      U14ShiftRight6(dst_[MOD_DST_VOLUME]));
   modulation_destinations_[MOD_DST_CV_1] = U14ShiftRight6(dst_[MOD_DST_CV_1]);
   modulation_destinations_[MOD_DST_CV_2] = U14ShiftRight6(dst_[MOD_DST_CV_2]);
   modulation_destinations_[MOD_DST_LFO_1] = S16ShiftRight8(dst_[MOD_DST_LFO_1]);

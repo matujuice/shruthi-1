@@ -269,7 +269,7 @@ static const prog_char long_dst[] PROGMEM =
   "sub osc\0"
   "cutoff\0"
   "reso\0"
-  "volume\0"
+  "vca\0"
   "drive\0"
   "fm\0"
   "attack1\0"
@@ -283,7 +283,8 @@ static const prog_char long_dst[] PROGMEM =
   "attacks\0"
   "lfo 1\0"
   "lfo 2\0"
-  "fx amt\0";
+  "fx amt\0"
+  "volume\0";
 static const prog_char long_cv_op[] PROGMEM =
   "off\0"
   "sum\0"
@@ -1405,8 +1406,8 @@ char Editor::PrintParameter(
     memcpy_P(t, fx_names + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_DESTINATION) {
     // Display order (modulation_destination_map); resources.cc stays as is.
-    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvoldrvfm a1 d1 s1 "
-                     "r1 a2 d2 s2 r2 attlf1lf2fx ") + 3 * value, 3);
+    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvcadrvfm a1 d1 s1 "
+                     "r1 a2 d2 s2 r2 attlf1lf2fx vol") + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_SOURCE &&
       value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_B) {
     memcpy_P(t, PSTR("c16c17") + 3 * (value - MOD_SRC_CC_A), 3);
@@ -1895,6 +1896,7 @@ const prog_uint8_t modulation_destination_map[] PROGMEM = {
   MOD_DST_LFO_1,
   MOD_DST_LFO_2,
   MOD_DST_FX,
+  MOD_DST_VOLUME,
 };
 
 /* static */
