@@ -1619,6 +1619,16 @@ char Editor::PrintParameter(
   return out[3];
 }
 
+// ponytail: temporary stack meter for the delay/pluck RAM tests; remove after.
+// At boot, free RAM is filled with 0xaa; bytes still 0xaa were never used.
+extern uint8_t __heap_start;
+static void PaintStack() __attribute__((naked, used, section(".init3")));
+static void PaintStack() {
+  for (uint8_t* p = &__heap_start; p < reinterpret_cast<uint8_t*>(SP); ++p) {
+    *p = 0xaa;
+  }
+}
+
 /* static */
 void Editor::DisplaySysPage() {
   // List:  SETTINGS     1/4   inside:  KEYBOARD     1/2   last row inside:
@@ -1631,6 +1641,17 @@ void Editor::DisplaySysPage() {
     memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
   } else {
     memcpy_P(row_0, PSTR("SETTINGS"), 8);
+    uint16_t unused = 0;  // Never-used RAM, right-aligned at columns 9-12.
+    for (uint8_t* p = &__heap_start; *p == 0xaa; ++p) {
+      ++unused;
+    }
+    for (uint8_t i = 12; ; --i) {
+      row_0[i] = '0' + unused % 10;
+      unused /= 10;
+      if (!unused) {
+        break;
+      }
+    }
   }
   uint8_t cursor = kLcdNoCursor;
   if (sys_open_ && cursor_ == count) {
