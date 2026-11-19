@@ -75,9 +75,10 @@ PageDefinition Editor::page_definition_[] = {
   /* PAGE_MOD_ENV_2 */ { PAGE_MOD_ENV_2, GROUP_AMP, PARAMETER_EDITOR, LED_4_MASK },
   /* PAGE_MOD_LFO_1 */ { PAGE_MOD_LFO_2, GROUP_MOD, PARAMETER_EDITOR, LED_6_MASK },
   /* PAGE_MOD_LFO_2 */ { PAGE_MOD_LFO_1, GROUP_MOD, PARAMETER_EDITOR, LED_6_MASK },
-  /* PAGE_FX */ { PAGE_FX_2, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
-  /* PAGE_FX_2 */ { PAGE_FX, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
-  /* PAGE_FILTER_MULTIMODE */ { PAGE_FILTER_MULTIMODE, GROUP_VCF,
+  /* PAGE_FX */ { PAGE_FX, GROUP_FX, PARAMETER_EDITOR, LED_1_MASK | LED_2_MASK | LED_WRITE_MASK },
+  /* PAGE_FILTER_MULTIMODE */ { PAGE_FX_2, GROUP_VCF,
+    PARAMETER_EDITOR, LED_3_MASK | LED_WRITE_MASK },
+  /* PAGE_FX_2 */ { PAGE_FILTER_MULTIMODE, GROUP_VCF,
     PARAMETER_EDITOR, LED_3_MASK | LED_WRITE_MASK },
   /* PAGE_VOICE */ { PAGE_VOICE, GROUP_VOICE, PARAMETER_EDITOR, LED_5_MASK | LED_WRITE_MASK },
   /* PAGE_MOD_MATRIX */ { PAGE_MOD_OPERATORS, GROUP_MOD_MATRIX,
@@ -107,8 +108,8 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 24, 25, 26, 27 },  // LFO 1
   { 28, 29, 30, 31 },  // LFO 2
   { 8, 9, 0xff, 0xff },  // OPERATOR
-  { 94, 95, 96, 0xff },  // FX
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
+  { 94, 95, 96, 0xff },  // FX
   { 46, 47, 45, 0xff },  // VOICE (octave is global: SYS MIDI)
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
@@ -127,8 +128,8 @@ static const prog_char page_labels[] PROGMEM =
   "wavspdmulmod"  // 6
   "wavspdmulmod"  // 7
   "op mix      "  // 8
-  "typamtprm   "  // 9
   "modovdfm    "  // 9
+  "typamtprm   "  // 10
   "prtlegrst   "  // 10
   "sltsrcdstamt"  // 11
   "op in1in2out";  // 12 (SYS pages are menus: no labels)
@@ -142,9 +143,9 @@ static const prog_char page_titles[] PROGMEM =
   "AMP  AMP ENV    "
   "MOD  LFO 1   1/2"
   "MOD  LFO 2   2/2"
-  "OPERATOR     1/2"
+  "OPERATOR        "
+  "POLIVOKS     1/2"
   "FX           2/2"
-  "POLIVOKS        "
   "VOICE           "
   "MATRIX       1/2"
   "MATH         2/2"
