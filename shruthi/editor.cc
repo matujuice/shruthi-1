@@ -260,8 +260,8 @@ static const prog_char long_src[] PROGMEM =
 static const prog_char long_dst[] PROGMEM =
   "pwm 1\0"
   "pwm 2\0"
-  "osc 1\0"
-  "osc 2\0"
+  "pitch 1\0"
+  "pitch 2\0"
   "osc 1+2\0"
   "finetune\0"
   "osc mix\0"
@@ -269,7 +269,7 @@ static const prog_char long_dst[] PROGMEM =
   "sub osc\0"
   "cutoff\0"
   "reso\0"
-  "vca\0"
+  "volume\0"
   "drive\0"
   "fm\0"
   "env1trig\0"
@@ -1407,6 +1407,12 @@ char Editor::PrintParameter(
     memcpy_P(t, fx_names + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_DESTINATION && value == MOD_DST_FX) {
     strcpy_P(t, PSTR("fx"));  // Display index; the stock short names stop before.
+  } else if (p.unit == UNIT_MODULATION_DESTINATION && value == MOD_DST_VCA) {
+    strcpy_P(t, PSTR("vol"));  // Stock "vca"; resources.cc stays as is.
+  } else if (p.unit == UNIT_MODULATION_DESTINATION &&
+      (value == MOD_DST_VCO_1 || value == MOD_DST_VCO_2)) {
+    strcpy_P(t, PSTR("pt1"));
+    t[2] += value - MOD_DST_VCO_1;
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
     *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
