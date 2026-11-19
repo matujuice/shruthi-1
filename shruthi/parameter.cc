@@ -888,6 +888,13 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     0, 127,
     { 0, 0 },
     STR_RES_PRM, STR_RES_PRM },
+
+  // 97: patch volume
+  { 80,
+    UNIT_UINT8,
+    0, 127,
+    { 0, 0 },
+    STR_RES_LEVEL, STR_RES_LEVEL },
 };
 
 /* static */

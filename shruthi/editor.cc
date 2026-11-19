@@ -110,7 +110,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 8, 9, 0xff, 0xff },  // OPERATOR
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
   { 94, 95, 96, 0xff },  // FX
-  { 46, 47, 45, 0xff },  // VOICE (octave is global: SYS MIDI)
+  { 46, 47, 45, 97 },  // VOICE (octave is global: SYS MIDI)
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
   { 48, 49, 50, 44 },  // SYS MIDI (octave stays global)
@@ -130,7 +130,7 @@ static const prog_char page_labels[] PROGMEM =
   "op mix      "  // 8
   "modovdfm    "  // 9
   "typamtprm   "  // 10
-  "prtlegrst   "  // 10
+  "prtlegrstvol"  // 10
   "sltsrcdstamt"  // 11
   "op in1in2out";  // 12 (SYS pages are menus: no labels)
 
@@ -319,7 +319,7 @@ static const prog_char long_f1[] PROGMEM =
 // Top-row names that replace the stock long names.
 static const prog_uint8_t long_name_ids[] PROGMEM = {
   0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77, 45,
-  94, 95
+  94, 95, 97
 };
 static const prog_char long_names[] PROGMEM =
   "osc1\0"
@@ -344,7 +344,8 @@ static const prog_char long_names[] PROGMEM =
   "fm fdbk\0"
   "retrig\0"
   "fx\0"
-  "amount\0";
+  "amount\0"
+  "volume\0";
 
 // Copies the n-th '\0'-separated string of a PROGMEM list.
 static void CopyNth(const prog_char* list, uint8_t n, char* out) {

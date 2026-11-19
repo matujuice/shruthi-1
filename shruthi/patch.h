@@ -101,6 +101,7 @@ class Patch {
   uint8_t name[kPatchNameSize];
 
   // Offset: 76-84. [1..3]: FX type, amount, param (offsets 77-79).
+  // [4]: patch volume (offset 80).
   uint8_t extra_data_[8];
 
   // Offset: 84-92

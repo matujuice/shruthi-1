@@ -220,7 +220,9 @@ inline void Voice::LoadSources() {
     }
   }
 
-  modulation_destinations_[MOD_DST_VCA] = volume_;
+  // MIDI CC7 volume, scaled by the patch volume (VOICE page).
+  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(
+      volume_, (part.patch_.extra_data_[4] << 1) | 1);
   
   // Load and scale to 0-16383 the initial value of each modulated parameter.
   dst_[MOD_DST_FILTER_CUTOFF] = U8U8Mul(
