@@ -413,6 +413,8 @@ static const prog_uint8_t icons[] PROGMEM = {
   0x00, 0x11, 0x15, 0x15, 0x1f, 0x00, 0x00, 0x00,  // st8
   0x00, 0x1c, 0x02, 0x02, 0x01, 0x01, 0x00, 0x00,  // lpf
   0x00, 0x0e, 0x11, 0x11, 0x11, 0x11, 0x00, 0x00,  // bpf
+  0x00, 0x06, 0x09, 0x10, 0x00, 0x00, 0x00, 0x00,  // smooth random
+  0x00, 0x10, 0x10, 0x08, 0x06, 0x01, 0x00, 0x00,  // exp decay
 };
 
 // Icon index for each value of the units that have icons. 0xff = no icon.
@@ -420,7 +422,7 @@ static const prog_uint8_t icon_map[] PROGMEM = {
   5, 0, 1, 3, 6, 7, 8, 9, 10, 11, 12, 17, 17, 17, 17, 17, 17, 17, 17, 17, 13, 24, 14, 15, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
   1, 3, 2, 1, 3, 2, 18, 19, 20, 21, 22,
   25, 10, 26, 27, 23, 24, 24, 28, 13, 29, 30, 31, 32, 0xff,
-  3, 1, 4, 0, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17,
+  3, 1, 4, 0, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 35, 36,
   33, 34,
 };
 
@@ -636,8 +638,8 @@ static char Icon(uint8_t unit, uint8_t value) {
     case UNIT_WAVEFORM: base = 0; count = 35; break;
     case UNIT_SUB_OSC_WAVEFORM: base = 35; count = 11; break;
     case UNIT_OPERATOR: base = 46; count = 14; break;
-    case UNIT_LFO_WAVEFORM: base = 60; count = 20; break;
-    case UNIT_FILTER_1_MODE: base = 80; count = 2; break;
+    case UNIT_LFO_WAVEFORM: base = 60; count = 22; break;
+    case UNIT_FILTER_1_MODE: base = 82; count = 2; break;
     default: return ' ';
   }
   uint8_t icon = value < count ? pgm_read_byte(icon_map + base + value) : 0xff;
@@ -878,7 +880,7 @@ void Editor::SaveSystemSettings() {
 }
 
 // Labels of patch parameter ids 0-31 come from the synth pages 0-8.
-static const prog_char perf_groups[] PROGMEM = "osc1osc2mix filtfenvaenvlfo1lfo2fx  ";
+static const prog_char perf_groups[] PROGMEM = "osc1osc2mix filtfenvaenvlfo1lfo2op  ";
 
 /* static */
 void Editor::PerfLabel(uint8_t id, char* out, bool long_name) {
@@ -907,8 +909,8 @@ void Editor::StartMidiBackup() {
 void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
   confirm_page_settings_ = confirm_page_settings;
   confirm_return_page_ = current_page_;
-  cursor_ = confirm_page_settings.callback == &QuickSave ||
-      confirm_page_settings.callback == &PageTool;  // Yes / rand.
+  // Yes/no screens start on no; the page tools menu on rand.
+  cursor_ = confirm_page_settings.callback == &PageTool;
   current_page_ = PAGE_CONFIRM;
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   Refresh();
@@ -1348,7 +1350,6 @@ void Editor::OnPatchMenuClick() {
       {
         action_ = ACTION_MENU;  // The confirm window returns to the menu.
         ConfirmPageSettings confirm_midi_backup;
-        confirm_midi_backup.text = STR_RES_START_FULL_MIDI;
         confirm_midi_backup.callback = &StartMidiBackup;
         Confirm(confirm_midi_backup);
       }
@@ -2161,49 +2162,22 @@ void Editor::DisplayConfirmPage() {
     display.Print(1, row_1);
     return;
   }
-  if (confirm_page_settings_.callback == &RandomizePage) {
-    memset(line_buffer_, ' ', sizeof(line_buffer_));
-    char* row_1 = line_buffer_ + kLcdWidth + 1;
-    memcpy_P(line_buffer_, PSTR("RANDOMIZE PAGE?"), 15);
-    line_buffer_[kLcdWidth] = '\0';
-    memcpy_P(row_1, PSTR(" yes  no"), 8);
-    row_1[cursor_ ? 0 : 5] = 0x7e;
-    display.Print(0, line_buffer_);
-    display.Print(1, row_1);
-    return;
-  }
+  // Every yes/no screen: question on top, " yes  no" below, arrow on the choice.
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  char* row_1 = line_buffer_ + kLcdWidth + 1;
   if (confirm_page_settings_.callback == &QuickSave) {
-    // SAVE NAME....?
-    //  yes  no        (arrow on the choice)
-    memset(line_buffer_, ' ', sizeof(line_buffer_));
-    char* row_1 = line_buffer_ + kLcdWidth + 1;
     memcpy_P(line_buffer_, PSTR("SAVE"), 4);
     memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
     line_buffer_[5 + kPatchNameSize] = '?';
-    line_buffer_[kLcdWidth] = '\0';
-    memcpy_P(row_1, PSTR(" yes  no"), 8);
-    row_1[cursor_ ? 0 : 5] = 0x7e;
-    display.Print(0, line_buffer_);
-    display.Print(1, row_1);
-    return;
+  } else {
+    const prog_char* q = confirm_page_settings_.callback == &RandomizePage ?
+        PSTR("RANDOMIZE PAGE?") : PSTR("MIDI BACKUP?");
+    memcpy_P(line_buffer_, q, strlen_P(q));
   }
-  for (uint8_t i = 0; i < 2; ++i) {
-    ResourcesManager::LoadStringResource(
-        confirm_page_settings_.text + i,
-        line_buffer_,
-        kLcdWidth);
-    AlignLeft(line_buffer_, kLcdWidth);
-    if (i == 1) {
-      if (cursor_) {
-        line_buffer_[kLcdWidth - 2] = 'o';
-        line_buffer_[kLcdWidth - 1] = 'k';
-      } else {
-        line_buffer_[kLcdWidth - 2] = 'n';
-        line_buffer_[kLcdWidth - 1] = 'o';
-      }
-    }
-    display.Print(i, line_buffer_);
-  }
+  memcpy_P(row_1, PSTR(" yes  no"), 8);
+  row_1[cursor_ ? 0 : 5] = 0x7e;
+  display.Print(0, line_buffer_);
+  display.Print(1, row_1);
 }
 
 }  // namespace shruthi

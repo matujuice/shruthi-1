@@ -248,8 +248,6 @@ inline void Voice::LoadSources() {
     *envelope_parameters++ = U8U8Mul(part.patch_.env[i].sustain, 128);
     *envelope_parameters++ = U8U8Mul(part.patch_.env[i].release, 128);
   }
-  dst_[MOD_DST_CV_1] = 0;
-  dst_[MOD_DST_CV_2] = 0;
   dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
   dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
   dst_[MOD_DST_FX] = part.patch_.extra_data_[2] << 7;
