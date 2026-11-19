@@ -38,9 +38,7 @@ namespace shruthi {
 Part part;
 
 /* <static> */
-uint8_t Part::data_access_byte_[1];
 Patch Part::patch_;
-SequencerSettings Part::sequencer_settings_;
 SystemSettings Part::system_settings_;
 bool Part::dirty_;
 
@@ -366,13 +364,27 @@ void Part::SetParameter(
     uint8_t offset,
     uint8_t value,
     bool user_initiated) {
-  if (data_access_byte_[offset + 1] == value) {
+  uint8_t* byte = ParameterByte(offset);
+  if (*byte == value) {
     return;
   }
-  data_access_byte_[offset + 1] = value;
+  *byte = value;
   if (offset >= PRM_ENV_ATTACK_1 && offset <= PRM_LFO_RETRIGGER_2) {
     UpdateModulationRates();
   }
+}
+
+// Parameter offsets: patch bytes, then system settings from PRM_SYS_OCTAVE.
+// Don't rely on the linker placing the globals next to each other.
+/* static */
+uint8_t* Part::ParameterByte(uint8_t offset) {
+  static uint8_t unused;  // Old sequencer offsets: nothing behind them.
+  if (offset < sizeof(Patch)) {
+    return reinterpret_cast<uint8_t*>(&patch_) + offset;
+  }
+  offset -= PRM_SYS_OCTAVE;
+  return offset < sizeof(SystemSettings) ?
+      reinterpret_cast<uint8_t*>(&system_settings_) + offset : &unused;
 }
 
 /* static */

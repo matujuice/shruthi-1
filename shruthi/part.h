@@ -67,8 +67,9 @@ class Part {
   // Patch manipulation stuff.
   static void SetParameter(uint8_t index, uint8_t offset, uint8_t value,
       bool user_initiated);
+  static uint8_t* ParameterByte(uint8_t offset);
   static inline uint8_t GetParameter(uint8_t offset) {
-    return data_access_byte_[offset + 1];
+    return *ParameterByte(offset);
   }
   static void ResetPatch();
   static void ResetSystemSettings();
@@ -87,16 +88,10 @@ class Part {
   
   
   static inline const Patch& patch() { return patch_; }
-  static inline const SequencerSettings& sequencer_settings() {
-    return sequencer_settings_;
-  }
   static inline const SystemSettings& system_settings() {
     return system_settings_;
   }
   static inline Patch* mutable_patch() { return &patch_; }
-  static inline SequencerSettings* mutable_sequencer_settings() {
-    return &sequencer_settings_;
-  }
   static inline SystemSettings* mutable_system_settings() {
     return &system_settings_;
   }
@@ -155,9 +150,7 @@ class Part {
   
   static uint16_t Tune(uint8_t note);
    
-  static uint8_t data_access_byte_[1];
   static Patch patch_;
-  static SequencerSettings sequencer_settings_;
   static SystemSettings system_settings_;
   static bool dirty_;
   
