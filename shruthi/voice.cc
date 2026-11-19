@@ -54,6 +54,8 @@ int8_t Voice::modulation_destinations_[kNumModulationDestinations];
 int16_t Voice::dst_[kNumModulationDestinations];
 static uint8_t crush_phase_;  // FX crush: sample clock and held sample.
 static uint8_t crush_hold_;
+static uint16_t ring_phase_;  // FX ring: square carrier.
+static uint16_t smooth_;  // FX smooth: low-pass state, 8.8.
 uint8_t Voice::buffer_[kAudioBlockSize];
 uint8_t Voice::osc2_buffer_[kAudioBlockSize];
 uint8_t Voice::sync_state_[kAudioBlockSize];
@@ -660,7 +662,24 @@ void Voice::ProcessBlock() {
   if (fx) {
     uint8_t amount = U14ShiftRight6(dst_[MOD_DST_FX]);  // 0..254
     uint8_t param = part.patch_.extra_data_[3];
-    if (fx == FX_CRUSH) {
+    if (fx >= FX_RING) {
+      // ring: square carrier, amt 10 Hz..9.5 kHz. smooth: one-pole low-pass,
+      // amt = darker. param: dry signal mixed back in.
+      uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
+      uint8_t k = ((255 - amount) >> 1) + 1;  // 1..128: diff * k fits int16.
+      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+        uint8_t x = buffer_[i];
+        uint8_t wet;
+        if (fx == FX_RING) {
+          ring_phase_ += step;
+          wet = (ring_phase_ & 0x8000) ? ~x : x;
+        } else {
+          smooth_ += (static_cast<int16_t>(x) - (smooth_ >> 8)) * k;
+          wet = smooth_ >> 8;
+        }
+        buffer_[i] = U8Mix(wet, x, param << 1);
+      }
+    } else if (fx == FX_CRUSH) {
       // amount: sample-rate reduction; param: bits removed (0-7).
       uint8_t mask = 0xff << (param >> 4);
       uint16_t step = 256 - amount;

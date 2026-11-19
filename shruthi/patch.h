@@ -195,7 +195,7 @@ enum ModulationDestination {
 
 static const uint8_t kNumModulationDestinations = MOD_DST_LAST;
 
-enum FxType { FX_OFF, FX_DRIVE, FX_FOLD, FX_CRUSH };
+enum FxType { FX_OFF, FX_DRIVE, FX_FOLD, FX_CRUSH, FX_RING, FX_SMOOTH };
 
 enum PatchParameter {
   PRM_OSC_SHAPE_1,
@@ -342,6 +342,8 @@ enum LfoWave {
   LFO_WAVEFORM_WAVE_14,
   LFO_WAVEFORM_WAVE_15,
   LFO_WAVEFORM_WAVE_16,
+  LFO_WAVEFORM_SMOOTH,  // Random, gliding between values.
+  LFO_WAVEFORM_EXP,  // Exponential decay (kicks: one shot).
   LFO_WAVEFORM_LAST
 };
 

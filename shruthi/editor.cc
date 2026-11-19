@@ -307,14 +307,18 @@ static const prog_char long_fx[] PROGMEM =
   "off\0"
   "drive\0"
   "fold\0"
-  "crush\0";
-static const char fx_names[] PROGMEM = "offdrvfldcrs";
+  "crush\0"
+  "ring\0"
+  "smooth\0";
+static const char fx_names[] PROGMEM = "offdrvfldcrsrngsmo";
 // FX param name, per FX type.
 static const prog_char fx_param_names[] PROGMEM =
   "param\0"
   "bias\0"
   "offset\0"
-  "bits\0";
+  "bits\0"
+  "dry\0"
+  "dry\0";
 static const prog_char long_f1[] PROGMEM =
   "low pass\0"
   "bandpass\0"
@@ -526,6 +530,11 @@ static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
     case LFO_WAVEFORM_TRIANGLE:
       return (phase & 0x8000) ? phase >> 7 : ~static_cast<uint8_t>(phase >> 7);
     case LFO_WAVEFORM_SQUARE: return (phase & 0x8000) ? 255 : 0;
+    case LFO_WAVEFORM_SMOOTH: {  // The S&H steps, joined.
+      uint8_t k = phase >> 13;
+      return U8Mix(k * 97 + 40, (k + 1) * 97 + 40, phase >> 5);
+    }
+    case LFO_WAVEFORM_EXP: return Lfo::Exp(phase);
   }
   uint8_t shape = l.waveform - LFO_WAVEFORM_WAVE_1;  // As in Lfo::Render().
   shape = shape ? shape + 16 : 3;
@@ -1490,6 +1499,8 @@ char Editor::PrintParameter(
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_FX_PROGRAM) {
     memcpy_P(t, fx_names + 3 * value, 3);
+  } else if (p.unit == UNIT_LFO_WAVEFORM && value > LFO_WAVEFORM_WAVE_16) {
+    memcpy_P(t, PSTR("smoexp") + 3 * (value - LFO_WAVEFORM_SMOOTH), 3);
   } else if (p.unit == UNIT_MODULATION_DESTINATION) {
     // Display order (modulation_destination_map); resources.cc stays as is.
     memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresfenflfvcadrvfm pvktr1a1 d1 s1 "
@@ -1714,6 +1725,8 @@ void Editor::NameValue(uint8_t id, char* row, bool wide) {
   const prog_char* values = LongValues(p.unit);
   if (id >= 90 && id <= 93) {
     PerfLabel(value, text, true);
+  } else if (p.unit == UNIT_LFO_WAVEFORM && value > LFO_WAVEFORM_WAVE_16) {
+    strcpy_P(text, value == LFO_WAVEFORM_EXP ? PSTR("exp ramp") : PSTR("smooth"));
   } else if (p.unit == UNIT_LFO_WAVEFORM && value >= LFO_WAVEFORM_WAVE_1) {
     strcpy_P(text, PSTR("wave "));
     UnsafeItoa<int16_t>(value - LFO_WAVEFORM_WAVE_1 + 1, 3, text + 5);

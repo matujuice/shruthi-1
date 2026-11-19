@@ -58,6 +58,21 @@ class Lfo {
         value = value_;
         break;
 
+      case LFO_WAVEFORM_SMOOTH:
+        if (cycle_complete_) {
+          previous_ = value_;
+          value_ = Random::GetByte();
+        }
+        {
+          uint8_t t = phase >> 8;  // Time since the last value, either way.
+          value = U8Mix(previous_, value_, phase_increment_ < 0 ? ~t : t);
+        }
+        break;
+
+      case LFO_WAVEFORM_EXP:
+        value = Exp(phase);
+        break;
+
       case LFO_WAVEFORM_TRIANGLE:
         value = (phase & 0x8000) ?
             phase >> 7 :
@@ -101,6 +116,13 @@ class Lfo {
     return mode_ == LFO_MODE_HOLD ? held_value_ : value;
   }
 
+  // 1 - t, to the 4th power: close to e^(-5.5 t).
+  static inline uint8_t Exp(uint16_t phase) {
+    uint8_t p = ~(phase >> 8);
+    p = U8U8MulShift8(p, p);
+    return U8U8MulShift8(p, p);
+  }
+
   void Reset() {
     ResetPhase();
     Trigger();
@@ -135,6 +157,7 @@ class Lfo {
   bool cycle_complete_;
   bool running_;
   uint8_t value_;  // S&H.
+  uint8_t previous_;  // Smooth random: the value it glides from.
   uint8_t last_value_;
   uint8_t held_value_;
 
