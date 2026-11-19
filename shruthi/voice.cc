@@ -220,11 +220,10 @@ inline void Voice::LoadSources() {
     }
   }
 
-  // Amp env (env 2) hard-wired, scaled by CC7 and the patch volume. The
-  // matrix "volume" destination then scales this further.
-  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(U8U8MulShift8(
-      volume_, (part.patch_.extra_data_[4] << 1) | 1),
-      modulation_sources_[MOD_SRC_ENV_2]);
+  // MIDI CC7 volume, scaled by the patch volume (VOICE page). The matrix
+  // "volume" destination (stock VCA, env2 by default) scales this.
+  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(
+      volume_, (part.patch_.extra_data_[4] << 1) | 1);
   
   // Load and scale to 0-16383 the initial value of each modulated parameter.
   dst_[MOD_DST_FILTER_CUTOFF] = U8U8Mul(
