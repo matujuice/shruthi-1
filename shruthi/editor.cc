@@ -241,8 +241,8 @@ static const prog_char long_src[] PROGMEM =
   "offset\0"
   "cc 16\0"
   "cc 17\0"
-  "cc 2\0"
-  "cc 4\0"
+  "breath\0"
+  "pedal\0"
   "noise\0"
   "env 1\0"
   "env 2\0"
@@ -1408,8 +1408,8 @@ char Editor::PrintParameter(
     memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvoldrvfm a1 d1 s1 "
                      "r1 a2 d2 s2 r2 attlf1lf2fx ") + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_SOURCE &&
-      value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_D) {
-    memcpy_P(t, PSTR("c16c17c2 c4 ") + 3 * (value - MOD_SRC_CC_A), 3);
+      value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_B) {
+    memcpy_P(t, PSTR("c16c17") + 3 * (value - MOD_SRC_CC_A), 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
     *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
