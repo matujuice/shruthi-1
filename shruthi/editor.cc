@@ -1621,7 +1621,7 @@ char Editor::PrintParameter(
 
 // ponytail: temporary stack meter for the delay/pluck RAM tests; remove after.
 // At boot, free RAM is filled with 0xaa; bytes still 0xaa were never used.
-extern uint8_t __heap_start;
+extern "C" uint8_t __heap_start;  // Linker symbol: end of globals.
 static void PaintStack() __attribute__((naked, used, section(".init3")));
 static void PaintStack() {
   for (uint8_t* p = &__heap_start; p < reinterpret_cast<uint8_t*>(SP); ++p) {
