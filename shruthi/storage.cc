@@ -51,7 +51,7 @@ uint8_t Storage::sysex_rx_buffer_[129];
 uint8_t* Storage::sysex_rx_destination_;
 
 /* static */
-uint8_t Storage::undo_buffer_[128];
+uint8_t Storage::undo_buffer_[PATCH_SIZE];
 
 /* static */
 uint16_t Storage::sysex_rx_bytes_received_;
@@ -95,14 +95,81 @@ static const prog_char sysex_rx_header_old[] PROGMEM = {
   0x00, 0x02,  // Product ID for Shruthi-1.
 };
 
+// Bits kept per byte of the 92-byte patch, LSB first; 0x80 = signed. 528 bits
+// = 66 bytes. Unused extra_data_[5..7] and version_ are dropped; the PVK
+// booleans keep 1 bit, the filter modes 5. Must match shruthi/patch_translator.py.
+static const prog_uint8_t kPatchBits[PATCH_SIZE] PROGMEM = {
+  6, 7, 0x86, 4, 6, 7, 0x86, 7,  // Oscillators.
+  6, 6, 6, 4,  // Mixer.
+  7, 6, 6, 6,  // Filter.
+  7, 7, 7, 7, 7, 7, 7, 7,  // Envelopes.
+  5, 0x87, 4, 3, 5, 0x87, 4, 3,  // LFOs.
+  5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87,  // Matrix.
+  5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87,
+  5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87, 5, 5, 0x87,
+  8, 8, 8, 8, 8, 8, 8, 8,  // Name: starts at bit 394.
+  8, 2, 7, 7, 7, 0, 0, 0,  // Voice, FX, volume.
+  1, 1, 5, 8, 8, 8, 8, 0,  // PVK overdrive, FM, modes; math ops.
+};
+
+static const uint8_t kPackedPatchSize = StorageConfiguration<Patch>::packed_size;
+
 /* static */
 void Storage::WritePatch(uint16_t slot) {
-  Write(part.mutable_patch(), slot);
+  Patch* patch = part.mutable_patch();
+  patch->PrepareForWrite();
+  const uint8_t* src = patch->saved_data();
+  memset(load_buffer_, 0, kPackedPatchSize);
+  uint16_t bit = 0;
+  for (uint8_t i = 0; i < PATCH_SIZE; ++i) {
+    uint8_t n = pgm_read_byte(kPatchBits + i) & 0x0f;
+    uint8_t v = n == 1 ? src[i] != 0 : src[i];
+    for (; n; --n, ++bit, v >>= 1) {
+      if (v & 1) {
+        load_buffer_[bit >> 3] |= 1 << (bit & 7);
+      }
+    }
+  }
+  uint8_t* a = address<Patch>(slot);
+  if (slot < StorageConfiguration<Patch>::num_internal) {
+    eeprom_write_block(load_buffer_, a, kPackedPatchSize);
+  } else {
+    WriteExternal(load_buffer_, (uint16_t)(a), kPackedPatchSize);
+  }
 }
 
 /* static */
 void Storage::LoadPatch(uint16_t slot) {
-  Load(part.mutable_patch(), slot);
+  // Packed bytes sit at the end: unpacking forward never overwrites unread ones.
+  const uint8_t* src = load_buffer_ + sizeof(load_buffer_) - kPackedPatchSize;
+  LoadBytes<Patch>((uint8_t*)src, 0, kPackedPatchSize, slot);
+  uint16_t bit = 0;
+  for (uint8_t i = 0; i < PATCH_SIZE; ++i) {
+    uint8_t w = pgm_read_byte(kPatchBits + i);
+    uint8_t n = w & 0x0f;
+    uint8_t v = 0;
+    for (uint8_t j = 0; j < n; ++j, ++bit) {
+      if (src[bit >> 3] & (1 << (bit & 7))) {
+        v |= 1 << j;
+      }
+    }
+    if ((w & 0x80) && (v & (1 << (n - 1)))) {
+      v |= 0xff << n;
+    }
+    load_buffer_[i] = v;
+  }
+  // Erased EEPROM unpacks to shape 63: no version, so the load is refused.
+  load_buffer_[91] = load_buffer_[0] < WAVEFORM_LAST ? '+' : 0;
+  AcceptData(part.mutable_patch(), load_buffer_);
+}
+
+/* static */
+void Storage::LoadPatchName(uint8_t* destination, uint16_t slot) {
+  uint8_t b[kPatchNameSize + 1];  // Bit 394 = byte 49, bit 2.
+  LoadBytes<Patch>(b, 49, sizeof(b), slot);
+  for (uint8_t i = 0; i < kPatchNameSize; ++i) {
+    destination[i] = (b[i] >> 2) | (b[i + 1] << 6);
+  }
 }
 
 /* static */

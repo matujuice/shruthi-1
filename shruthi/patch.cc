@@ -25,8 +25,9 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '*';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': no CC7.
-  filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
+  version_ = '+';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': no CC7; '+': 3 FX.
+  // PVK: any mode but LP plays as BP (voice.cc), and storage keeps 1 bit of it.
+  filter_topology_ = ((filter_1_mode_ != FILTER_MODE_LP) << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
   op_data_[2] = ops_[1].operands[0];
@@ -60,7 +61,7 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
   }
   if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&' &&
       buffer[91] != '\'' && buffer[91] != '(' && buffer[91] != ')' &&
-      buffer[91] != '*') {
+      buffer[91] != '*' && buffer[91] != '+') {
     memset(name, '-', 8);
     return 0;
   }
@@ -112,8 +113,8 @@ void Patch::Update() {
   filter_1_mode_ = filter_topology_ >> 4;
 
   // ponytail: older LFO settings ('!', '%') are converted by shruthi/patch_translator.py.
-  if (version_ != '*' && version_ != ')' && version_ != '(' &&
-      version_ != '\'') {
+  uint8_t v = version_ == '+' ? '*' : version_;  // '+' only renumbered the FX.
+  if (v != '*' && v != ')' && v != '(' && v != '\'') {
     for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
       Modulation* m = &modulation_matrix.modulation[i];
       uint8_t s = RemapSource(m->source);
@@ -129,15 +130,18 @@ void Patch::Update() {
       *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
     }
   }
-  if (version_ != '*' && version_ != ')' && version_ != '(') {
+  if (v != '*' && v != ')' && v != '(') {
     extra_data_[1] = extra_data_[2] = extra_data_[3] = 0;  // FX off.
   }
-  if (version_ != '*' && version_ != ')') {
+  if (v != '*' && v != ')') {
     extra_data_[4] = 127;  // Full volume.
   }
-  if (version_ != '*') {
-    version_ = '*';
+  uint8_t fx = extra_data_[1];
+  if (version_ != '+') {
+    fx = fx == 4 ? FX_RING : (fx == 5 ? FX_DELAY : FX_OFF);  // drive, fold, crush are gone.
   }
+  extra_data_[1] = fx > FX_DELAY ? FX_OFF : fx;
+  version_ = '+';
   // Out-of-range indices would make the voice read/write past its arrays.
   for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
     Modulation* m = &modulation_matrix.modulation[i];
@@ -158,7 +162,7 @@ void Patch::Update() {
     }
   }
   
-  if (version_ != '!') {
+  if (v != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();
 
     system_settings->legato = extra_data_[0] & 0x40 ? 1 : 0;

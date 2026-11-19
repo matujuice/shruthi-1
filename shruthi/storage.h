@@ -49,28 +49,14 @@ class StorageConfiguration { };
 template<> class StorageConfiguration<Patch> {
  public:
   enum {
-    num_internal = 16,
-    num_external = 64,
+    packed_size = 66,  // Bit-packed in EEPROM: see kPatchBits in storage.cc.
+    num_internal = (2044 - 16) / packed_size,  // 30; perf knobs at 2044.
+    num_external = (kBankSize - 2) / packed_size,  // 124; bank marker in the last 2 bytes.
     offset_internal = 16,
     offset_external = 0,
     size = PATCH_SIZE,
     sysex_object_id = 0x01,
     undo_buffer_offset = 0,
-  };
-};
-
-template<> class StorageConfiguration<SequencerSettings> {
- public:
-  enum {
-    num_internal = 16,
-    num_external = 64,
-    offset_internal = StorageConfiguration<Patch>::offset_internal + \
-        StorageConfiguration<Patch>::num_internal * PATCH_SIZE,
-    offset_external = StorageConfiguration<Patch>::offset_external + \
-        StorageConfiguration<Patch>::num_external * PATCH_SIZE,
-    size = sizeof(SequenceStep) * kNumSteps,
-    sysex_object_id = 0x02,
-    undo_buffer_offset = PATCH_SIZE,
   };
 };
 
@@ -125,9 +111,7 @@ class Storage {
 
   static void WritePatch(uint16_t slot);
   static void LoadPatch(uint16_t slot);
-  static void LoadPatchName(uint8_t* destination, uint16_t slot) {
-    LoadBytes<Patch>(destination, 68, 8, slot);
-  }
+  static void LoadPatchName(uint8_t* destination, uint16_t slot);
 
   template<typename T>
   static uint8_t AcceptData(T* ptr, uint8_t* data) {
@@ -140,38 +124,6 @@ class Storage {
   }
 
  private:
-  template<typename T>
-  static void Write(T* ptr, uint16_t slot) {
-    ptr->PrepareForWrite();
-    if (slot < StorageConfiguration<T>::num_internal) {
-      eeprom_write_block(
-          (uint8_t *)(ptr->saved_data()),
-          address<T>(slot),
-          StorageConfiguration<T>::size);
-
-    } else {
-      WriteExternal(
-          (uint8_t *)(ptr->saved_data()),
-          (uint16_t)(address<T>(slot)),
-          StorageConfiguration<T>::size);
-    }
-  }
-  template<typename T>
-  static void Load(T* ptr, uint16_t slot) {
-    if (slot < StorageConfiguration<T>::num_internal) {
-      eeprom_read_block(
-          load_buffer_,
-          address<T>(slot),
-          StorageConfiguration<T>::size);
-    } else {
-      ReadExternal(
-          load_buffer_,
-          (uint16_t)(address<T>(slot)),
-          StorageConfiguration<T>::size);
-    }
-    AcceptData(ptr, load_buffer_);
-  }
-
   template<typename T>
   static void LoadBytes(
       uint8_t* destination,
@@ -190,7 +142,7 @@ class Storage {
     if (slot < StorageConfiguration<T>::num_internal) {
       return (uint8_t*)(
           StorageConfiguration<T>::offset_internal + \
-          StorageConfiguration<T>::size * slot);
+          StorageConfiguration<T>::packed_size * slot);
     } else {
       slot -= StorageConfiguration<T>::num_internal;
       uint16_t base = StorageConfiguration<T>::offset_external;
@@ -198,7 +150,7 @@ class Storage {
         slot -= StorageConfiguration<T>::num_external;
         base += kBankSize;
       }
-      return (uint8_t*)(base + StorageConfiguration<T>::size * slot);
+      return (uint8_t*)(base + StorageConfiguration<T>::packed_size * slot);
     }
   }
 
@@ -211,7 +163,7 @@ class Storage {
       uint8_t command,
       uint8_t argument,
       uint8_t size);
-  static uint8_t undo_buffer_[128];
+  static uint8_t undo_buffer_[PATCH_SIZE];
   static uint8_t load_buffer_[sizeof(Patch)];
   static uint8_t sysex_rx_buffer_[129];
   static uint8_t* sysex_rx_destination_;

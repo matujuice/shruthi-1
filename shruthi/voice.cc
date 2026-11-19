@@ -52,8 +52,6 @@ int16_t Voice::pitch_bass_note_;
 uint8_t Voice::modulation_sources_[kNumModulationSources];
 int8_t Voice::modulation_destinations_[kNumModulationDestinations];
 int16_t Voice::dst_[kNumModulationDestinations];
-static uint8_t crush_phase_;  // FX crush: sample clock and held sample.
-static uint8_t crush_hold_;
 static uint16_t ring_phase_;  // FX ring: square carrier.
 // FX delay: one slot per 2 samples, so 768 slots = 39 ms at most.
 static const uint16_t kDelaySize = 768;
@@ -688,45 +686,6 @@ void Voice::ProcessBlock() {
         ring_phase_ += step;
         uint8_t wet = (ring_phase_ & 0x8000) ? ~x : x;
         buffer_[i] = U8Mix(wet, x, param << 1);
-      }
-    } else if (fx == FX_CRUSH) {
-      // amount: sample-rate reduction; param: bits removed (0-7).
-      uint8_t mask = 0xff << (param >> 4);
-      uint16_t step = 256 - amount;
-      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-        uint16_t phase = crush_phase_ + step;
-        if (phase >= 256) {
-          crush_hold_ = buffer_[i] & mask;
-        }
-        crush_phase_ = phase;
-        buffer_[i] = crush_hold_;
-      }
-    } else {
-      // drive: x1..x8.9 then clip, param = bias (even harmonics).
-      // fold: x1..x17 then fold back, param = offset (64 = centered).
-      bool fold = fx == FX_FOLD;
-      // Fold capped at x15.9: 16 + 254 would wrap the 8-bit gain.
-      uint8_t gain = fold ? 16 + (amount > 239 ? 239 : amount) : 16 + (amount >> 1);
-      int8_t bias = fold ? param - 64 : param >> 2;
-      // Math at x16 scale with mulsu and the asm shift: the int16 version
-      // cost ~60 cycles/sample and set off the '!' buffer underrun.
-      int16_t offset = bias * gain;  // |bias * gain| <= 64 * 255.
-      if (fold) {
-        uint16_t base = offset + 2048;  // +2048 = +128 after the shift.
-        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-          // uint16 wrap is harmless: 65536 / 16 is a multiple of the period.
-          uint16_t u = U16ShiftRight4(
-              static_cast<uint16_t>(S8U8Mul(buffer_[i] ^ 0x80, gain)) + base) & 511;
-          buffer_[i] = u > 255 ? 511 - u : u;  // Triangle fold, period 512.
-        }
-      } else {
-        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-          // |x| <= 128 * 143 + 63 * 143: fits int16.
-          int16_t x = S8U8Mul(buffer_[i] ^ 0x80, gain) + offset;
-          x = (x > 2047 ? 2047 : (x < -2048 ? -2048 : x)) - offset;  // Clip, remove bias DC.
-          x = x > 2047 ? 2047 : (x < -2048 ? -2048 : x);
-          buffer_[i] = U16ShiftRight4(x + 2048);
-        }
       }
     }
   }

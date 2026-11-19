@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Converts Shruthi-1 patches in a .syx file to the elektron-ui format (version ').
+"""Converts Shruthi-1 patches in a .syx file to the elektron-ui format.
 
 Usage: patch_translator.py in.syx out.syx [--bpm 160]
 
 Handles single patch dumps (command 0x01) and full backups (bulk dump,
 commands 0x40-0x43: internal and external patch memory). Other messages are
-copied unchanged.
+copied unchanged. Single dumps stay 92 bytes (version ', the firmware does the
+rest on load); old full backups are repacked to the 66-byte EEPROM layout
+(version +): 30 internal slots, 124 per bank, patches kept in the same order.
 
 - All older versions: SEQ, SEQ 1-2, ARP STEP and CV 1-4 modulation sources
   are gone (they were always 0 on this unit): those slots get amount 0; the
   other sources and the operator inputs are renumbered; the "seq mix" option
   stays and becomes "cc mix" (sources switched by CC 3).
+- Before '+': FX drive/fold/crush are gone (-> off); ring and delay renumbered.
 - '!' and '%' (original firmware): the LFOs become tempo-locked SPD/MUL.
   Step-synced rates keep their length (one cycle = n sixteenths); free rates
   are matched at --bpm. Fade-in is dropped. STEP SEQ waveform -> triangle.
@@ -22,8 +25,17 @@ HEADER = bytes([0xf0, 0x00, 0x21, 0x02, 0x00, 0x02])
 PATCH_SIZE = 92
 VERSION = ord("'")
 OLD_VERSIONS = (ord('!'), ord('%'), ord('&'))
+VERSIONS = OLD_VERSIONS + tuple(b"'()*+")
+ERASED = bytes([0xff])
 INTERNAL_EEPROM = 2048
 BANK_SIZE = 8192
+PACKED_SIZE = 66
+NUM_INTERNAL = (INTERNAL_EEPROM - 4 - 16) // PACKED_SIZE  # Perf knobs at 2044.
+NUM_EXTERNAL = (BANK_SIZE - 2) // PACKED_SIZE  # Bank marker in the last 2 bytes.
+# Bits per patch byte, LSB first, 0x80 = signed. Same as kPatchBits in storage.cc.
+PATCH_BITS = ([6, 7, 0x86, 4, 6, 7, 0x86, 7, 6, 6, 6, 4, 7, 6, 6, 6] + [7] * 8 +
+              [5, 0x87, 4, 3] * 2 + [5, 5, 0x87] * 12 + [8] * 8 +
+              [8, 2, 7, 7, 7, 0, 0, 0, 1, 1, 5, 8, 8, 8, 8, 0])
 
 # lut_res_lfo_increments of the original firmware (phase increment per
 # control block at 39215.7 / 40 Hz).
@@ -101,6 +113,50 @@ def convert_patch(p, bpm):
   return True
 
 
+def to_plus(p):
+  """Version ' to + in place, as Patch::Update does, plus the storage limits."""
+  v = p[91]
+  if v == ord("'"):
+    p[77:80] = [0, 0, 0]  # FX off.
+  if v in (ord("'"), ord('(')):
+    p[80] = 127  # Full volume.
+  if v != ord('+'):
+    p[77] = {4: 1, 5: 2}.get(p[77], 0)
+  p[81:84] = [0, 0, 0]
+  p[84], p[85] = p[84] != 0, p[85] != 0  # PVK overdrive, FM: on/off.
+  p[86] = (p[86] >= 16) << 4 | (p[86] & 15)  # PVK: not LP plays as BP.
+  p[91] = ord('+')
+
+
+def pack(p):
+  out, bit = bytearray(PACKED_SIZE), 0
+  for v, w in zip(p, PATCH_BITS):
+    n = w & 15
+    if n == 1:
+      v = int(v != 0)
+    elif w & 0x80:
+      assert -(1 << (n - 1)) <= (v ^ 0x80) - 0x80 < 1 << (n - 1), (bit, v)
+    else:
+      assert n == 0 or v < 1 << n, (bit, v)
+    for j in range(n):
+      out[(bit + j) >> 3] |= ((v >> j) & 1) << ((bit + j) & 7)
+    bit += n
+  return out
+
+
+def unpack(b):
+  p, bit = bytearray(PATCH_SIZE), 0
+  for i, w in enumerate(PATCH_BITS):
+    n = w & 15
+    v = sum(((b[(bit + j) >> 3] >> ((bit + j) & 7)) & 1) << j for j in range(n))
+    if w & 0x80 and v >> (n - 1):
+      v |= (0xff << n) & 0xff
+    p[i] = v
+    bit += n
+  p[91] = ord('+') if p[0] < 36 else 0  # WAVEFORM_LAST; erased = 63.
+  return p
+
+
 def nibbles_to_bytes(n):
   return bytearray((n[i] << 4) | n[i + 1] for i in range(0, len(n), 2))
 
@@ -114,6 +170,7 @@ def message(command, argument, data):
 
 
 def patch_addresses(size):
+  """Slots of the old 92-byte layout."""
   for i in range(16):
     yield 16 + i * PATCH_SIZE
   bank = INTERNAL_EEPROM
@@ -121,6 +178,32 @@ def patch_addresses(size):
     for i in range(64):
       yield bank + i * PATCH_SIZE
     bank += BANK_SIZE
+
+
+def packed_addresses(size):
+  for i in range(NUM_INTERNAL):
+    yield 16 + i * PACKED_SIZE
+  for bank in range(INTERNAL_EEPROM, size - BANK_SIZE + 1, BANK_SIZE):
+    for i in range(NUM_EXTERNAL):
+      yield bank + i * PACKED_SIZE
+
+
+def repack(memory, size, bpm):
+  """Old 92-byte layout -> packed, same slot order. Returns patches written."""
+  old = [memory[a:a + PATCH_SIZE] for a in patch_addresses(size)]
+  if not all(p[91] in VERSIONS or p == ERASED * PATCH_SIZE for p in old):
+    return 0  # Already packed (or not a patch memory image).
+  memory[16:INTERNAL_EEPROM - 4] = ERASED * (INTERNAL_EEPROM - 20)
+  for bank in range(INTERNAL_EEPROM, size - BANK_SIZE + 1, BANK_SIZE):
+    memory[bank:bank + BANK_SIZE - 2] = ERASED * (BANK_SIZE - 2)
+  n = 0
+  for a, p in zip(packed_addresses(size), old):
+    if p[91] in VERSIONS:
+      convert_patch(p, bpm)
+      to_plus(p)
+      memory[a:a + PACKED_SIZE] = pack(p)
+      n += 1
+  return n
 
 
 def translate(syx, bpm):
@@ -153,14 +236,7 @@ def translate(syx, bpm):
     else:
       out.append(m)
   if bulk:
-    size = max(a + n for _, _, a, n in bulk)
-    for a in patch_addresses(size):
-      if a + PATCH_SIZE > size:
-        break
-      p = memory[a:a + PATCH_SIZE]
-      if convert_patch(p, bpm):
-        memory[a:a + PATCH_SIZE] = p
-        converted += 1
+    converted += repack(memory, max(a + n for _, _, a, n in bulk), bpm)
     blocks = iter(message(c, g, memory[a:a + n]) for c, g, a, n in bulk)
     out = [next(blocks) if x is None else x for x in out]
   return b''.join(out), converted
@@ -179,11 +255,23 @@ def self_test():
   assert p[32:41] == bytearray([0, 0, 0, 2, 0, 40, 19, 0, 40]), p[32:41]
   assert p[87] == 0x80 and p[88] == (6 << 3) | 3, (p[87], p[88])
   assert p[24:28] == bytearray([0, 32, 4, 1]), p[24:28]  # 512 = 1 cycle/beat.
-  assert p[28] == 5 and p[31] == 0 and p[3] == 0 and p[91] == VERSION
+  assert p[28] == 5 and p[31] == 0 and p[3] == 13 and p[91] == VERSION
   assert not convert_patch(p, 120)  # Already converted.
   syx = message(0x01, 0, bytearray(p[:91]) + b'!')
   out, n = translate(syx + message(0x40, 0, bytes(128)), 120)
   assert n == 1 and out[-1] == 0xf7 and len(out) == len(syx) + 128 * 2 + 11
+  q = bytearray(p)
+  q[2], q[34], q[77], q[84], q[86], q[91] = 0xfb, 0xc1, 5, 50, 0x21, ord('*')
+  to_plus(q)
+  assert q[77] == 2 and q[84] == 1 and q[86] == 0x11 and q[91] == ord('+')
+  assert unpack(pack(q)) == q and unpack(ERASED * PACKED_SIZE)[91] == 0
+  assert NUM_INTERNAL == 30 and NUM_EXTERNAL == 124
+  assert sum(w & 15 for w in PATCH_BITS) == 8 * PACKED_SIZE
+  memory = bytearray(ERASED * (INTERNAL_EEPROM + BANK_SIZE))
+  memory[INTERNAL_EEPROM:INTERNAL_EEPROM + PATCH_SIZE] = q  # Old slot 17.
+  assert repack(memory, len(memory), 120) == 1
+  assert unpack(memory[16 + 16 * PACKED_SIZE:][:PACKED_SIZE]) == q
+  assert repack(memory, len(memory), 120) == 0  # Already packed.
 
 
 if __name__ == '__main__':

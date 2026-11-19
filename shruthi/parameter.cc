@@ -777,7 +777,7 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
   // 94: FX type (DSP-board FX unit, unused on PVK: names in the editor)
   { 77,
     UNIT_FX_PROGRAM,
-    0, 5,
+    0, 2,
     STR_RES_FX_, STR_RES_FX_ },
 
   // 95: FX amount
