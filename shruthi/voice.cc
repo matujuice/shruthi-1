@@ -55,6 +55,10 @@ int16_t Voice::dst_[kNumModulationDestinations];
 static uint8_t crush_phase_;  // FX crush: sample clock and held sample.
 static uint8_t crush_hold_;
 static uint16_t ring_phase_;  // FX ring: square carrier.
+// FX delay: one slot per 2 samples, so 768 slots = 39 ms at most.
+static const uint16_t kDelaySize = 768;
+static uint8_t delay_line_[kDelaySize];
+static uint16_t delay_pos_;
 uint8_t Voice::buffer_[kAudioBlockSize];
 uint8_t Voice::osc2_buffer_[kAudioBlockSize];
 uint8_t Voice::sync_state_[kAudioBlockSize];
@@ -71,6 +75,7 @@ void Voice::Init() {
     envelope_[i].Init();
   }
   memset(no_sync_, 0, kAudioBlockSize);
+  memset(delay_line_, 128, kDelaySize);  // Silence, not a DC step.
   
   NoteOff();
   
@@ -654,7 +659,25 @@ void Voice::ProcessBlock() {
   if (fx) {
     uint8_t amount = U14ShiftRight6(dst_[MOD_DST_FX]);  // 0..254
     uint8_t param = part.patch_.extra_data_[3];
-    if (fx == FX_RING) {
+    if (fx == FX_DELAY) {
+      // amount: time, 0.15..39 ms; param: feedback. 50% wet. Runs at half rate.
+      uint16_t length = U8U8Mul(amount, 3) + 3;
+      uint8_t feedback = param << 1;
+      for (uint8_t i = 0; i < kAudioBlockSize; i += 2) {
+        uint16_t read = delay_pos_ >= length
+            ? delay_pos_ - length : delay_pos_ + kDelaySize - length;
+        uint8_t delayed = delay_line_[read];
+        uint8_t x0 = buffer_[i];
+        uint8_t x1 = buffer_[i + 1];
+        delay_line_[delay_pos_] = U8Mix(
+            static_cast<uint8_t>((x0 + x1) >> 1), delayed, feedback);
+        if (++delay_pos_ == kDelaySize) {
+          delay_pos_ = 0;
+        }
+        buffer_[i] = U8Mix(x0, delayed, 128);
+        buffer_[i + 1] = U8Mix(x1, delayed, 128);
+      }
+    } else if (fx == FX_RING) {
       // Square carrier, amt 10 Hz..9.5 kHz; param: dry signal mixed back in.
       uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
       for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
