@@ -239,10 +239,10 @@ static const prog_char long_src[] PROGMEM =
   "pressure\0"
   "bender\0"
   "offset\0"
-  "cc a\0"
-  "cc b\0"
-  "breath\0"
-  "pedal\0"
+  "cc 16\0"
+  "cc 17\0"
+  "cc 2\0"
+  "cc 4\0"
   "noise\0"
   "env 1\0"
   "env 2\0"
@@ -272,12 +272,10 @@ static const prog_char long_dst[] PROGMEM =
   "volume\0"
   "drive\0"
   "fm\0"
-  "env1trig\0"
   "attack1\0"
   "decay1\0"
   "sustain1\0"
   "release1\0"
-  "env2trig\0"
   "attack2\0"
   "decay2\0"
   "sustain2\0"
@@ -1405,14 +1403,13 @@ char Editor::PrintParameter(
     memcpy_P(t, lfo_mode_names + 3 * value, 3);
   } else if (p.unit == UNIT_FX_PROGRAM) {
     memcpy_P(t, fx_names + 3 * value, 3);
-  } else if (p.unit == UNIT_MODULATION_DESTINATION && value == MOD_DST_FX) {
-    strcpy_P(t, PSTR("fx"));  // Display index; the stock short names stop before.
-  } else if (p.unit == UNIT_MODULATION_DESTINATION && value == MOD_DST_VCA) {
-    strcpy_P(t, PSTR("vol"));  // Stock "vca"; resources.cc stays as is.
-  } else if (p.unit == UNIT_MODULATION_DESTINATION &&
-      (value == MOD_DST_VCO_1 || value == MOD_DST_VCO_2)) {
-    strcpy_P(t, PSTR("pt1"));
-    t[2] += value - MOD_DST_VCO_1;
+  } else if (p.unit == UNIT_MODULATION_DESTINATION) {
+    // Display order (modulation_destination_map); resources.cc stays as is.
+    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvoldrvfm a1 d1 s1 "
+                     "r1 a2 d2 s2 r2 attlf1lf2fx ") + 3 * value, 3);
+  } else if (p.unit == UNIT_MODULATION_SOURCE &&
+      value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_D) {
+    memcpy_P(t, PSTR("c16c17c2 c4 ") + 3 * (value - MOD_SRC_CC_A), 3);
   } else if (p.unit == UNIT_LFO_RATE) {  // LFO multiplier: x1..x2k.
     *t++ = 'x';  // x128/x256/x512 spill into the meter column.
     if (value >= 10) {
@@ -1886,12 +1883,10 @@ const prog_uint8_t modulation_destination_map[] PROGMEM = {
   MOD_DST_VCA,
   MOD_DST_CV_1,
   MOD_DST_CV_2,
-  MOD_DST_TRIGGER_ENV_1,
   MOD_DST_ATTACK_1,
   MOD_DST_DECAY_1,
   MOD_DST_SUSTAIN_1,
   MOD_DST_RELEASE_1,
-  MOD_DST_TRIGGER_ENV_2,
   MOD_DST_ATTACK_2,
   MOD_DST_DECAY_2,
   MOD_DST_SUSTAIN_2,

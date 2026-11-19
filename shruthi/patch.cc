@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = ')';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume.
+  version_ = '*';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': hard-wired amp env.
   filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
@@ -59,7 +59,8 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
     }
   }
   if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&' &&
-      buffer[91] != '\'' && buffer[91] != '(' && buffer[91] != ')') {
+      buffer[91] != '\'' && buffer[91] != '(' && buffer[91] != ')' &&
+      buffer[91] != '*') {
     memset(name, '-', 8);
     return 0;
   }
@@ -111,7 +112,8 @@ void Patch::Update() {
   filter_1_mode_ = filter_topology_ >> 4;
 
   // ponytail: older LFO settings ('!', '%') are converted by shruthi/patch_translator.py.
-  if (version_ != ')' && version_ != '(' && version_ != '\'') {
+  if (version_ != '*' && version_ != ')' && version_ != '(' &&
+      version_ != '\'') {
     for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
       Modulation* m = &modulation_matrix.modulation[i];
       uint8_t s = RemapSource(m->source);
@@ -127,12 +129,26 @@ void Patch::Update() {
       *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
     }
   }
-  if (version_ != ')' && version_ != '(') {
+  if (version_ != '*' && version_ != ')' && version_ != '(') {
     extra_data_[1] = extra_data_[2] = extra_data_[3] = 0;  // FX off.
   }
-  if (version_ != ')') {
+  if (version_ != '*' && version_ != ')') {
     extra_data_[4] = 127;  // Full volume.
-    version_ = ')';
+  }
+  if (version_ != '*') {
+    // Env 2 now drives the VCA directly; env retrigger left the matrix.
+    for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
+      Modulation* m = &modulation_matrix.modulation[i];
+      if (m->source == MOD_SRC_ENV_2 && m->destination == MOD_DST_VCA) {
+        m->amount = 0;
+      }
+      if (m->destination == MOD_DST_TRIGGER_ENV_1 ||
+          m->destination == MOD_DST_TRIGGER_ENV_2) {
+        m->destination = MOD_DST_PWM_1;
+        m->amount = 0;
+      }
+    }
+    version_ = '*';
   }
   
   if (version_ != '!') {

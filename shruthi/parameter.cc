@@ -451,7 +451,7 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
   // 34
   { PRM_MOD_DESTINATION,
     UNIT_MODULATION_DESTINATION,
-    0, kNumModulationDestinations - 1,
+    0, kNumModulationDestinations - 3,  // Env trig destinations hidden.
     { 0, 0 },
     STR_RES_DST, STR_RES_DEST_ }, 
 
@@ -923,12 +923,8 @@ void ParameterManager::Init() {
     if (p.offset < 160) {
       offset_to_id_[p.offset] = i;
     }
-    if (p.midi_cc[0]) {
-      cc_to_id_[p.midi_cc[0]] = i;
-    }
-    if (p.midi_cc[1]) {
-      cc_to_id_[p.midi_cc[1]] = i;
-    }
+    // No parameter CCs: every parameter is on a knob page (matrix CC sources
+    // and CC7 volume are handled by Voice::ControlChange).
   }
   
   // Hack for NRPN ranges of the filter mode 1 & 2 parameters.
