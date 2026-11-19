@@ -308,16 +308,14 @@ static const prog_char long_fx[] PROGMEM =
   "drive\0"
   "fold\0"
   "crush\0"
-  "ring\0"
-  "smooth\0";
-static const char fx_names[] PROGMEM = "offdrvfldcrsrngsmo";
+  "ring\0";
+static const char fx_names[] PROGMEM = "offdrvfldcrsrng";
 // FX param name, per FX type.
 static const prog_char fx_param_names[] PROGMEM =
   "param\0"
   "bias\0"
   "offset\0"
   "bits\0"
-  "dry\0"
   "dry\0";
 static const prog_char long_f1[] PROGMEM =
   "low pass\0"

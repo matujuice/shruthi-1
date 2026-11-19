@@ -195,7 +195,7 @@ enum ModulationDestination {
 
 static const uint8_t kNumModulationDestinations = MOD_DST_LAST;
 
-enum FxType { FX_OFF, FX_DRIVE, FX_FOLD, FX_CRUSH, FX_RING, FX_SMOOTH };
+enum FxType { FX_OFF, FX_DRIVE, FX_FOLD, FX_CRUSH, FX_RING };
 
 enum PatchParameter {
   PRM_OSC_SHAPE_1,
