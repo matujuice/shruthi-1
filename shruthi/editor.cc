@@ -478,14 +478,24 @@ static const Modulation& MatrixRow() {
   return part.patch().modulation_matrix.modulation[Editor::subpage()];
 }
 
-// Matrix: only rows whose source is an LFO (drawn flipped if amount < 0).
+// Page whose shape the current matrix row sends (LFO or env), or 0xff.
+static uint8_t MatrixShapePage() {
+  uint8_t s = MatrixRow().source;
+  if (s <= MOD_SRC_LFO_2) {
+    return PAGE_MOD_LFO_1 + s;
+  }
+  if (s == MOD_SRC_ENV_1 || s == MOD_SRC_ENV_2) {
+    return PAGE_MOD_ENV_1 + s - MOD_SRC_ENV_1;
+  }
+  return 0xff;
+}
+
+// Matrix: rows from an LFO or env only (drawn flipped if amount < 0).
 static bool HasCloseup(uint8_t page) {
   return page <= PAGE_OSC_OSC_2 ||
       (page >= PAGE_MOD_ENV_1 && page <= PAGE_MOD_LFO_2) ||
-      (page == PAGE_MOD_MATRIX && MatrixRow().source <= MOD_SRC_LFO_2);
+      (page == PAGE_MOD_MATRIX && MatrixShapePage() != 0xff);
 }
-
-static uint8_t LfoLevel(const LfoSettings& l, uint8_t x);
 
 // exp(-4 i / 16) * 255.
 static const prog_uint8_t exp_decay[] PROGMEM = {
@@ -497,6 +507,10 @@ static uint8_t Decay(uint8_t t, uint8_t n) {  // t < n.
 
 // Level (0-255) of pixel column x (0-79) of an envelope or LFO page.
 static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
+  if (page == PAGE_MOD_MATRIX) {
+    uint8_t level = CloseupLevel(MatrixShapePage(), x);
+    return MatrixRow().amount < 0 ? ~level : level;
+  }
   if (page <= PAGE_OSC_OSC_2) {  // 2 px per sample, odd columns in between.
     uint8_t i = x >> 1;
     if (!(x & 1)) {
@@ -525,15 +539,7 @@ static uint8_t CloseupLevel(uint8_t page, uint8_t x) {
     x -= hold;
     return U8U8MulShift8(s, Decay(x, r)) * (r - x) / r;
   }
-  if (page != PAGE_MOD_MATRIX) {
-    return LfoLevel(part.patch().lfo[page - PAGE_MOD_LFO_1], x);
-  }
-  const Modulation& m = MatrixRow();
-  uint8_t level = LfoLevel(part.patch().lfo[m.source], x);
-  return m.amount < 0 ? ~level : level;
-}
-
-static uint8_t LfoLevel(const LfoSettings& l, uint8_t x) {
+  const LfoSettings& l = part.patch().lfo[page - PAGE_MOD_LFO_1];
   uint16_t phase = static_cast<uint16_t>(x) * 819U;  // One cycle.
   if (l.speed < 0) {
     phase = ~phase;
@@ -926,7 +932,7 @@ void Editor::OnSwitch(const Event& event) {
       display_mode_ = DISPLAY_MODE_OVERVIEW;
     } else if (!closeup_ && current_page_ == PAGE_MOD_MATRIX &&
         id + GROUP_FX == GROUP_MOD_MATRIX && HasCloseup(current_page_)) {
-      closeup_ = true;  // LFO row: the next tap shows what it sends.
+      closeup_ = true;  // LFO/env row: the next tap shows what it sends.
     } else {
       JumpToPageGroup(id + GROUP_FX);
     }
