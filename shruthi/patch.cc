@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '*';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': no env trig destinations.
+  version_ = '*';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': volume destination.
   filter_topology_ = (filter_1_mode_ << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
   op_data_[1] = (ops_[0].operands[1] << 3) | (ops_[0].op & 0x7);
@@ -136,15 +136,6 @@ void Patch::Update() {
     extra_data_[4] = 127;  // Full volume.
   }
   if (version_ != '*') {
-    // Env retrigger left the matrix.
-    for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
-      Modulation* m = &modulation_matrix.modulation[i];
-      if (m->destination == MOD_DST_TRIGGER_ENV_1 ||
-          m->destination == MOD_DST_TRIGGER_ENV_2) {
-        m->destination = MOD_DST_PWM_1;
-        m->amount = 0;
-      }
-    }
     version_ = '*';
   }
   

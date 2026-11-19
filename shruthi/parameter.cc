@@ -451,7 +451,7 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
   // 34
   { PRM_MOD_DESTINATION,
     UNIT_MODULATION_DESTINATION,
-    0, kNumModulationDestinations - 3,  // Env trig destinations hidden.
+    0, kNumModulationDestinations - 1,
     { 0, 0 },
     STR_RES_DST, STR_RES_DEST_ }, 
 

@@ -272,10 +272,12 @@ static const prog_char long_dst[] PROGMEM =
   "vca\0"
   "drive\0"
   "fm\0"
+  "env1trig\0"
   "attack1\0"
   "decay1\0"
   "sustain1\0"
   "release1\0"
+  "env2trig\0"
   "attack2\0"
   "decay2\0"
   "sustain2\0"
@@ -1406,8 +1408,8 @@ char Editor::PrintParameter(
     memcpy_P(t, fx_names + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_DESTINATION) {
     // Display order (modulation_destination_map); resources.cc stays as is.
-    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvcadrvfm a1 d1 s1 "
-                     "r1 a2 d2 s2 r2 attlf1lf2fx vol") + 3 * value, 3);
+    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvcadrvfm tr1a1 d1 s1 "
+                     "r1 tr2a2 d2 s2 r2 attlf1lf2fx vol") + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_SOURCE &&
       value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_B) {
     memcpy_P(t, PSTR("c16c17") + 3 * (value - MOD_SRC_CC_A), 3);
@@ -1884,10 +1886,12 @@ const prog_uint8_t modulation_destination_map[] PROGMEM = {
   MOD_DST_VCA,
   MOD_DST_CV_1,
   MOD_DST_CV_2,
+  MOD_DST_TRIGGER_ENV_1,
   MOD_DST_ATTACK_1,
   MOD_DST_DECAY_1,
   MOD_DST_SUSTAIN_1,
   MOD_DST_RELEASE_1,
+  MOD_DST_TRIGGER_ENV_2,
   MOD_DST_ATTACK_2,
   MOD_DST_DECAY_2,
   MOD_DST_SUSTAIN_2,
