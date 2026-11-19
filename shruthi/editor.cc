@@ -153,9 +153,9 @@ static const prog_char page_titles[] PROGMEM =
   "DISPLAY         "
   "PERFORM MODE    ";
 
-static const prog_char lfo_mode_names[] PROGMEM = "FRETRGHLDONEHLF";
+static const prog_char lfo_mode_names[] PROGMEM = "fretrghldonehlf";
 
-static const prog_char osc_names[] PROGMEM = "OFFSAWSQRTRIZSWZRSZTRZPLZSYPAD FMWAVTMPDIGMETBOWSLPORGMALUSR8BTCRUPWMNOIVOWBELPOLCELCLPFEMFMTFRMRESELEVIB";
+static const prog_char osc_names[] PROGMEM = "offsawsqrtrizswzrsztrzplzsypad fmwavtmpdigmetbowslporgmalusr8btcrupwmnoivowbelpolcelclpfemfmtfrmreselevib";
 
 // Full lowercase values for the top row, '\0'-separated in value order.
 static const prog_char long_wave[] PROGMEM =
@@ -909,7 +909,7 @@ void Editor::StartMidiBackup() {
 void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
   confirm_page_settings_ = confirm_page_settings;
   confirm_return_page_ = current_page_;
-  // Yes/no screens start on no; the page tools menu on rand.
+  // Yes/no screens start on no; the page tools menu on copy.
   cursor_ = confirm_page_settings.callback == &PageTool;
   current_page_ = PAGE_CONFIRM;
   display_mode_ = DISPLAY_MODE_OVERVIEW;
@@ -935,6 +935,7 @@ void Editor::OnSwitch(const Event& event) {
     } else if (!closeup_ && current_page_ == PAGE_MOD_MATRIX &&
         id + GROUP_FX == GROUP_MOD_MATRIX && HasCloseup(current_page_)) {
       closeup_ = true;  // LFO/env row: the next tap shows what it sends.
+      title_flash_ = true;
     } else {
       JumpToPageGroup(id + GROUP_FX);
     }
@@ -943,6 +944,7 @@ void Editor::OnSwitch(const Event& event) {
   } else if (!closeup_ && HasCloseup(current_page_) &&
       page_definition_[current_page_].group == id + GROUP_SYN) {
     closeup_ = true;  // Osc/envelope/LFO: the next tap shows the shape.
+    title_flash_ = true;
   } else {
     JumpToPageGroup(id + GROUP_SYN);
   }
@@ -1261,7 +1263,7 @@ void Editor::RandomizePage() {
 
 /* static */
 void Editor::PageTool() {
-  if (page_tool_ == 1) {
+  if (page_tool_ == 3) {
     ConfirmPageSettings settings;
     settings.text = 0;
     settings.callback = &RandomizePage;
@@ -1277,7 +1279,7 @@ void Editor::PageTool() {
       continue;
     }
     uint8_t offset = parameter_manager.parameter(id).offset;
-    if (page_tool_ == 2) {
+    if (page_tool_ == 1) {
       clip_[k] = GetParameterValue(offset);
       continue;
     }
@@ -1293,7 +1295,7 @@ void Editor::PageTool() {
       pasted = 1;
     }
   }
-  if (page_tool_ == 2) {
+  if (page_tool_ == 1) {
     clip_page_ = current_page_;
     ShowPatchPopup(PSTR(" COPIED "));
   } else {
@@ -1464,8 +1466,8 @@ void Editor::DisplayLoadSavePage() {
       row_1[10] = '*';  // Target slot is empty.
     }
     if (!number_hidden_ || cursor_ < kLcdWidth - 4) {
-      row_1[13] = 'O';
-      row_1[14] = 'K';
+      row_1[13] = 'o';
+      row_1[14] = 'k';
     }
     if (is_cursor_at_valid_position()) {
       // Name: on its letter, top row. The number blinks instead.
@@ -1512,7 +1514,7 @@ char Editor::PrintParameter(
   char* t = text;
   bool is_signed = p.unit == UNIT_INT8 &&
       static_cast<int8_t>(p.min_value) < 0;
-  if (is_signed && static_cast<int8_t>(value) > 0 && value < 100) {
+  if (is_signed && static_cast<int8_t>(value) > 0) {
     *t++ = '+';
   }
   if (p.unit == UNIT_WAVEFORM) {
@@ -1809,6 +1811,19 @@ void Editor::DisplayEditOverviewPage() {
   char* row_1 = line_buffer_ + kLcdWidth + 1;
   if (closeup_ && !show_numbers_ && HasCloseup(current_page_)) {
     DrawCloseup(current_page_, row_0);
+    if (title_flash_) {  // "SYN  OSC 1   1/3" -> "SYN  OSC 1 1.1/3".
+      memcpy_P(row_0, page_titles + kLcdWidth * current_page_, kLcdWidth);
+      if (row_0[14] == '/') {
+        row_0[11] = row_0[13];
+        row_0[12] = '.';
+        row_0[13] = '1';
+      } else {  // Single page (amp env): "1.1".
+        memcpy_P(row_0 + 13, PSTR("1.1"), 3);
+      }
+      if (current_page_ == PAGE_MOD_ENV_1) {
+        memcpy_P(row_0 + 5, PSTR("ENV   "), 6);  // FLT ENV has no room.
+      }
+    }
     display.set_cursor_position(kLcdNoCursor);
     display.Print(0, row_0);
     display.Print(1, row_1);
@@ -2152,12 +2167,12 @@ void Editor::DisplayConfirmPage() {
   display.set_cursor_position(kLcdNoCursor);
   if (confirm_page_settings_.callback == &PageTool) {
     // SYN  OSC 1   1/3
-    // >rand copy paste
+    // >copy paste rand
     char* row_1 = line_buffer_ + kLcdWidth + 1;
     memcpy_P(line_buffer_, page_titles + 16 * confirm_return_page_, 16);
     line_buffer_[kLcdWidth] = '\0';
-    memcpy_P(row_1, PSTR(" rand copy paste"), 16);  // Print stops at 16.
-    row_1[5 * (cursor_ - 1)] = 0x7e;
+    memcpy_P(row_1, PSTR(" copy paste rand"), 16);  // Print stops at 16.
+    row_1[5 * (cursor_ - 1) + (cursor_ == 3)] = 0x7e;
     display.Print(0, line_buffer_);
     display.Print(1, row_1);
     return;
