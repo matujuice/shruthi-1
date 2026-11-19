@@ -682,15 +682,24 @@ void Voice::ProcessBlock() {
       // Fold capped at x15.9: 16 + 254 would wrap the 8-bit gain.
       uint8_t gain = fold ? 16 + (amount > 239 ? 239 : amount) : 16 + (amount >> 1);
       int8_t bias = fold ? param - 64 : param >> 2;
-      int16_t dc = fold ? 0 : (bias * gain) >> 4;
-      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-        int16_t x = ((static_cast<int16_t>(buffer_[i]) - 128 + bias) * gain) >> 4;
-        if (fold) {
-          uint16_t u = (x + 128) & 511;  // Triangle fold, period 512.
-          buffer_[i] = u > 255 ? 511 - u : u;
-        } else {
-          x = (x > 127 ? 127 : (x < -128 ? -128 : x)) - dc;  // Clip, then remove the bias DC.
-          buffer_[i] = (x > 127 ? 127 : (x < -128 ? -128 : x)) + 128;
+      // Math at x16 scale with mulsu and the asm shift: the int16 version
+      // cost ~60 cycles/sample and set off the '!' buffer underrun.
+      int16_t offset = bias * gain;  // |bias * gain| <= 64 * 255.
+      if (fold) {
+        uint16_t base = offset + 2048;  // +2048 = +128 after the shift.
+        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+          // uint16 wrap is harmless: 65536 / 16 is a multiple of the period.
+          uint16_t u = U16ShiftRight4(
+              static_cast<uint16_t>(S8U8Mul(buffer_[i] ^ 0x80, gain)) + base) & 511;
+          buffer_[i] = u > 255 ? 511 - u : u;  // Triangle fold, period 512.
+        }
+      } else {
+        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+          // |x| <= 128 * 143 + 63 * 143: fits int16.
+          int16_t x = S8U8Mul(buffer_[i] ^ 0x80, gain) + offset;
+          x = (x > 2047 ? 2047 : (x < -2048 ? -2048 : x)) - offset;  // Clip, remove bias DC.
+          x = x > 2047 ? 2047 : (x < -2048 ? -2048 : x);
+          buffer_[i] = U16ShiftRight4(x + 2048);
         }
       }
     }
