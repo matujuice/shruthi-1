@@ -138,6 +138,20 @@ void Patch::Update() {
   if (version_ != '*') {
     version_ = '*';
   }
+  // Out-of-range indices would make the voice read/write past its arrays.
+  for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
+    Modulation* m = &modulation_matrix.modulation[i];
+    if (m->source >= kNumModulationSources ||
+        m->destination >= kNumModulationDestinations) {
+      m->source = m->destination = m->amount = 0;
+    }
+  }
+  for (uint8_t i = 0; i < 4; ++i) {
+    uint8_t* operand = &ops_[i >> 1].operands[i & 1];
+    if (*operand >= kNumModulationSources) {
+      *operand = 0;
+    }
+  }
   
   if (version_ != '!') {
     SystemSettings* system_settings = part.mutable_system_settings();

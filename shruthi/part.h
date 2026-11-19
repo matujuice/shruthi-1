@@ -26,7 +26,6 @@
 #include "shruthi/sequencer_settings.h"
 #include "shruthi/system_settings.h"
 #include "shruthi/voice.h"
-#include "shruthi/voice_allocator.h"
 
 namespace shruthi {
 
@@ -79,7 +78,7 @@ class Part {
   // loading a patch from the EEPROM)... so in this case we need to recompute
   // all the related variables. This is also a good occasion to dump by SysEx
   // the patch to polychained units.
-  static void Touch(bool cascade);
+  static void Touch();
   static void TriggerLfos() {
     for (uint8_t i = 0; i < kNumLfos; ++i) {
       lfo_[i].Trigger();

@@ -21,7 +21,6 @@
 #include "midi/midi.h"
 #include "shruthi/envelope.h"
 #include "shruthi/patch.h"
-#include "shruthi/voice_allocator.h"
 
 namespace shruthi {
 

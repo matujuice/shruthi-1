@@ -142,7 +142,6 @@ struct UiHandler {
 };
 
 struct ConfirmPageSettings {
-  ResourceId text;
   void (*callback)();
 };
 

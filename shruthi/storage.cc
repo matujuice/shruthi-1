@@ -260,6 +260,7 @@ void Storage::SysExAcceptBuffer() {
 
     case 0x06:
       part.SetName(sysex_rx_buffer_);
+      success = 1;
       break;
 
     case 0x11:
@@ -312,8 +313,13 @@ void Storage::SysExAcceptBuffer() {
       break;
 
     case 0x21:
-      WritePatch((sysex_rx_buffer_[0] << 8) | (sysex_rx_buffer_[1]));
-      success = 1;
+      {
+        uint16_t slot = (sysex_rx_buffer_[0] << 8) | sysex_rx_buffer_[1];
+        success = slot < size<Patch>();  // Else the address wraps onto another bank.
+        if (success) {
+          WritePatch(slot);
+        }
+      }
       break;
 
     case 0x31:
@@ -441,7 +447,7 @@ void Storage::WriteExternal(
     const uint8_t* data,
     uint16_t address,
     uint8_t size) {
-  uint16_t written = external_eeprom.Write(address, data, size);
+  external_eeprom.Write(address, data, size);
 }
 
 /* static */

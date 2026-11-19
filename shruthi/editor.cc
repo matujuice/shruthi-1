@@ -870,7 +870,7 @@ void Editor::RandomizePatch() {
       RandomizeParameter(slot, parameter);
     }
   }
-  part.Touch(true);
+  part.Touch();
 }
 
 /* static */
@@ -1071,7 +1071,7 @@ void Editor::ScreenSaver() {
 /* static */
 void Editor::RestoreEditBuffer() {
   Storage::Restore(part.mutable_patch());
-  part.Touch(true);
+  part.Touch();
 }
 
 /* static */
@@ -1220,7 +1220,6 @@ void Editor::QuickSaveConfirm() {
     return;  // Already confirming, or perform mode.
   }
   ConfirmPageSettings settings;
-  settings.text = 0;
   settings.callback = &QuickSave;
   Confirm(settings);
 }
@@ -1231,7 +1230,6 @@ void Editor::PageToolsMenu() {
     return;  // Synth pages only.
   }
   ConfirmPageSettings settings;
-  settings.text = 0;
   settings.callback = &PageTool;
   Confirm(settings);
 }
@@ -1265,7 +1263,6 @@ void Editor::RandomizePage() {
 void Editor::PageTool() {
   if (page_tool_ == 3) {
     ConfirmPageSettings settings;
-    settings.text = 0;
     settings.callback = &RandomizePage;
     Confirm(settings);  // "sure?", defaults to no.
     return;
@@ -1377,7 +1374,7 @@ bool Editor::FinishLoadingPatch() {
     part.mutable_system_settings()->last_patch = n;  // Reloaded at power-up.
     sys_save_at_ = (milliseconds() + 1000) | 1;  // Deferred: notes may follow.
   }
-  part.Touch(true);
+  part.Touch();
   // Reset the snap position of all pots.
   memset(snapped_, false, sizeof(snapped_));
   deferred_load_ = 0xffff;

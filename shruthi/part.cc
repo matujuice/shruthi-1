@@ -175,11 +175,11 @@ static const prog_char init_system_settings[] PROGMEM = {
 void Part::ResetPatch() {
   ResourcesManager::Load(init_patch, 0, &patch_);
   patch_.Update();  // Portamento, legato, retrigger off too.
-  Touch(true);
+  Touch();
 }
 
 /* static */
-void Part::Touch(bool cascade) {
+void Part::Touch() {
   UpdateModulationRates();
   dirty_ = true;
 }

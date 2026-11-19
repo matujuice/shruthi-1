@@ -122,7 +122,7 @@ class MidiDispatcher : public midi::MidiDevice {
     ProcessSysEx(0xf7);
     if (Storage::sysex_rx_state() == RECEPTION_OK) {
       display.set_status('+');
-      part.Touch(false);
+      part.Touch();
       editor.Refresh();
     } else {
       display.set_status('#');
