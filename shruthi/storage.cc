@@ -254,6 +254,9 @@ void Storage::SysExAcceptBuffer() {
           (uint8_t*) part.mutable_system_settings(),
           sysex_rx_buffer_,
           sizeof(SystemSettings));
+      if (part.system_settings().midi_out_mode > MIDI_OUT_SOFT_THRU) {
+        part.mutable_system_settings()->midi_out_mode = MIDI_OUT_SOFT_THRU;  // As in Part::Init.
+      }
       part.mutable_system_settings()->EepromSave();
       success = 1;
       break;

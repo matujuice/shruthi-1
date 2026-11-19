@@ -116,23 +116,21 @@ void Ui::ScanPotentiometers() {
   }
   adc_.StartConversion(pots_multiplexer_address_);
   
-  if (address != 0xff) {
-    if (adc_warm_up_cycles_) {
-      // Register the value and move on.
+  if (adc_warm_up_cycles_) {
+    // Register the value and move on.
+    adc_values_[address] = value;
+    if (address == 0) {
+      --adc_warm_up_cycles_;
+    }
+  } else {
+    int16_t previous_value = adc_values_[address];
+    int16_t delta = value - previous_value;
+    int16_t threshold = adc_thresholds_[address];
+    if (delta > threshold || delta < -threshold) {
+      adc_hot_address_ = physical_address;
+      adc_thresholds_[address] = kAdcThresholdUnlocked;
+      queue_.AddEvent(CONTROL_POT, address, value >> 3);
       adc_values_[address] = value;
-      if (address == 0) {
-        --adc_warm_up_cycles_;
-      }
-    } else {
-      int16_t previous_value = adc_values_[address];
-      int16_t delta = value - previous_value;
-      int16_t threshold = adc_thresholds_[address];
-      if (delta > threshold || delta < -threshold) {
-        adc_hot_address_ = physical_address;
-        adc_thresholds_[address] = kAdcThresholdUnlocked;
-        queue_.AddEvent(CONTROL_POT, address, value >> 3);
-        adc_values_[address] = value;
-      }
     }
   }
 }
@@ -197,7 +195,7 @@ void Ui::DebounceSwitches() {
     uint32_t now = milliseconds();
     int32_t delta = now - switch_delay_[SWITCH_ENCODER];
     if (!inhibit_encoder_release_ && delta > 0) {
-      // Hold: 7 with FUNC (quick save), 6 alone (unused).
+      // Hold: 7 with FUNC (quick save), 6 alone (page tools).
       queue_.AddEvent(CONTROL_SWITCH, SWITCH_ENCODER,
           switch_state_[SWITCH_SHIFT] == 0x00 ? 7 : 6);
       inhibit_encoder_release_ = true;
