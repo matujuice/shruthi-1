@@ -82,9 +82,6 @@ class Voice {
     modulation_sources_[i] = value;
   }
 
-  static inline void set_volume(uint8_t volume) {
-    volume_ = volume;
-  }
   
   static inline void set_bass_note(int16_t bass_note) {
     pitch_bass_note_ = bass_note;
@@ -141,7 +138,6 @@ class Voice {
   static uint8_t trigger_count_;
   static uint8_t cc_mix_;  // Source bitmask for OP_CC_MIX, 0 = all on.
   
-  static uint8_t volume_;
 
   DISALLOW_COPY_AND_ASSIGN(Voice);
 };

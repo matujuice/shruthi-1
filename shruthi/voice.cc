@@ -61,7 +61,6 @@ uint8_t Voice::no_sync_[kAudioBlockSize];
 uint8_t Voice::dummy_sync_state_[kAudioBlockSize];
 uint8_t Voice::trigger_count_;
 uint8_t Voice::cc_mix_;
-uint8_t Voice::volume_;
 /* </static> */
 
 /* static */
@@ -108,7 +107,6 @@ void Voice::ResetAllControllers() {
   modulation_sources_[MOD_SRC_PITCH_BEND] = 128;
   modulation_sources_[MOD_SRC_WHEEL] = 0;
   modulation_sources_[MOD_SRC_OFFSET] = 255;
-  volume_ = 255;
 }
 
 /* static */
@@ -220,7 +218,8 @@ inline void Voice::LoadSources() {
     }
   }
 
-  modulation_destinations_[MOD_DST_VCA] = volume_;
+  // Patch volume (VOICE page) is the VCA ceiling; no CC7.
+  modulation_destinations_[MOD_DST_VCA] = (part.patch_.extra_data_[4] << 1) | 1;
   
   // Load and scale to 0-16383 the initial value of each modulated parameter.
   dst_[MOD_DST_FILTER_CUTOFF] = U8U8Mul(
@@ -253,7 +252,6 @@ inline void Voice::LoadSources() {
   dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
   dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
   dst_[MOD_DST_FX] = part.patch_.extra_data_[2] << 7;
-  dst_[MOD_DST_VOLUME] = part.patch_.extra_data_[4] << 7;
 }
 
 /* static */
@@ -274,9 +272,6 @@ void Voice::ControlChange(uint8_t controller, uint8_t value) {
       break;
     case midi::kModulationWheelMsb:
       modulation_sources_[MOD_SRC_WHEEL] = value;
-      break;
-    case midi::kVolume:
-      volume_ = value;
       break;
     case 3:  // Unassigned CC: osc 2 = 8, osc 1 = 16, sub = 32, noise = 64.
       cc_mix_ = value >> 4;
@@ -361,10 +356,6 @@ inline void Voice::UpdateDestinations() {
   modulation_destinations_[MOD_DST_FILTER_RESONANCE] = U14ShiftRight6(
       dst_[MOD_DST_FILTER_RESONANCE]);
 
-  // Patch volume (knob + matrix "volume") scales the VCA result.
-  modulation_destinations_[MOD_DST_VCA] = U8U8MulShift8(
-      modulation_destinations_[MOD_DST_VCA],
-      U14ShiftRight6(dst_[MOD_DST_VOLUME]));
   modulation_destinations_[MOD_DST_CV_1] = U14ShiftRight6(dst_[MOD_DST_CV_1]);
   modulation_destinations_[MOD_DST_CV_2] = U14ShiftRight6(dst_[MOD_DST_CV_2]);
   modulation_destinations_[MOD_DST_LFO_1] = S16ShiftRight8(dst_[MOD_DST_LFO_1]);
