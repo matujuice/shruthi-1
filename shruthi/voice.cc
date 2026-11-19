@@ -72,11 +72,6 @@ void Voice::Init() {
   }
   memset(no_sync_, 0, kAudioBlockSize);
   
-  // Fill the "user" wavetable with data from an existing wavetable.
-  ResourcesManager::Load(
-      wav_res_waves,
-      user_wavetable,
-      kUserWavetableSize);
   NoteOff();
   
   ResetAllControllers();

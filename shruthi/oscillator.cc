@@ -17,8 +17,6 @@
 
 namespace shruthi {
 
-uint8_t user_wavetable[129 * 8 + 1];
-
 #define UPDATE_PHASE \
   if (*sync_input_++) { \
     phase.integral = 0; \
@@ -195,7 +193,8 @@ void Oscillator::RenderInterpolatedWavetable(uint8_t* buffer) {
         gain);
   END_SAMPLE_LOOP
 }  
-// The position is freely determined by the parameter
+// The position is freely determined by the parameter. Plays the first 8
+// built-in waves; point wave_1 at another flash table to use your own.
 void Oscillator::RenderSweepingWavetableRam(uint8_t* buffer) {
   uint8_t balance_index = U8Swap4(parameter_);
   uint8_t wave_index = balance_index & 0xf;
@@ -204,18 +203,16 @@ void Oscillator::RenderSweepingWavetableRam(uint8_t* buffer) {
   
   uint16_t offset = wave_index << 7;
   offset += wave_index;
-  const uint8_t* wave_1 = user_wavetable + offset;
-  const uint8_t* wave_2 = wave_1;
-  if (offset < kUserWavetableSize - 129) {
+  const prog_uint8_t* wave_1 = wav_res_waves + offset;
+  const prog_uint8_t* wave_2 = wave_1;
+  if (wave_index < 7) {
     wave_2 += 129;
   }
   
   BEGIN_SAMPLE_LOOP
     UPDATE_PHASE
-    *buffer++ = U8Mix(
-        InterpolateSampleRam(wave_1, phase.integral >> 1),
-        InterpolateSampleRam(wave_2, phase.integral >> 1),
-        gain_1, gain_2);
+    *buffer++ = InterpolateTwoTables(
+        wave_1, wave_2, phase.integral >> 1, gain_1, gain_2);
   END_SAMPLE_LOOP
 }
 

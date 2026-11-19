@@ -80,7 +80,6 @@ static const prog_char sysex_rx_header[] PROGMEM = {
   // * Command byte:
   // - 0x01: patch transfer
   // - 0x02: sequence transfer
-  // - 0x03: waveform transfer
   // - 0x11: patch transfer request
   // - 0x12: sequence transfer request
   // - 0x21: patch write request
@@ -182,11 +181,6 @@ void Storage::SysExParseCommand() {
       sysex_rx_expected_size_ = StorageConfiguration<Patch>::size;
       break;
 
-    case 0x03:  // Wavetable dump
-      sysex_rx_destination_ = user_wavetable;
-      sysex_rx_expected_size_ = kUserWavetableSize;
-      break;
-
     case 0x04:  // System settings transfer
       sysex_rx_expected_size_ = sizeof(SystemSettings);
       break;
@@ -243,10 +237,6 @@ void Storage::SysExAcceptBuffer() {
   switch (sysex_rx_command_[0]) {
     case 0x01:  // Patch transfer
       success = AcceptData(part.mutable_patch(), sysex_rx_buffer_);
-      break;
-
-    case 0x03:
-      success = 1;
       break;
 
     case 0x04:
