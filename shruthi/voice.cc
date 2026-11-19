@@ -686,7 +686,8 @@ void Voice::ProcessBlock() {
       // drive: x1..x8.9 then clip, param = bias (even harmonics).
       // fold: x1..x17 then fold back, param = offset (64 = centered).
       bool fold = fx == FX_FOLD;
-      uint8_t gain = fold ? 16 + amount : 16 + (amount >> 1);
+      // Fold capped at x15.9: 16 + 254 would wrap the 8-bit gain.
+      uint8_t gain = fold ? 16 + (amount > 239 ? 239 : amount) : 16 + (amount >> 1);
       int8_t bias = fold ? param - 64 : param >> 2;
       int16_t dc = fold ? 0 : (bias * gain) >> 4;
       for (uint8_t i = 0; i < kAudioBlockSize; ++i) {

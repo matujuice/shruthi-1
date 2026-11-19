@@ -2155,7 +2155,7 @@ void Editor::DisplayConfirmPage() {
     char* row_1 = line_buffer_ + kLcdWidth + 1;
     memcpy_P(line_buffer_, page_titles + 16 * confirm_return_page_, 16);
     line_buffer_[kLcdWidth] = '\0';
-    memcpy_P(row_1, PSTR(" rand copy paste"), 17);
+    memcpy_P(row_1, PSTR(" rand copy paste"), 16);  // Print stops at 16.
     row_1[5 * (cursor_ - 1)] = 0x7e;
     display.Print(0, line_buffer_);
     display.Print(1, row_1);
@@ -2167,7 +2167,6 @@ void Editor::DisplayConfirmPage() {
     memcpy_P(line_buffer_, PSTR("RANDOMIZE PAGE?"), 15);
     line_buffer_[kLcdWidth] = '\0';
     memcpy_P(row_1, PSTR(" yes  no"), 8);
-    row_1[kLcdWidth] = '\0';
     row_1[cursor_ ? 0 : 5] = 0x7e;
     display.Print(0, line_buffer_);
     display.Print(1, row_1);
