@@ -252,6 +252,11 @@ inline void Voice::LoadSources() {
   dst_[MOD_DST_CV_1] = U8U8Mul(part.patch_.filter_cutoff_2, 128);
   dst_[MOD_DST_CV_2] = part.patch_.filter_resonance_2 << 8;
   dst_[MOD_DST_FX] = part.patch_.extra_data_[2] << 7;
+  // Signed amounts -63..63 centred on 8192; mode LP below 8192, BP above.
+  dst_[MOD_DST_FILTER_ENV] = (part.patch_.filter_env + 64) << 7;
+  dst_[MOD_DST_FILTER_LFO] = (part.patch_.filter_lfo + 64) << 7;
+  dst_[MOD_DST_PVK_MODE] =
+      part.patch_.filter_1_mode_ == FILTER_MODE_LP ? 4096 : 12288;
 }
 
 /* static */
@@ -346,10 +351,14 @@ inline void Voice::UpdateDestinations() {
   if (part.patch_.osc[0].option != OP_DUO) {
     cutoff = S16ClipU14(cutoff + pitch_value_ - 8192 + (16 << 7));
   }
-  cutoff = S16ClipU14(cutoff + S8U8Mul(part.patch_.filter_env,
+  int8_t env_amount = (U14ShiftRight6(dst_[MOD_DST_FILTER_ENV]) >> 1) - 64;
+  int8_t lfo_amount = (U14ShiftRight6(dst_[MOD_DST_FILTER_LFO]) >> 1) - 64;
+  cutoff = S16ClipU14(cutoff + S8U8Mul(env_amount,
       modulation_sources_[MOD_SRC_ENV_1]));
-  cutoff = S16ClipU14(cutoff + S8S8Mul(part.patch_.filter_lfo,
+  cutoff = S16ClipU14(cutoff + S8S8Mul(lfo_amount,
       modulation_sources_[MOD_SRC_LFO_2] + 128));
+  modulation_destinations_[MOD_DST_PVK_MODE] =
+      dst_[MOD_DST_PVK_MODE] >= 8192;
 
   // Store in memory all the updated parameters.
   modulation_destinations_[MOD_DST_FILTER_CUTOFF] = U14ShiftRight6(cutoff);

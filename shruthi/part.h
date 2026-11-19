@@ -118,7 +118,7 @@ class Part {
   
   static inline uint8_t pvk_routing_byte() {
     uint8_t byte = 0;
-    if (patch_.filter_1_mode_ == FILTER_MODE_LP) {
+    if (!voice().modulation_destination(MOD_DST_PVK_MODE)) {  // LP.
       byte |= 4;
     }
     if (!voice().cv_1()) {

@@ -269,9 +269,12 @@ static const prog_char long_dst[] PROGMEM =
   "sub osc\0"
   "cutoff\0"
   "reso\0"
+  "filt env\0"
+  "filt lfo\0"
   "vca\0"
   "drive\0"
   "fm\0"
+  "pvk mode\0"
   "env1trig\0"
   "attack1\0"
   "decay1\0"
@@ -712,6 +715,9 @@ uint8_t Editor::last_visited_group_[] = {
 char Editor::line_buffer_[kLcdWidth * kLcdHeight + 1];
 
 uint8_t Editor::cursor_;
+uint8_t Editor::page_tool_;
+uint8_t Editor::clip_page_ = 0xff;
+uint8_t Editor::clip_[4];
 uint8_t Editor::last_knob_;
 uint8_t Editor::subpage_;
 uint8_t Editor::action_;
@@ -872,7 +878,8 @@ void Editor::StartMidiBackup() {
 void Editor::Confirm(ConfirmPageSettings confirm_page_settings) {
   confirm_page_settings_ = confirm_page_settings;
   confirm_return_page_ = current_page_;
-  cursor_ = confirm_page_settings.callback == &QuickSave;
+  cursor_ = confirm_page_settings.callback == &QuickSave ||
+      confirm_page_settings.callback == &PageTool;  // Yes / rand.
   current_page_ = PAGE_CONFIRM;
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   Refresh();
@@ -1183,6 +1190,84 @@ void Editor::QuickSaveConfirm() {
 }
 
 /* static */
+void Editor::PageToolsMenu() {
+  if (current_page_ >= PAGE_SYS_MIDI) {
+    return;  // Synth pages only.
+  }
+  ConfirmPageSettings settings;
+  settings.text = 0;
+  settings.callback = &PageTool;
+  Confirm(settings);
+}
+
+// Knob k of the current page, or 0xff if empty or a row selector.
+/* static */
+uint8_t Editor::ToolKnob(uint8_t k) {
+  uint8_t id = KnobIndexToParameterId(k);
+  if (id != 0xff) {
+    uint8_t offset = parameter_manager.parameter(id).offset;
+    if (offset == PRM_MOD_ROW || offset == PRM_OP_ROW) {
+      id = 0xff;
+    }
+  }
+  return id;
+}
+
+/* static */
+void Editor::RandomizePage() {
+  for (uint8_t k = 0; k < 4; ++k) {
+    uint8_t id = ToolKnob(k);
+    if (id != 0xff && id != 97) {  // Never the patch volume.
+      const Parameter& p = parameter_manager.parameter(id);
+      SetParameterValue(id, p.offset, p.RandomValue());
+    }
+  }
+  ShowPatchPopup(PSTR(" RANDOM "));
+}
+
+/* static */
+void Editor::PageTool() {
+  if (page_tool_ == 1) {
+    ConfirmPageSettings settings;
+    settings.text = 0;
+    settings.callback = &RandomizePage;
+    Confirm(settings);  // "sure?", defaults to no.
+    return;
+  }
+  // Paste goes to knobs whose label matches the copied page's (osc 1 <->
+  // osc 2, env 1 <-> env 2, lfo 1 <-> lfo 2, same page in another patch).
+  uint8_t pasted = 0;
+  for (uint8_t k = 0; k < 4; ++k) {
+    uint8_t id = ToolKnob(k);
+    if (id == 0xff) {
+      continue;
+    }
+    uint8_t offset = parameter_manager.parameter(id).offset;
+    if (page_tool_ == 2) {
+      clip_[k] = GetParameterValue(offset);
+      continue;
+    }
+    if (clip_page_ == 0xff) {
+      break;
+    }
+    const prog_char* a = page_labels + 12 * clip_page_ + 3 * k;
+    const prog_char* b = page_labels + 12 * current_page_ + 3 * k;
+    if (pgm_read_byte(a) == pgm_read_byte(b) &&
+        pgm_read_byte(a + 1) == pgm_read_byte(b + 1) &&
+        pgm_read_byte(a + 2) == pgm_read_byte(b + 2)) {
+      SetParameterValue(id, offset, clip_[k]);
+      pasted = 1;
+    }
+  }
+  if (page_tool_ == 2) {
+    clip_page_ = current_page_;
+    ShowPatchPopup(PSTR(" COPIED "));
+  } else {
+    ShowPatchPopup(pasted ? PSTR(" PASTED ") : PSTR("NO MATCH"));
+  }
+}
+
+/* static */
 void Editor::OnPatchMenuClick() {
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   uint8_t items[11];
@@ -1407,7 +1492,7 @@ char Editor::PrintParameter(
     memcpy_P(t, fx_names + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_DESTINATION) {
     // Display order (modulation_destination_map); resources.cc stays as is.
-    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresvcadrvfm tr1a1 d1 s1 "
+    memcpy_P(t, PSTR("pw1pw2pt1pt2o12finmixnoisubcutresfenflfvcadrvfm pvktr1a1 d1 s1 "
                      "r1 tr2a2 d2 s2 r2 attlf1lf2fx ") + 3 * value, 3);
   } else if (p.unit == UNIT_MODULATION_SOURCE &&
       value >= MOD_SRC_CC_A && value <= MOD_SRC_CC_B) {
@@ -1882,9 +1967,12 @@ const prog_uint8_t modulation_destination_map[] PROGMEM = {
   MOD_DST_MIX_SUB_OSC,
   MOD_DST_FILTER_CUTOFF,
   MOD_DST_FILTER_RESONANCE,
+  MOD_DST_FILTER_ENV,
+  MOD_DST_FILTER_LFO,
   MOD_DST_VCA,
   MOD_DST_CV_1,
   MOD_DST_CV_2,
+  MOD_DST_PVK_MODE,
   MOD_DST_TRIGGER_ENV_1,
   MOD_DST_ATTACK_1,
   MOD_DST_DECAY_1,
@@ -1999,6 +2087,7 @@ void Editor::BootStep() {
 /* static */
 void Editor::OnConfirmClick() {
   bool yes = cursor_;
+  page_tool_ = cursor_;
   current_page_ = confirm_return_page_;  // Back where you were.
   display_mode_ = DISPLAY_MODE_OVERVIEW;
   cursor_ = 0;
@@ -2010,7 +2099,11 @@ void Editor::OnConfirmClick() {
 
 /* static */
 void Editor::OnConfirmIncrement(int8_t increment) {
-  cursor_ = !cursor_;
+  if (confirm_page_settings_.callback == &PageTool) {
+    cursor_ += increment > 0 ? (cursor_ < 3) : -(cursor_ > 1);
+  } else {
+    cursor_ = !cursor_;
+  }
 }
 
 /* static */
@@ -2020,6 +2113,30 @@ void Editor::OnConfirmInput(uint8_t knob_index, uint8_t value) {
 /* static */
 void Editor::DisplayConfirmPage() {
   display.set_cursor_position(kLcdNoCursor);
+  if (confirm_page_settings_.callback == &PageTool) {
+    // SYN  OSC 1   1/3
+    // >rand copy paste
+    char* row_1 = line_buffer_ + kLcdWidth + 1;
+    memcpy_P(line_buffer_, page_titles + 16 * confirm_return_page_, 16);
+    line_buffer_[kLcdWidth] = '\0';
+    memcpy_P(row_1, PSTR(" rand copy paste"), 17);
+    row_1[5 * (cursor_ - 1)] = 0x7e;
+    display.Print(0, line_buffer_);
+    display.Print(1, row_1);
+    return;
+  }
+  if (confirm_page_settings_.callback == &RandomizePage) {
+    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    char* row_1 = line_buffer_ + kLcdWidth + 1;
+    memcpy_P(line_buffer_, PSTR("RANDOMIZE PAGE?"), 15);
+    line_buffer_[kLcdWidth] = '\0';
+    memcpy_P(row_1, PSTR(" yes  no"), 8);
+    row_1[kLcdWidth] = '\0';
+    row_1[cursor_ ? 0 : 5] = 0x7e;
+    display.Print(0, line_buffer_);
+    display.Print(1, row_1);
+    return;
+  }
   if (confirm_page_settings_.callback == &QuickSave) {
     // SAVE NAME....?
     //  yes  no        (arrow on the choice)

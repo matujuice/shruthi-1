@@ -270,8 +270,10 @@ void Ui::DoEvents() {
             editor.ReloadPatch();
           } else if (e.value == 7) {
             editor.QuickSaveConfirm();
-          } else if (e.value < 6) {
-            editor.OnClick();  // Long press (6): unused.
+          } else if (e.value == 6) {
+            editor.PageToolsMenu();  // Hold: rand / copy / paste.
+          } else {
+            editor.OnClick();
           }
         }
         break;

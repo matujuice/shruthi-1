@@ -258,6 +258,10 @@ class Editor {
   static void QuickSave();
  public:
   static void QuickSaveConfirm();  // FUNC + encoder hold.
+  static void PageToolsMenu();  // Encoder hold on a synth page.
+  static void PageTool();
+  static void RandomizePage();
+  static uint8_t ToolKnob(uint8_t k);
  private:
   static void ShowPatchPopup(const prog_char* text);
   static void OnLoadSaveIncrement(int8_t increment);
@@ -296,6 +300,9 @@ class Editor {
   static uint8_t display_mode_;
   static uint8_t editor_mode_;
   static uint8_t cursor_;
+  static uint8_t page_tool_;  // Menu choice: 1 rand, 2 copy, 3 paste.
+  static uint8_t clip_page_;  // 0xff = nothing copied.
+  static uint8_t clip_[4];
   static uint8_t last_knob_;
   static uint8_t last_visited_subpage_;
 

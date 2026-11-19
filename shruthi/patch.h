@@ -187,6 +187,9 @@ enum ModulationDestination {
   MOD_DST_SUSTAIN_2,
   MOD_DST_RELEASE_2,
   MOD_DST_FX,  // FX amount.
+  MOD_DST_FILTER_ENV,  // FILTER page env amount.
+  MOD_DST_FILTER_LFO,  // FILTER page lfo amount.
+  MOD_DST_PVK_MODE,  // Polivoks LP/BP: flips at the middle.
   MOD_DST_LAST
 };
 
