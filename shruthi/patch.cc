@@ -84,11 +84,6 @@ static uint8_t RemapSource(uint8_t s) {
 }
 
 void Patch::Update() {
-  // Horrible hack to set the HPF to 0 on patches saved with previous
-  // versions of the firmware.
-  if (op_data_[2] == 'n' && op_data_[3] == 'g') {
-    memset(saved_data() + 84, 0, 8);
-  }
   ops_[0].operands[0] = op_data_[0] & 0x3f;
   ops_[0].operands[1] = op_data_[1] >> 3;
   ops_[0].op = op_data_[1] & 0x7;

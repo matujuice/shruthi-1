@@ -353,12 +353,6 @@ void Part::Stop() {
 }
 
 /* static */
-void Part::SetName(uint8_t* name) {
-  memcpy(patch_.name, name, kPatchNameSize);
-  dirty_ = true;
-}
-
-/* static */
 void Part::SetParameter(
     uint8_t parameter_index,
     uint8_t offset,

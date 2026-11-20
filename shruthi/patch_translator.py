@@ -90,6 +90,8 @@ def convert_patch(p, bpm):
   """Converts 92 bytes in place. Returns False if not a patch to convert."""
   if p[91] not in OLD_VERSIONS or any(b >= 128 for b in p[8:24]):
     return False
+  if p[89] == ord('n') and p[90] == ord('g'):
+    p[84:91] = bytes(7)  # Pre-1.0 patch: these bytes held text, not settings.
   for i in range(12):
     s = remap_source(p[32 + 3 * i])
     if s is None:

@@ -29,6 +29,12 @@
 #include "shruthi/display.h"
 #include "shruthi/hardware_config.h"
 
+namespace avrlib {
+// Defined once in ui.cc: as a template static, old avr-gcc emits a guarded
+// constructor in every file that uses it (~150 bytes each).
+template<> RingBuffer<EventQueue<32> > EventQueue<32>::events_;
+}  // namespace avrlib
+
 namespace shruthi {
 
 using namespace avrlib;

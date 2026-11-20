@@ -89,12 +89,6 @@ static const prog_char sysex_rx_header[] PROGMEM = {
   // Not used for 0x01-0x22, but used for block numbering for 0x4n.
 };
 
-static const prog_char sysex_rx_header_old[] PROGMEM = {
-  0xf0,  // <SysEx>
-  0x00, 0x20, 0x77,
-  0x00, 0x02,  // Product ID for Shruthi-1.
-};
-
 // Bits kept per byte of the 92-byte patch, LSB first; 0x80 = signed. 528 bits
 // = 66 bytes. Unused extra_data_[5..7] and version_ are dropped; the PVK
 // booleans keep 1 bit, the filter modes 5. Must match shruthi/patch_translator.py.
@@ -248,29 +242,12 @@ void Storage::SysExParseCommand() {
       sysex_rx_expected_size_ = StorageConfiguration<Patch>::size;
       break;
 
-    case 0x04:  // System settings transfer
-      sysex_rx_expected_size_ = sizeof(SystemSettings);
-      break;
-
-    case 0x06:  // Patch name transfer
-      sysex_rx_expected_size_ = kPatchNameSize;
-      break;
-
     case 0x11:  // Patch request
-    case 0x14:  // System settings request
-    case 0x16:  // Patch name request
-    case 0x1a:  // Current patch and sequence numbers request
-    case 0x1b:  // Num banks request
-    case 0x1c:  // Version request
       sysex_rx_expected_size_ = 0;
       break;
 
     case 0x21:  // Patch write request
       sysex_rx_expected_size_ = 2;
-      break;
-
-    case 0x31:  // Patch randomize
-      sysex_rx_expected_size_ = 0;
       break;
 
     case 0x40:  // Bulk transfer
@@ -306,73 +283,8 @@ void Storage::SysExAcceptBuffer() {
       success = AcceptData(part.mutable_patch(), sysex_rx_buffer_);
       break;
 
-    case 0x04:
-      memcpy(
-          (uint8_t*) part.mutable_system_settings(),
-          sysex_rx_buffer_,
-          sizeof(SystemSettings));
-      if (part.system_settings().midi_out_mode > MIDI_OUT_SOFT_THRU) {
-        part.mutable_system_settings()->midi_out_mode = MIDI_OUT_SOFT_THRU;  // As in Part::Init.
-      }
-      if (part.system_settings().midi_channel > 16) {
-        part.mutable_system_settings()->midi_channel = 0;  // Omni, else no channel ever matches.
-      }
-      part.mutable_system_settings()->EepromSave();
-      success = 1;
-      break;
-
-    case 0x06:
-      part.SetName(sysex_rx_buffer_);
-      success = 1;
-      break;
-
     case 0x11:
       Storage::SysExDump(part.mutable_patch());
-      break;
-
-    case 0x14:
-      Storage::SysExDumpBuffer(
-          (uint8_t*) part.mutable_system_settings(),
-          0x04,
-          0,
-          sizeof(SystemSettings));
-      break;
-
-    case 0x16:
-      Storage::SysExDumpBuffer(
-          (uint8_t*) part.mutable_patch()->name,
-          0x06,
-          0,
-          kPatchNameSize);
-      break;
-
-    case 0x1a:
-      {
-        uint16_t current_indices[2];
-        current_indices[0] = editor.current_patch_number();
-        current_indices[1] = editor.current_patch_number();
-        Storage::SysExDumpBuffer(
-            (uint8_t*)&current_indices, 0x0a,
-            0,
-            sizeof(current_indices));
-      }
-      break;
-
-    case 0x1b:
-      Storage::SysExDumpBuffer(
-          (uint8_t*) NULL,
-          0x0b,
-          num_accessible_banks(),
-          0);
-      break;
-
-    case 0x1c:
-      {
-        uint8_t version[2];
-        version[0] = pgm_read_byte(waveform_table[WAV_RES_VERSION]);
-        version[1] = pgm_read_byte(waveform_table[WAV_RES_VERSION] + 1);
-        Storage::SysExDumpBuffer(version, 0x0c, 0, 2);
-      }
       break;
 
     case 0x21:
@@ -383,11 +295,6 @@ void Storage::SysExAcceptBuffer() {
           WritePatch(slot);
         }
       }
-      break;
-
-    case 0x31:
-      editor.RandomizePatch();
-      success = 1;
       break;
 
     case 0x40:  // Raw data dump
@@ -444,23 +351,6 @@ void Storage::SysExReceive(uint8_t sysex_rx_byte) {
           sysex_rx_byte) {
         sysex_rx_bytes_received_++;
         if (sysex_rx_bytes_received_ >= sizeof(sysex_rx_header)) {
-          sysex_rx_state_ = RECEIVING_COMMAND;
-          sysex_rx_bytes_received_ = 0;
-        }
-      } else if (pgm_read_byte(sysex_rx_header_old + sysex_rx_bytes_received_) == \
-            sysex_rx_byte) {
-        sysex_rx_bytes_received_++;
-        sysex_rx_state_ = RECEIVING_OLD_HEADER;
-      } else {
-        sysex_rx_state_ = RECEIVING_FOOTER;
-      }
-      break;
-
-    case RECEIVING_OLD_HEADER:
-      if (pgm_read_byte(sysex_rx_header_old + sysex_rx_bytes_received_) == \
-          sysex_rx_byte) {
-        sysex_rx_bytes_received_++;
-        if (sysex_rx_bytes_received_ >= sizeof(sysex_rx_header_old)) {
           sysex_rx_state_ = RECEIVING_COMMAND;
           sysex_rx_bytes_received_ = 0;
         }

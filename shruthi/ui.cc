@@ -22,6 +22,11 @@
 #include "shruthi/editor.h"
 #include "shruthi/part.h"
 
+namespace avrlib {
+template<> RingBuffer<EventQueue<32> > EventQueue<32>::events_ =
+    RingBuffer<EventQueue<32> >();
+}  // namespace avrlib
+
 namespace shruthi {
 
 using namespace avrlib;

@@ -35,7 +35,6 @@ namespace shruthi {
 
 enum SysExReceptionState {
   RECEIVING_HEADER = 0,
-  RECEIVING_OLD_HEADER = 1,
   RECEIVING_COMMAND = 2,
   RECEIVING_DATA = 3,
   RECEIVING_FOOTER = 4,
