@@ -256,6 +256,7 @@ class Editor {
   static void OnPatchMenuClick();
   static uint8_t PatchMenu(uint8_t* items);
   static void QuickSave();
+  static void DeletePatch();
  public:
   static void QuickSaveConfirm();  // FUNC + encoder hold.
   static void PageToolsMenu();  // Encoder hold on a synth page.

@@ -1182,11 +1182,11 @@ void Editor::OnLoadSaveClick() {
 // PATCH menu items, 10 chars each, in PatchItem order.
 static const prog_char patch_items[] PROGMEM =
   "load      quick savesave as   save here reload    compare   "
-  "empty     random    send patchbackup all back      ";
+  "delete    random    send patchbackup all back      ";
 
 enum PatchItem {
   PI_LOAD, PI_QUICK_SAVE, PI_SAVE_AS, PI_SAVE_HERE, PI_RELOAD, PI_COMPARE,
-  PI_EMPTY, PI_RANDOM, PI_SEND, PI_BACKUP, PI_BACK
+  PI_DELETE, PI_RANDOM, PI_SEND, PI_BACKUP, PI_BACK
 };
 
 /* static */
@@ -1206,7 +1206,7 @@ uint8_t Editor::PatchMenu(uint8_t* items) {
       items[n++] = PI_RELOAD;
       items[n++] = PI_COMPARE;
     }
-    items[n++] = PI_EMPTY;
+    items[n++] = PI_DELETE;
     items[n++] = PI_RANDOM;
     items[n++] = PI_SEND;
   }
@@ -1220,22 +1220,30 @@ uint8_t Editor::PatchMenu(uint8_t* items) {
 
 /* static */
 void Editor::QuickSave() {
-  // Overwrite the loaded slot, keeping its stored name (an emptied patch
-  // keeps the empty name, so the slot reads as empty).
+  // Overwrite the loaded slot, keeping its stored name.
   uint8_t* name = part.mutable_patch()->name;
-  if (memcmp_P(name, default_name, kPatchNameSize)) {
-    Storage::LoadPatchName(name, loaded_patch_);
-    for (uint8_t i = 0; i < kPatchNameSize; ++i) {
-      if (name[i] >= 0x80) {  // Blank slot: the empty name.
-        memcpy_P(name, default_name, kPatchNameSize);
-        break;
-      }
+  Storage::LoadPatchName(name, loaded_patch_);
+  for (uint8_t i = 0; i < kPatchNameSize; ++i) {
+    if (name[i] >= 0x80) {  // Blank slot: the empty name.
+      memcpy_P(name, default_name, kPatchNameSize);
+      break;
     }
   }
   Storage::WritePatch(loaded_patch_);
   preset_status_ = 0;
   set_edited_item_number(current_patch_number_);
   ShowPatchPopup(PSTR(" SAVED  "));
+}
+
+/* static */
+void Editor::DeletePatch() {
+  // The loaded slot becomes the init sound under the empty name.
+  part.ResetPatch();
+  memcpy_P(part.mutable_patch()->name, default_name, kPatchNameSize);
+  Storage::WritePatch(loaded_patch_);
+  preset_status_ = 0;
+  set_edited_item_number(current_patch_number_);
+  ShowPatchPopup(PSTR("DELETED "));
 }
 
 /* static */
@@ -1354,17 +1362,16 @@ void Editor::OnPatchMenuClick() {
       deferred_load_ = loaded_patch_;
       action_ = ACTION_COMPARE;
       break;
-    case PI_EMPTY:
-    case PI_RANDOM:
-      if (item == PI_EMPTY) {
-        // The init sound under the empty name: quick save then empties the slot.
-        part.ResetPatch();
-        memcpy_P(part.mutable_patch()->name, default_name, kPatchNameSize);
-        ShowPatchPopup(PSTR(" EMPTY  "));
-      } else {
-        RandomizePatch();
-        ShowPatchPopup(PSTR(" RANDOM "));
+    case PI_DELETE:
+      {
+        ConfirmPageSettings confirm_delete;
+        confirm_delete.callback = &DeletePatch;
+        Confirm(confirm_delete);
       }
+      break;
+    case PI_RANDOM:
+      RandomizePatch();
+      ShowPatchPopup(PSTR(" RANDOM "));
       preset_status_ = 1;  // EDITED *
       break;
     case PI_SEND:
@@ -2208,6 +2215,10 @@ void Editor::DisplayConfirmPage() {
     memcpy_P(line_buffer_, PSTR("SAVE"), 4);
     memcpy(line_buffer_ + 5, part.patch().name, kPatchNameSize);
     line_buffer_[5 + kPatchNameSize] = '?';
+  } else if (confirm_page_settings_.callback == &DeletePatch) {
+    memcpy_P(line_buffer_, PSTR("DELETE"), 6);
+    memcpy(line_buffer_ + 7, part.patch().name, kPatchNameSize);
+    line_buffer_[7 + kPatchNameSize] = '?';
   } else {
     const prog_char* q = confirm_page_settings_.callback == &RandomizePage ?
         PSTR("RANDOMIZE PAGE?") : PSTR("MIDI BACKUP?");
