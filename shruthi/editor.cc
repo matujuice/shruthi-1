@@ -2137,7 +2137,8 @@ void Editor::BootStep() {
   if (boot_step_ & 1) {
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
-    popup_until_ = milliseconds() + (boot_step_ == 9 ? 1000 : 550);
+    // Screen saver: every word 2 s. Boot: 550 ms, the last one 1 s.
+    popup_until_ = milliseconds() + (saver_ ? 2000 : boot_step_ == 9 ? 1000 : 550);
     return;
   }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
@@ -2151,7 +2152,7 @@ void Editor::BootStep() {
     chars[n++] = c;
   }
   PrintTall(chars, n, line_buffer_ + ((kLcdWidth - n) >> 1));
-  popup_until_ = milliseconds() + 200;
+  popup_until_ = milliseconds() + (saver_ ? 500 : 200);
 }
 
 /* static */
