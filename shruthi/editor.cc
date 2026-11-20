@@ -2152,7 +2152,7 @@ void Editor::BootStep() {
     chars[n++] = c;
   }
   PrintTall(chars, n, line_buffer_ + ((kLcdWidth - n) >> 1));
-  popup_until_ = milliseconds() + (saver_ ? 500 : 200);
+  popup_until_ = milliseconds() + 200;
 }
 
 /* static */
