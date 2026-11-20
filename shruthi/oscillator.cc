@@ -493,24 +493,31 @@ void Oscillator::Pluck() {
 }
 
 // The line holds one cycle, read like a wavetable. Each slot the phase enters
-// is averaged with the next one (the string's lowpass); prm adds damping.
+// is averaged with the next one (the string's lowpass). prm 0-63: damped
+// (0 = shortest), 64: plain string, 65-127: some passes skip the average
+// (Karplus-Strong decay stretch), up to about 13x longer at 127.
 void Oscillator::RenderPluck(uint8_t* buffer) {
   uint8_t* line = pluck_line_;
-  uint8_t damp = parameter_ >> 2;
+  uint8_t damp = parameter_ < 64 ? (64 - parameter_) >> 1 : 0;
+  uint8_t skip = parameter_ > 64 ? ((parameter_ - 64) * 15) >> 2 : 0;
   uint8_t last = data_.cr.state;
   BEGIN_SAMPLE_LOOP
     UPDATE_PHASE_MORE_REGISTERS
     uint8_t i = phase.integral >> 8;
     if (i != last) {
       last = i;
-      // Alternate rounding so the average does not drift the DC down.
-      uint8_t v = (line[i] + line[static_cast<uint8_t>(i + 1)] + (i & 1)) >> 1;
-      if (damp) {
-        int8_t s = v ^ 0x80;
-        s -= (s * damp + 128) >> 8;
-        v = s ^ 0x80;
+      // Random, not a counter: a fixed pattern would freeze the same slots
+      // on every pass.
+      if (!skip || Random::GetByte() >= skip) {
+        // Alternate rounding so the average does not drift the DC down.
+        uint8_t v = (line[i] + line[static_cast<uint8_t>(i + 1)] + (i & 1)) >> 1;
+        if (damp) {
+          int8_t s = v ^ 0x80;
+          s -= (s * damp + 128) >> 8;
+          v = s ^ 0x80;
+        }
+        line[i] = v;
       }
-      line[i] = v;
     }
     *buffer++ = line[i];
   END_SAMPLE_LOOP
