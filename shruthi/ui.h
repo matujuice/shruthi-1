@@ -30,9 +30,9 @@
 #include "shruthi/hardware_config.h"
 
 namespace avrlib {
-// Defined once in ui.cc: as a template static, old avr-gcc emits a guarded
-// constructor in every file that uses it (~150 bytes each).
-template<> RingBuffer<EventQueue<32> > EventQueue<32>::events_;
+// Instantiated once in ui.cc: else old avr-gcc emits the events_ guarded
+// constructor in every file that uses the queue (~150 bytes each).
+extern template class EventQueue<32>;
 }  // namespace avrlib
 
 namespace shruthi {
