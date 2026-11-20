@@ -495,11 +495,12 @@ void Oscillator::Pluck() {
 // The line holds one cycle, read like a wavetable. Each slot the phase enters
 // is averaged with the next one (the string's lowpass). prm 0-63: damped
 // (0 = shortest), 64: plain string, 65-127: some passes skip the average
-// (Karplus-Strong decay stretch), up to about 13x longer at 127.
+// (Karplus-Strong decay stretch), up to about 2.5x longer at 127. Skipping
+// more than about half the passes leaves the burst noisy, so it is capped there.
 void Oscillator::RenderPluck(uint8_t* buffer) {
   uint8_t* line = pluck_line_;
   uint8_t damp = parameter_ < 64 ? (64 - parameter_) >> 1 : 0;
-  uint8_t skip = parameter_ > 64 ? ((parameter_ - 64) * 15) >> 2 : 0;
+  uint8_t skip = parameter_ > 64 ? ((parameter_ - 64) * 17) >> 3 : 0;
   uint8_t last = data_.cr.state;
   BEGIN_SAMPLE_LOOP
     UPDATE_PHASE_MORE_REGISTERS
