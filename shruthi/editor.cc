@@ -2139,7 +2139,9 @@ void Editor::DisplaySplashScreen() {
   boot_word_ = 0;
   popup_phase_ = 0xfe;
   BootStep();
-  set_edited_item_number(part.system_settings().last_patch);
+  uint16_t last = part.system_settings().last_patch;
+  // Settings from a unit with more banks: slot numbers past ours wrap onto other slots.
+  set_edited_item_number(last < Storage::size<Patch>() ? last : 0);
   deferred_load_ = current_patch_number_;
   ToggleLoadSaveAction();
 }
