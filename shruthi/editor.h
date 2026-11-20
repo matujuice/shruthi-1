@@ -172,6 +172,7 @@ class Editor {
   // Displays variants of the current page.
   static void Refresh();
   static void ScreenSaver();
+  static void WakeUp();
   
   // Notify the editor that the user has not provided any input for 2s.
   static bool Relax();

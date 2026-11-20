@@ -321,6 +321,9 @@ void Ui::DoEvents() {
     refresh_display = true;
     idle_time_ = 0;
   }
+  if (idle_time_ < 100000) {
+    editor.WakeUp();  // Any key, knob or patch change ends the screen saver.
+  }
   
   // Holding a page key shows the page's values as numbers (Elektron style).
   bool numbers = false;

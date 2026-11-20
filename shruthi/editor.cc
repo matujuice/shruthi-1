@@ -699,6 +699,7 @@ static uint8_t number_hidden_;
 
 static uint8_t boot_step_;  // Boot screens 0-9. Even: blank, odd: a word.
 static uint8_t boot_word_;  // Read position in boot_words.
+static bool saver_;  // Screen saver: boot words loop until any input.
 
 // Starts a new glyph screen and draws tall_font characters from column 0 of
 // both rows. Two passes, as in DisplayEditOverviewPage.
@@ -1045,7 +1046,11 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
-    if (popup_phase_ == 0xfe && ++boot_step_ < 10) {
+    if (popup_phase_ == 0xfe && (++boot_step_ < 10 || saver_)) {
+      if (boot_step_ == 10) {
+        boot_step_ = 0;
+        boot_word_ = 0;
+      }
       BootStep();
       return false;
     }
@@ -1061,9 +1066,27 @@ bool Editor::PopupTick() {
 
 /* static */
 void Editor::ScreenSaver() {
-  memset(line_buffer_, ' ', kLcdWidth);
-  display.Print(0, line_buffer_);
-  display.Print(1, line_buffer_);
+  if (saver_) {
+    return;
+  }
+  // The boot words, looped by PopupTick until WakeUp.
+  saver_ = true;
+  display.set_cursor_position(kLcdNoCursor);
+  boot_step_ = 0;
+  boot_word_ = 0;
+  popup_phase_ = 0xfe;
+  BootStep();
+}
+
+/* static */
+void Editor::WakeUp() {
+  if (!saver_) {
+    return;
+  }
+  saver_ = false;
+  if (popup_phase_ >= 0xfe) {  // A patch popup that took over keeps its time.
+    popup_until_ = 0;
+  }
 }
 
 /* static */
