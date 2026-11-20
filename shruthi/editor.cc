@@ -1182,11 +1182,11 @@ void Editor::OnLoadSaveClick() {
 // PATCH menu items, 10 chars each, in PatchItem order.
 static const prog_char patch_items[] PROGMEM =
   "load      quick savesave as   save here reload    compare   "
-  "init      random    send patchbackup all back      ";
+  "empty     random    send patchbackup all back      ";
 
 enum PatchItem {
   PI_LOAD, PI_QUICK_SAVE, PI_SAVE_AS, PI_SAVE_HERE, PI_RELOAD, PI_COMPARE,
-  PI_INIT, PI_RANDOM, PI_SEND, PI_BACKUP, PI_BACK
+  PI_EMPTY, PI_RANDOM, PI_SEND, PI_BACKUP, PI_BACK
 };
 
 /* static */
@@ -1206,7 +1206,7 @@ uint8_t Editor::PatchMenu(uint8_t* items) {
       items[n++] = PI_RELOAD;
       items[n++] = PI_COMPARE;
     }
-    items[n++] = PI_INIT;
+    items[n++] = PI_EMPTY;
     items[n++] = PI_RANDOM;
     items[n++] = PI_SEND;
   }
@@ -1220,13 +1220,16 @@ uint8_t Editor::PatchMenu(uint8_t* items) {
 
 /* static */
 void Editor::QuickSave() {
-  // Overwrite the loaded slot, keeping its stored name.
+  // Overwrite the loaded slot, keeping its stored name (an emptied patch
+  // keeps the empty name, so the slot reads as empty).
   uint8_t* name = part.mutable_patch()->name;
-  Storage::LoadPatchName(name, loaded_patch_);
-  for (uint8_t i = 0; i < kPatchNameSize; ++i) {
-    if (name[i] >= 0x80) {  // Blank slot: the empty name.
-      memcpy_P(name, default_name, kPatchNameSize);
-      break;
+  if (memcmp_P(name, default_name, kPatchNameSize)) {
+    Storage::LoadPatchName(name, loaded_patch_);
+    for (uint8_t i = 0; i < kPatchNameSize; ++i) {
+      if (name[i] >= 0x80) {  // Blank slot: the empty name.
+        memcpy_P(name, default_name, kPatchNameSize);
+        break;
+      }
     }
   }
   Storage::WritePatch(loaded_patch_);
@@ -1351,11 +1354,13 @@ void Editor::OnPatchMenuClick() {
       deferred_load_ = loaded_patch_;
       action_ = ACTION_COMPARE;
       break;
-    case PI_INIT:
+    case PI_EMPTY:
     case PI_RANDOM:
-      if (item == PI_INIT) {
+      if (item == PI_EMPTY) {
+        // The init sound under the empty name: quick save then empties the slot.
         part.ResetPatch();
-        ShowPatchPopup(PSTR("  INIT  "));
+        memcpy_P(part.mutable_patch()->name, default_name, kPatchNameSize);
+        ShowPatchPopup(PSTR(" EMPTY  "));
       } else {
         RandomizePatch();
         ShowPatchPopup(PSTR(" RANDOM "));
