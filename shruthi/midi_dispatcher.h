@@ -101,7 +101,8 @@ class MidiDispatcher : public midi::MidiDevice {
   
   static void ProgramChange(uint8_t channel, uint8_t program) {
     uint16_t n = program + (current_bank_ << 7);
-    if (n < Storage::size<Patch>()) {
+    // Not under a yes/no question: delete would hit the newly loaded slot.
+    if (n < Storage::size<Patch>() && editor.current_page() != PAGE_CONFIRM) {
       editor.set_current_patch_number(n);
     }
   }

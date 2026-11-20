@@ -314,6 +314,9 @@ void Storage::SysExAcceptBuffer() {
       if (part.system_settings().midi_out_mode > MIDI_OUT_SOFT_THRU) {
         part.mutable_system_settings()->midi_out_mode = MIDI_OUT_SOFT_THRU;  // As in Part::Init.
       }
+      if (part.system_settings().midi_channel > 16) {
+        part.mutable_system_settings()->midi_channel = 0;  // Omni, else no channel ever matches.
+      }
       part.mutable_system_settings()->EepromSave();
       success = 1;
       break;
