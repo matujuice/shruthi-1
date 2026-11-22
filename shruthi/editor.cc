@@ -951,7 +951,9 @@ void Editor::OnSwitch(const Event& event) {
 
 /* static */
 void Editor::OnInput(uint8_t knob_index, uint8_t value) {
-  popup_until_ = 0;  // A knob move replaces the popup.
+  if (popup_phase_ < 0xfe) {  // Boot words: a noisy pot must not skip them.
+    popup_until_ = 0;  // A knob move replaces the popup.
+  }
   (*ui_handler_[page_definition_[current_page_].ui_type].input_handler)(
       knob_index, value);
 }
