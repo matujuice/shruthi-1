@@ -681,11 +681,14 @@ void Voice::ProcessBlock() {
     } else if (fx == FX_RING) {
       // Square carrier, amt 10 Hz..9.5 kHz; param: dry signal mixed back in.
       uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
+      // Mixing ~x with x is x scaled by (2 * param - 127) / 128 around 128:
+      // one multiply, and only while the carrier is high.
+      int8_t k = (param << 1) - 127;
       for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-        uint8_t x = buffer_[i];
         ring_phase_ += step;
-        uint8_t wet = (ring_phase_ & 0x8000) ? ~x : x;
-        buffer_[i] = U8Mix(wet, x, param << 1);
+        if (ring_phase_ & 0x8000) {
+          buffer_[i] = (S8S8MulShift8(buffer_[i] ^ 0x80, k) << 1) ^ 0x80;
+        }
       }
     }
   }
