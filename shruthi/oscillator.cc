@@ -478,17 +478,12 @@ uint8_t Oscillator::pluck_lines_[2][256];
 void Oscillator::Pluck() {
   uint8_t* line = pluck_line_;
   uint8_t noise = Random::GetByte();
-  uint16_t sum = 0;
   uint8_t i = 0;
+  // Full-period generator: the 256 bytes are 0-255 in some order, so the
+  // burst has no DC to remove.
   do {
     noise = noise * 73 + 1;
     line[i] = noise;
-    sum += noise;
-  } while (++i);
-  // Remove the burst's average, else it stays as DC after the string dies.
-  int16_t offset = 128 - (sum >> 8);
-  do {
-    line[i] = S16ClipU8(line[i] + offset);
   } while (++i);
 }
 
@@ -499,28 +494,32 @@ void Oscillator::Pluck() {
 // more than about half the passes leaves the burst noisy, so it is capped there.
 void Oscillator::RenderPluck(uint8_t* buffer) {
   uint8_t* line = pluck_line_;
-  uint8_t damp = parameter_ < 64 ? (64 - parameter_) >> 1 : 0;
+  // Damping scales each averaged slot by keep / 256 (224-255); 0 = none.
+  uint8_t keep = parameter_ < 63 ? 256 - ((64 - parameter_) >> 1) : 0;
   uint8_t skip = parameter_ > 64 ? ((parameter_ - 64) * 17) >> 3 : 0;
   uint8_t last = data_.cr.state;
+  uint8_t out = line[last];
+  // Hot loop: above ~150 Hz the phase enters a new slot on every sample, and
+  // every cycle counts against the audio buffer (the '!' glitch).
   BEGIN_SAMPLE_LOOP
     UPDATE_PHASE_MORE_REGISTERS
     uint8_t i = phase.integral >> 8;
     if (i != last) {
       last = i;
+      uint8_t* p = line + i;
+      out = *p;
       // Random, not a counter: a fixed pattern would freeze the same slots
       // on every pass.
       if (!skip || Random::GetByte() >= skip) {
         // Alternate rounding so the average does not drift the DC down.
-        uint8_t v = (line[i] + line[static_cast<uint8_t>(i + 1)] + (i & 1)) >> 1;
-        if (damp) {
-          int8_t s = v ^ 0x80;
-          s -= (s * damp + 128) >> 8;
-          v = s ^ 0x80;
+        out = (out + line[static_cast<uint8_t>(i + 1)] + (i & 1)) >> 1;
+        if (keep) {
+          out = S8U8MulShift8(out ^ 0x80, keep) ^ 0x80;
         }
-        line[i] = v;
+        *p = out;
       }
     }
-    *buffer++ = line[i];
+    *buffer++ = out;
   END_SAMPLE_LOOP
   data_.cr.state = last;
 }
