@@ -697,15 +697,19 @@ static const prog_char title_card[] PROGMEM =
     "    \4O\5\3BOKC    ";  // ПОЛИВОКС
 
 // П О Л И В О К С, then the hammer and sickle, scrolling through a window of 8
-// tall cells. Letters 1 cell apart and 4 blanks before the hammer keep any
-// window to 4 cells' worth of glyphs (8). tall_font indices, 0xff = blank.
+// tall cells. A loop: the saver goes round it without a seam. Letters 1 cell
+// apart and 4 blanks around the hammer keep any window to 4 cells' worth of
+// glyphs (8). tall_font indices, 0xff = blank.
 static const prog_uint8_t boot_ticker[] PROGMEM = {
-  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff,
   11, 0xff, 0, 0xff, 12, 0xff, 13, 0xff, 14, 0xff, 0, 0xff, 10, 0xff, 15,
-  0xff, 0xff, 0xff, 0xff, 16, 17, 18, 19, 0xff, 0xff,
+  0xff, 0xff, 0xff, 0xff, 16, 17, 18, 19,
 };
 static const uint8_t kTickerWindow = 8;
-static const uint8_t kTickerSteps = sizeof(boot_ticker) - kTickerWindow + 1;
+static const uint8_t kTickerLength = sizeof(boot_ticker);
+// Boot window at step s starts at ticker cell s - 4 (blank before cell 0), so
+// the last step, kTickerLength - 2, has the hammer centred.
+static const uint8_t kTickerSteps = kTickerLength - 1;
 
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
 static uint8_t preset_status_;
@@ -1089,7 +1093,7 @@ bool Editor::PopupTick() {
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
     if (popup_phase_ == 0xfe && (++boot_step_ < kTickerSteps + 2 || saver_)) {
-      if (boot_step_ == kTickerSteps && saver_) {  // The saver skips the title card.
+      if (boot_step_ == kTickerLength && saver_) {  // The saver skips the title card.
         boot_step_ = 0;
       }
       BootStep();
@@ -2190,21 +2194,25 @@ void Editor::BootStep() {
   uint8_t step = boot_step_;
   if (step <= kTickerSteps) {  // Past it: the title card drawn at the blank.
     memset(line_buffer_, ' ', sizeof(line_buffer_));
-    if (step < kTickerSteps) {
+    if (step < kTickerSteps || saver_) {  // The saver uses every step.
       uint8_t chars[kTickerWindow];
-      memcpy_P(chars, boot_ticker + step, kTickerWindow);
+      for (uint8_t i = 0; i < kTickerWindow; ++i) {
+        uint8_t j = step + i + kTickerLength - 4;
+        chars[i] = !saver_ && step + i < 4 ? 0xff :
+            pgm_read_byte(boot_ticker + j % kTickerLength);
+      }
       PrintTall(chars, kTickerWindow,
           line_buffer_ + ((kLcdWidth - kTickerWindow) >> 1));
     }
   }
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
-  if (step == kTickerSteps) {
+  if (step == kTickerSteps && !saver_) {
     PrintTitle(line_buffer_);  // Its glyphs upload while the screen is blank.
   }
-  // Scroll steps 90 ms; the hammer and sickle and the title card 550 ms.
-  popup_until_ = milliseconds() +
-      (step < kTickerSteps - 1 ? 90 : step == kTickerSteps ? 200 : 550);
+  // Scroll steps 90 ms; at boot the hammer and sickle and the title card 550.
+  popup_until_ = milliseconds() + (step < kTickerSteps - 1 || saver_ ? 90 :
+      step == kTickerSteps ? 200 : 550);
 }
 
 /* static */
