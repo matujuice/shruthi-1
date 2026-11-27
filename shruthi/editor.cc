@@ -696,12 +696,10 @@ static const prog_char title_card[] PROGMEM =
     "  \6 \1P\2T\3-1 \6   "  // ★ ШРУТИ-1 ★
     "    \4O\5\3BOKC    ";  // ПОЛИВОКС
 
-// Boot words as tall_font indices, 0xff ends a word, 0xfe = title card.
-static const prog_uint8_t boot_words[] PROGMEM = {
-  11, 0, 12, 13, 0xff,  // ПОЛИ
-  14, 0, 10, 15, 0xff,  // ВОКС
-  16, 17, 18, 19, 0xff,  // hammer and sickle (4 cells: centred)
-  0xfe, 0xff,  // title card
+// ПОЛИВОКС, then the hammer and sickle, scrolling through a window of 4 tall
+// cells: 8 glyphs at most. tall_font indices, 0xff = blank.
+static const prog_uint8_t boot_ticker[] PROGMEM = {
+  0xff, 0xff, 0xff, 11, 0, 12, 13, 14, 0, 10, 15, 0xff, 16, 17, 18, 19,
 };
 
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
@@ -712,9 +710,9 @@ static const prog_char* popup_text_;  // 8 chars, second popup row.
 // Save page: the selected number is in the off phase of its blink.
 static uint8_t number_hidden_;
 
-static uint8_t boot_step_;  // Boot screens 0-7. Even: blank, odd: a word.
-static uint8_t boot_word_;  // Read position in boot_words.
-static bool saver_;  // Screen saver: boot words loop until any input.
+// Boot screens: 0-12 scroll the ticker, 13 blank, 14 the title card.
+static uint8_t boot_step_;
+static bool saver_;  // Screen saver: the ticker loops until any input.
 
 // Starts a new glyph screen and draws tall_font characters from column 0 of
 // both rows. Two passes, as in DisplayEditOverviewPage.
@@ -724,6 +722,9 @@ static void PrintTall(const uint8_t* chars, uint8_t n, char* row_0) {
   for (uint8_t pass = 0; pass < 2; ++pass) {
     glyph_probe_ = pass == 0;
     for (uint8_t i = 0; i < n; ++i) {
+      if (chars[i] == 0xff) {
+        continue;
+      }
       uint8_t bits[8];
       memcpy_P(bits, tall_font + 16 * chars[i], 8);
       row_0[i] = GlyphGet(bits);
@@ -1081,10 +1082,9 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
-    if (popup_phase_ == 0xfe && (++boot_step_ < 8 || saver_)) {
-      if (boot_step_ == 8) {
+    if (popup_phase_ == 0xfe && (++boot_step_ < 15 || saver_)) {
+      if (boot_step_ == 13 && saver_) {  // The saver skips the title card.
         boot_step_ = 0;
-        boot_word_ = 0;
       }
       BootStep();
       return false;
@@ -1104,11 +1104,10 @@ void Editor::ScreenSaver() {
   if (saver_) {
     return;
   }
-  // The boot words, looped by PopupTick until WakeUp.
+  // The ticker, looped by PopupTick until WakeUp.
   saver_ = true;
   display.set_cursor_position(kLcdNoCursor);
   boot_step_ = 0;
-  boot_word_ = 0;
   popup_phase_ = 0xfe;
   BootStep();
 }
@@ -2168,10 +2167,9 @@ uint8_t Editor::GetParameterValue(uint8_t offset) {
 
 /* static */
 void Editor::DisplaySplashScreen() {
-  // ПОЛИ, ВОКС, hammer and sickle in the tall font, each popping on for
-  // 550 ms after 200 ms of blank, then the title card, then PRESET.
+  // ПОЛИВОКС and the hammer and sickle scroll by in the tall font, then the
+  // title card, then PRESET.
   boot_step_ = 0;
-  boot_word_ = 0;
   popup_phase_ = 0xfe;
   BootStep();
   uint16_t last = part.system_settings().last_patch;
@@ -2183,29 +2181,22 @@ void Editor::DisplaySplashScreen() {
 
 /* static */
 void Editor::BootStep() {
-  if (boot_step_ & 1) {
-    display.Print(0, line_buffer_);
-    display.Print(1, line_buffer_ + kLcdWidth + 1);
-    // Boot and screen saver: every screen 550 ms.
-    popup_until_ = milliseconds() + 550;
-    return;
+  uint8_t step = boot_step_;
+  if (step != 14) {  // 14 shows the title card drawn at 13.
+    memset(line_buffer_, ' ', sizeof(line_buffer_));
+    if (step < 13) {
+      uint8_t chars[4];
+      memcpy_P(chars, boot_ticker + step, 4);
+      PrintTall(chars, 4, line_buffer_ + ((kLcdWidth - 4) >> 1));
+    }
   }
-  memset(line_buffer_, ' ', sizeof(line_buffer_));
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
-  // The next word's glyphs upload while the screen is blank.
-  uint8_t chars[7];
-  uint8_t n = 0;
-  uint8_t c;
-  while ((c = pgm_read_byte(boot_words + boot_word_++)) != 0xff) {
-    chars[n++] = c;
+  if (step == 13) {
+    PrintTitle(line_buffer_);  // Its glyphs upload while the screen is blank.
   }
-  if (chars[0] == 0xfe) {
-    PrintTitle(line_buffer_);
-  } else {
-    PrintTall(chars, n, line_buffer_ + ((kLcdWidth - n) >> 1));
-  }
-  popup_until_ = milliseconds() + 200;
+  // Scroll steps 180 ms, the hammer and sickle and the title card 550 ms.
+  popup_until_ = milliseconds() + (step < 12 ? 180 : step == 13 ? 200 : 550);
 }
 
 /* static */
