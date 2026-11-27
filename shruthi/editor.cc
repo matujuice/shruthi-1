@@ -2179,8 +2179,8 @@ void Editor::BootStep() {
   if (boot_step_ & 1) {
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
-    // Screen saver: every screen 2 s. Boot: 550 ms, the title card 1.5 s.
-    popup_until_ = milliseconds() + (saver_ ? 2000 : boot_step_ == 7 ? 1500 : 550);
+    // Screen saver: every screen 1 s. Boot: 550 ms, the title card 1.5 s.
+    popup_until_ = milliseconds() + (saver_ ? 1000 : boot_step_ == 7 ? 1500 : 550);
     return;
   }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
