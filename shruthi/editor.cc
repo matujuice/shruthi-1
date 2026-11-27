@@ -657,7 +657,7 @@ static char Icon(uint8_t unit, uint8_t value) {
 }
 
 // Tall font, 5x16 over both LCD rows: 0-9, then Cyrillic К П Л И В С
-// (О is the 0), then the 4 cells of a hammer and sickle (16-19).
+// (О is the 0), the 4 cells of a hammer and sickle (16-19), Ш Р У Т and -.
 static const prog_uint8_t tall_font[] PROGMEM = {
   0x0e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0e,  // 0
   0x06, 0x0e, 0x1e, 0x16, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x06, 0x1f, 0x1f,  // 1
@@ -679,28 +679,20 @@ static const prog_uint8_t tall_font[] PROGMEM = {
   0x00, 0x00, 0x00, 0x07, 0x0f, 0x1f, 0x1f, 0x1f, 0x09, 0x00, 0x18, 0x1c, 0x1f, 0x03, 0x00, 0x00,  // hammer & sickle 1
   0x00, 0x10, 0x0c, 0x16, 0x13, 0x01, 0x01, 0x11, 0x19, 0x1d, 0x0f, 0x07, 0x1f, 0x1d, 0x00, 0x00,  // hammer & sickle 2
   0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x00, 0x10, 0x18, 0x18, 0x00,  // hammer & sickle 3
+  0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x1f, 0x1f,  // Ш
+  0x1e, 0x1f, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x1e, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18,  // Р
+  0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1b, 0x1f, 0x0f, 0x03, 0x03, 0x03, 0x03, 0x03, 0x1f, 0x1e,  // У
+  0x1f, 0x1f, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e, 0x0e,  // Т
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // -
 };
 
-// Title card glyphs, 5x8: Ш У И П Л and a star. In title_card, 1-6 pick
-// them; the other letters are the LCD's own (Р = P, Т = T, В = B...).
-static const prog_uint8_t small_font[] PROGMEM = {
-  0x15, 0x15, 0x15, 0x15, 0x15, 0x15, 0x1f, 0x00,  // Ш
-  0x11, 0x11, 0x11, 0x0f, 0x01, 0x11, 0x0e, 0x00,  // У
-  0x11, 0x11, 0x13, 0x15, 0x19, 0x11, 0x11, 0x00,  // И
-  0x1f, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x00,  // П
-  0x07, 0x09, 0x09, 0x09, 0x09, 0x09, 0x19, 0x00,  // Л
-  0x04, 0x04, 0x1f, 0x0e, 0x0a, 0x11, 0x00, 0x00,  // star
-};
-
-static const prog_char title_card[] PROGMEM =
-    "  \6 \1P\2T\3-1 \6   "  // ★ ШРУТИ-1 ★
-    "    \4O\5\3BOKC    ";  // ПОЛИВОКС
-
-// ПОЛИВОКС, then the hammer and sickle, scrolling through a window of 4 tall
-// cells (8 glyphs at most). A loop: the saver goes round it without a seam.
-// tall_font indices, 0xff = blank.
+// ШРУТИ-1 ПОЛИВОКС, then the hammer and sickle, scrolling through a window of
+// 4 tall cells (8 glyphs at most). A loop: the saver goes round it without a
+// seam. tall_font indices, 0xff = blank.
 static const prog_uint8_t boot_ticker[] PROGMEM = {
-  11, 0, 12, 13, 14, 0, 10, 15, 0xff, 16, 17, 18, 19, 0xff,
+  20, 21, 22, 23, 13, 24, 1, 0xff,  // ШРУТИ-1
+  11, 0, 12, 13, 14, 0, 10, 15, 0xff,  // ПОЛИВОКС
+  16, 17, 18, 19, 0xff,  // hammer and sickle
 };
 static const uint8_t kTickerWindow = 4;
 static const uint8_t kTickerLength = sizeof(boot_ticker);
@@ -716,8 +708,7 @@ static const prog_char* popup_text_;  // 8 chars, second popup row.
 // Save page: the selected number is in the off phase of its blink.
 static uint8_t number_hidden_;
 
-// Boot screens: 0 to kTickerSteps - 1 scroll the ticker, then a blank, then
-// the title card.
+// Boot screens: 0 to kTickerSteps - 1 scroll the ticker.
 static uint8_t boot_step_;
 static bool saver_;  // Screen saver: the ticker loops until any input.
 
@@ -737,24 +728,6 @@ static void PrintTall(const uint8_t* chars, uint8_t n, char* row_0) {
       row_0[i] = GlyphGet(bits);
       memcpy_P(bits, tall_font + 16 * chars[i] + 8, 8);
       row_0[kLcdWidth + 1 + i] = GlyphGet(bits);
-    }
-  }
-}
-
-// The last boot screen, in normal-size letters.
-static void PrintTitle(char* row_0) {
-  glyph_previous_ = glyph_used_;
-  glyph_used_ = 0;
-  for (uint8_t pass = 0; pass < 2; ++pass) {
-    glyph_probe_ = pass == 0;
-    for (uint8_t i = 0; i < 2 * kLcdWidth; ++i) {
-      uint8_t c = pgm_read_byte(title_card + i);
-      if (c < 8) {
-        uint8_t bits[8];
-        memcpy_P(bits, small_font + 8 * (c - 1), 8);
-        c = GlyphGet(bits);
-      }
-      row_0[i < kLcdWidth ? i : i + 1] = c;
     }
   }
 }
@@ -1089,8 +1062,8 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
-    if (popup_phase_ == 0xfe && (++boot_step_ < kTickerSteps + 2 || saver_)) {
-      if (boot_step_ == kTickerLength && saver_) {  // The saver skips the title card.
+    if (popup_phase_ == 0xfe && (++boot_step_ < kTickerSteps || saver_)) {
+      if (boot_step_ == kTickerSteps) {  // The saver goes round again.
         boot_step_ = 0;
       }
       BootStep();
@@ -2189,27 +2162,20 @@ void Editor::DisplaySplashScreen() {
 /* static */
 void Editor::BootStep() {
   uint8_t step = boot_step_;
-  if (step <= kTickerSteps) {  // Past it: the title card drawn at the blank.
-    memset(line_buffer_, ' ', sizeof(line_buffer_));
-    if (step < kTickerSteps || saver_) {  // The saver uses every step.
-      uint8_t chars[kTickerWindow];
-      for (uint8_t i = 0; i < kTickerWindow; ++i) {
-        uint8_t j = step + i + kTickerLength - kTickerWindow;
-        chars[i] = !saver_ && step + i < kTickerWindow ? 0xff :
-            pgm_read_byte(boot_ticker + j % kTickerLength);
-      }
-      PrintTall(chars, kTickerWindow,
-          line_buffer_ + ((kLcdWidth - kTickerWindow) >> 1));
-    }
+  memset(line_buffer_, ' ', sizeof(line_buffer_));
+  uint8_t chars[kTickerWindow];
+  for (uint8_t i = 0; i < kTickerWindow; ++i) {
+    uint8_t j = step + i + kTickerLength - kTickerWindow;
+    chars[i] = !saver_ && step + i < kTickerWindow ? 0xff :
+        pgm_read_byte(boot_ticker + j % kTickerLength);
   }
+  PrintTall(chars, kTickerWindow,
+      line_buffer_ + ((kLcdWidth - kTickerWindow) >> 1));
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
-  if (step == kTickerSteps && !saver_) {
-    PrintTitle(line_buffer_);  // Its glyphs upload while the screen is blank.
-  }
-  // Scroll steps 180 ms; at boot the hammer and sickle 550, the title card 1.5 s.
-  popup_until_ = milliseconds() + (step < kTickerSteps - 1 || saver_ ? 180 :
-      step == kTickerSteps - 1 ? 550 : step == kTickerSteps ? 200 : 1500);
+  // Scroll steps 180 ms; at boot the hammer and sickle stays 1 s.
+  popup_until_ = milliseconds() +
+      (step < kTickerSteps - 1 || saver_ ? 180 : 1000);
 }
 
 /* static */
