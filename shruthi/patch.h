@@ -101,7 +101,9 @@ class Patch {
   uint8_t name[kPatchNameSize];
 
   // Offset: 76-84. [1..3]: FX type, amount, param (offsets 77-79).
-  // [4]: patch volume (offset 80).
+  // [4]: patch volume (offset 80). [5]: sub through the FX (offset 81).
+  // Storage keeps 2 bits of [1]: bit 2 and [5] go in bit 5 of op_data_[0]
+  // and op_data_[2] (operand sources are < 32).
   uint8_t extra_data_[8];
 
   // Offset: 84-92
@@ -195,7 +197,8 @@ enum ModulationDestination {
 
 static const uint8_t kNumModulationDestinations = MOD_DST_LAST;
 
-enum FxType { FX_OFF, FX_RING, FX_DELAY };  // Before version '+': 4 = ring, 5 = delay.
+// Before version '+': 1 drive, 2 fold, 3 crush, 4 ring, 5 delay.
+enum FxType { FX_OFF, FX_RING, FX_DELAY, FX_DRIVE, FX_FOLD, FX_FUZZ, FX_BITS, FX_CRUSH };
 
 enum PatchParameter {
   PRM_OSC_SHAPE_1,

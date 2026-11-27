@@ -359,6 +359,9 @@ void Part::SetParameter(
     uint8_t value,
     bool user_initiated) {
   uint8_t* byte = ParameterByte(offset);
+  if (offset == PRM_OSC_OPTION_1 && value >= OP_FUZZ && value <= OP_BITS) {
+    value = value > *byte ? OP_DUO : OP_XOR;  // Ops 4-8 moved to the FX page.
+  }
   if (*byte == value) {
     return;
   }

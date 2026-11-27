@@ -777,7 +777,7 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
   // 94: FX type (DSP-board FX unit, unused on PVK: names in the editor)
   { 77,
     UNIT_FX_PROGRAM,
-    0, 2,
+    0, 7,
     STR_RES_FX_, STR_RES_FX_ },
 
   // 95: FX amount
@@ -797,6 +797,12 @@ static const prog_Parameter parameters[kNumParameters] PROGMEM = {
     UNIT_UINT8,
     0, 127,
     STR_RES_LEVEL, STR_RES_LEVEL },
+
+  // 98: sub osc through the FX
+  { 81,
+    UNIT_BOOLEAN,
+    0, 1,
+    STR_RES_SUB, STR_RES_SUB },
 };
 
 /* static */

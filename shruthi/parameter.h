@@ -81,7 +81,7 @@ struct Parameter {
 };
 
 typedef Parameter PROGMEM prog_Parameter;
-const uint8_t kNumParameters = 98;
+const uint8_t kNumParameters = 99;
 
 class ParameterManager {
  public:

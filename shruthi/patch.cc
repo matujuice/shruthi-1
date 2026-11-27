@@ -25,7 +25,7 @@
 namespace shruthi {
 
 void Patch::PrepareForWrite() {
-  version_ = '+';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': no CC7; '+': 3 FX.
+  version_ = '+';  // '&': tempo-locked LFOs; '\'': no SEQ/CV sources; '(': FX; ')': volume; '*': no CC7; '+': FX page (8 FX, sub switch).
   // PVK: any mode but LP plays as BP (voice.cc), and storage keeps 1 bit of it.
   filter_topology_ = ((filter_1_mode_ != FILTER_MODE_LP) << 4) | filter_2_mode_;
   op_data_[0] = ops_[0].operands[0];
@@ -43,6 +43,12 @@ void Patch::PrepareForWrite() {
   }
   if (ops_[1].operands[1] & 0x20) {
     op_data_[2] |= 0x40;
+  }
+  if (extra_data_[1] & 4) {
+    op_data_[0] |= 0x20;
+  }
+  if (extra_data_[5]) {
+    op_data_[2] |= 0x20;
   }
   
   const SystemSettings system_settings = part.system_settings();
@@ -132,10 +138,47 @@ void Patch::Update() {
     extra_data_[4] = 127;  // Full volume.
   }
   uint8_t fx = extra_data_[1];
+  uint8_t sub = 0;
   if (version_ != '+') {
-    fx = fx == 4 ? FX_RING : (fx == 5 ? FX_DELAY : FX_OFF);  // drive, fold, crush are gone.
+    fx = fx == 4 ? FX_RING : fx == 5 ? FX_DELAY : fx == 3 ? FX_CRUSH :
+        fx == 1 ? FX_DRIVE : fx == 2 ? FX_FOLD : FX_OFF;
+  } else {
+    fx |= (op_data_[0] & 0x20) >> 3;
+    sub = op_data_[2] & 0x20;
+    ops_[0].operands[0] &= 0x1f;
+    ops_[1].operands[0] &= 0x1f;
   }
-  extra_data_[1] = fx > FX_DELAY ? FX_OFF : fx;
+  if (fx > FX_CRUSH) {
+    fx = FX_OFF;
+  }
+  // Mixer ops 4-8 moved to the FX page. New patches never store them, so
+  // this runs once per old patch.
+  uint8_t op = osc[0].option;
+  if (op >= OP_FUZZ && op <= OP_BITS) {
+    osc[0].option = OP_SUM;
+    if (fx == FX_OFF) {
+      if (op == OP_CRUSH_4 || op == OP_CRUSH_8) {
+        fx = FX_CRUSH;  // x4 / x8 hold, sub included as before.
+        extra_data_[2] = op == OP_CRUSH_4 ? 96 : 112;
+        extra_data_[3] = 0;
+        sub = 1;
+      } else {
+        // The mix balance was the amount: now FX amount, mix in the middle.
+        fx = op == OP_FUZZ ? FX_FUZZ : op == OP_FOLD ? FX_FOLD : FX_BITS;
+        extra_data_[2] = mix_balance << 1;
+        extra_data_[3] = 64;
+        mix_balance = 32;
+        for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
+          Modulation* m = &modulation_matrix.modulation[i];
+          if (m->destination == MOD_DST_MIX_BALANCE) {
+            m->destination = MOD_DST_FX;
+          }
+        }
+      }
+    }
+  }
+  extra_data_[1] = fx;
+  extra_data_[5] = sub ? 1 : 0;
   version_ = '+';
   // Out-of-range indices would make the voice read/write past its arrays.
   for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {

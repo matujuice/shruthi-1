@@ -57,6 +57,8 @@ static uint16_t ring_phase_;  // FX ring: square carrier.
 static const uint16_t kDelaySize = 768;
 static uint8_t delay_line_[kDelaySize];
 static uint16_t delay_pos_;
+static uint8_t crush_phase_;  // FX crush: sample and hold.
+static uint8_t crush_hold_;
 uint8_t Voice::buffer_[kAudioBlockSize];
 uint8_t Voice::osc2_buffer_[kAudioBlockSize];
 uint8_t Voice::sync_state_[kAudioBlockSize];
@@ -568,44 +570,10 @@ void Voice::ProcessBlock() {
           buffer_[i] = U8Mix(buffer_[i], ring_mod, osc_1_gain, osc_2_gain);
         }
         break;
-      case OP_FUZZ:
-        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-          buffer_[i] >>= 1;
-          buffer_[i] += (osc2_buffer_[i] >> 1);
-          buffer_[i] = U8Mix(
-              buffer_[i],
-              ResourcesManager::Lookup<uint8_t, uint8_t>(
-                  wav_res_distortion, buffer_[i]),
-              osc_1_gain,
-              osc_2_gain);
-        }
-        break;
       case OP_XOR:
         for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
           buffer_[i] ^= osc2_buffer_[i];
           buffer_[i] ^= osc_2_gain;
-        }
-        break;
-      case OP_FOLD:
-        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-          buffer_[i] >>= 1;
-          buffer_[i] += (osc2_buffer_[i] >> 1);
-          buffer_[i] = U8Mix(
-              buffer_[i],
-              buffer_[i] + 128,
-              osc_1_gain,
-              osc_2_gain);
-        }
-        break;
-      case OP_BITS:
-        {
-          osc_2_gain >>= 5;
-          osc_2_gain = 255 - ((1 << osc_2_gain) - 1);
-          for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-            buffer_[i] >>= 1;
-            buffer_[i] += (osc2_buffer_[i] >> 1);
-            buffer_[i] &= osc_2_gain;
-          }
         }
         break;
       default:
@@ -619,13 +587,6 @@ void Voice::ProcessBlock() {
         break;
     }    
   }
-  uint8_t decimate = 1;
-  if (op == OP_CRUSH_4) {
-    decimate = 4;
-  } else if (op == OP_CRUSH_8) {
-    decimate = 8;
-  }
-  
   // Mix-in sub oscillator or transient generator.
   uint8_t sub_gain = U15ShiftRight7(dst_[MOD_DST_MIX_SUB_OSC]);
   if (enabled_source_bitmask != 0xff) {
@@ -634,67 +595,106 @@ void Voice::ProcessBlock() {
       sub_gain <<= 1;
     }
   }
-  if (part.patch_.mix_sub_osc_shape < WAVEFORM_SUB_OSC_CLICK) {
-    sub_osc.Render(part.patch_.mix_sub_osc_shape, buffer_, sub_gain);
-  } else {
-    if (sub_gain < 128) {
-      sub_gain <<= 1;
-    }
-    transient_generator.Render(
-        part.patch_.mix_sub_osc_shape, buffer_, sub_gain);
-  }
-  
-  // Apply optional bitcrushing.
-  if (decimate > 1) {
-    uint8_t* buffer = buffer_;
-    for (uint8_t i = 0; i < kAudioBlockSize; i += decimate) {
-      uint8_t value = *buffer++;
-      for (uint8_t j = 1; j < decimate; ++j) {
-        *buffer++ = value;
-      }
-    }
-  }
-  
-  // Insert FX (FX 2/2 page), before the analog filter. One at a time.
+
+  // Insert FX (FX page), before the analog filter. One at a time. Sub
+  // switch on: the sub goes through the FX, off: it is mixed in after.
   uint8_t fx = part.patch_.extra_data_[1];
-  if (fx) {
-    uint8_t amount = U14ShiftRight6(dst_[MOD_DST_FX]);  // 0..254
-    uint8_t param = part.patch_.extra_data_[3];
-    if (fx == FX_DELAY) {
-      // amount: time, 0.15..39 ms; param: feedback. 50% wet. Runs at half rate.
-      // Pointers walked once per block and halving for the 50% mix: the
-      // per-sample index maths and two multiplies starved the audio ('!').
-      uint16_t length = U8U8Mul(amount, 3) + 3;
-      uint8_t feedback = param << 1;
-      uint8_t* end = delay_line_ + kDelaySize;
-      uint8_t* w = delay_line_ + delay_pos_;
-      uint8_t* r = delay_pos_ >= length ? w - length : w + kDelaySize - length;
-      uint8_t* b = buffer_;
-      for (uint8_t i = 0; i < kAudioBlockSize / 2; ++i) {
-        uint8_t half = *r >> 1;
-        if (++r == end) {
-          r = delay_line_;
+  uint8_t sub_pass = part.patch_.extra_data_[5] ? 0 : 1;
+  for (uint8_t pass = 0; pass < 2; ++pass) {
+    if (pass == sub_pass) {
+      if (part.patch_.mix_sub_osc_shape < WAVEFORM_SUB_OSC_CLICK) {
+        sub_osc.Render(part.patch_.mix_sub_osc_shape, buffer_, sub_gain);
+      } else {
+        if (sub_gain < 128) {
+          sub_gain <<= 1;
         }
-        uint8_t x0 = b[0] >> 1;
-        uint8_t x1 = b[1] >> 1;
-        *w = U8Mix(x0 + x1, half << 1, feedback);
-        if (++w == end) {
-          w = delay_line_;
-        }
-        *b++ = x0 + half;
-        *b++ = x1 + half;
+        transient_generator.Render(
+            part.patch_.mix_sub_osc_shape, buffer_, sub_gain);
       }
-      delay_pos_ = w - delay_line_;
-    } else if (fx == FX_RING) {
-      // Square carrier, amt 10 Hz..9.5 kHz; param: dry signal mixed back in.
-      uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
-      // Mixing ~x with x is x scaled by (2 * param - 127) / 128 around 128:
-      // one multiply, and only while the carrier is high.
-      int8_t k = (param << 1) - 127;
-      for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
-        ring_phase_ += step;
-        if (ring_phase_ & 0x8000) {
-          buffer_[i] = (S8S8MulShift8(buffer_[i] ^ 0x80, k) << 1) ^ 0x80;
+    } else if (fx) {
+      uint8_t amount = U14ShiftRight6(dst_[MOD_DST_FX]);  // 0..254
+      uint8_t param = part.patch_.extra_data_[3];
+      if (fx == FX_DELAY) {
+        // amount: time, 0.15..39 ms; param: feedback. 50% wet. Runs at half rate.
+        // Pointers walked once per block and halving for the 50% mix: the
+        // per-sample index maths and two multiplies starved the audio ('!').
+        uint16_t length = U8U8Mul(amount, 3) + 3;
+        uint8_t feedback = param << 1;
+        uint8_t* end = delay_line_ + kDelaySize;
+        uint8_t* w = delay_line_ + delay_pos_;
+        uint8_t* r = delay_pos_ >= length ? w - length : w + kDelaySize - length;
+        uint8_t* b = buffer_;
+        for (uint8_t i = 0; i < kAudioBlockSize / 2; ++i) {
+          uint8_t half = *r >> 1;
+          if (++r == end) {
+            r = delay_line_;
+          }
+          uint8_t x0 = b[0] >> 1;
+          uint8_t x1 = b[1] >> 1;
+          *w = U8Mix(x0 + x1, half << 1, feedback);
+          if (++w == end) {
+            w = delay_line_;
+          }
+          *b++ = x0 + half;
+          *b++ = x1 + half;
+        }
+        delay_pos_ = w - delay_line_;
+      } else if (fx == FX_RING) {
+        // Square carrier, amt 10 Hz..9.5 kHz; param: dry signal mixed back in.
+        uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
+        // Mixing ~x with x is x scaled by (2 * param - 127) / 128 around 128:
+        // one multiply, and only while the carrier is high.
+        int8_t k = (param << 1) - 127;
+        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+          ring_phase_ += step;
+          if (ring_phase_ & 0x8000) {
+            buffer_[i] = (S8S8MulShift8(buffer_[i] ^ 0x80, k) << 1) ^ 0x80;
+          }
+        }
+      } else if (fx >= FX_BITS) {
+        // bits: amount = bits removed (0-7). crush: amount = sample-rate
+        // reduction, param = bits removed.
+        bool bits = fx == FX_BITS;
+        uint8_t mask = 0xff << ((bits ? amount >> 1 : param) >> 4);
+        uint16_t step = bits ? 256 : 256 - amount;
+        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+          uint16_t phase = crush_phase_ + step;
+          if (phase >= 256) {
+            crush_hold_ = buffer_[i] & mask;
+          }
+          crush_phase_ = phase;
+          buffer_[i] = crush_hold_;
+        }
+      } else if (fx == FX_FUZZ) {
+        // amount: dry/wet with the distortion curve.
+        for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+          buffer_[i] = U8Mix(
+              buffer_[i],
+              ResourcesManager::Lookup<uint8_t, uint8_t>(
+                  wav_res_distortion, buffer_[i]),
+              amount);
+        }
+      } else {
+        // drive: x1..x8.9 then clip, param = bias (even harmonics).
+        // fold: x1..x17 then fold back, param = offset (64 = centered).
+        bool fold = fx == FX_FOLD;
+        uint8_t gain = fold ? 16 + (amount > 239 ? 239 : amount) : 16 + (amount >> 1);
+        int8_t bias = fold ? param - 64 : param >> 2;
+        int16_t offset = bias * gain;
+        if (fold) {
+          uint16_t base = offset + 2048;
+          for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+            uint16_t u = U16ShiftRight4(
+                static_cast<uint16_t>(S8U8Mul(buffer_[i] ^ 0x80, gain)) + base) & 511;
+            buffer_[i] = u > 255 ? 511 - u : u;
+          }
+        } else {
+          for (uint8_t i = 0; i < kAudioBlockSize; ++i) {
+            int16_t x = S8U8Mul(buffer_[i] ^ 0x80, gain) + offset;
+            x = (x > 2047 ? 2047 : (x < -2048 ? -2048 : x)) - offset;
+            x = x > 2047 ? 2047 : (x < -2048 ? -2048 : x);
+            buffer_[i] = U16ShiftRight4(x + 2048);
+          }
         }
       }
     }

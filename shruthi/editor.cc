@@ -109,7 +109,7 @@ static const prog_uint8_t page_parameters[][4] PROGMEM = {
   { 28, 29, 30, 31 },  // LFO 2
   { 8, 9, 0xff, 0xff },  // OPERATOR
   { 0x81, 0x82, 0x83, 0xff },  // POLIVOKS
-  { 94, 95, 96, 0xff },  // FX
+  { 94, 95, 96, 98 },  // FX
   { 46, 47, 45, 97 },  // VOICE (octave is global: SYS MIDI)
   { 32, 33, 34, 35 },  // MATRIX
   { 58, 59, 60, 61 },  // MATH
@@ -129,7 +129,7 @@ static const prog_char page_labels[] PROGMEM =
   "wavspdmulmod"  // 7
   "op mix      "  // 8
   "modovdfm    "  // 9
-  "typamtprm   "  // 10
+  "typamtprmsub"  // 10
   "prtlegrstvol"  // 10
   "sltsrcdstamt"  // 11
   "op in1in2out";  // 12 (SYS pages are menus: no labels)
@@ -212,11 +212,7 @@ static const prog_char long_op[] PROGMEM =
   "sync\0"
   "ring mod\0"
   "xor\0"
-  "fuzz\0"
-  "crush 4\0"
-  "crush 8\0"
-  "fold\0"
-  "bits\0"
+  "\0\0\0\0\0"  // 4-8: moved to the FX page.
   "duo\0"
   "2 steps\0"
   "4 steps\0"
@@ -307,13 +303,23 @@ static const prog_char long_midi[] PROGMEM =
 static const prog_char long_fx[] PROGMEM =
   "off\0"
   "ring\0"
-  "delay\0";
-static const char fx_names[] PROGMEM = "offrngdly";
+  "delay\0"
+  "drive\0"
+  "fold\0"
+  "fuzz\0"
+  "bits\0"
+  "crush\0";
+static const char fx_names[] PROGMEM = "offrngdlydrvfldfuzbitcrs";
 // FX param name, per FX type.
 static const prog_char fx_param_names[] PROGMEM =
   "param\0"
   "dry\0"
-  "fdbk\0";
+  "fdbk\0"
+  "bias\0"
+  "offset\0"
+  "-\0"
+  "-\0"
+  "bits\0";
 static const prog_char long_f1[] PROGMEM =
   "low pass\0"
   "bandpass\0"
@@ -321,7 +327,7 @@ static const prog_char long_f1[] PROGMEM =
 // Top-row names that replace the stock long names.
 static const prog_uint8_t long_name_ids[] PROGMEM = {
   0, 4, 3, 8, 24, 28, 27, 31, 32, 33, 34, 50, 55, 58, 59, 60, 61, 75, 76, 77, 45,
-  94, 95, 97
+  94, 95, 97, 98
 };
 static const prog_char long_names[] PROGMEM =
   "osc1\0"
@@ -347,7 +353,8 @@ static const prog_char long_names[] PROGMEM =
   "retrig\0"
   "fx\0"
   "amount\0"
-  "volume\0";
+  "volume\0"
+  "sub>fx\0";
 
 // Copies the n-th '\0'-separated string of a PROGMEM list.
 static void CopyNth(const prog_char* list, uint8_t n, char* out) {
