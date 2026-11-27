@@ -662,22 +662,29 @@ void Voice::ProcessBlock() {
     uint8_t param = part.patch_.extra_data_[3];
     if (fx == FX_DELAY) {
       // amount: time, 0.15..39 ms; param: feedback. 50% wet. Runs at half rate.
+      // Pointers walked once per block and halving for the 50% mix: the
+      // per-sample index maths and two multiplies starved the audio ('!').
       uint16_t length = U8U8Mul(amount, 3) + 3;
       uint8_t feedback = param << 1;
-      for (uint8_t i = 0; i < kAudioBlockSize; i += 2) {
-        uint16_t read = delay_pos_ >= length
-            ? delay_pos_ - length : delay_pos_ + kDelaySize - length;
-        uint8_t delayed = delay_line_[read];
-        uint8_t x0 = buffer_[i];
-        uint8_t x1 = buffer_[i + 1];
-        delay_line_[delay_pos_] = U8Mix(
-            static_cast<uint8_t>((x0 + x1) >> 1), delayed, feedback);
-        if (++delay_pos_ == kDelaySize) {
-          delay_pos_ = 0;
+      uint8_t* end = delay_line_ + kDelaySize;
+      uint8_t* w = delay_line_ + delay_pos_;
+      uint8_t* r = delay_pos_ >= length ? w - length : w + kDelaySize - length;
+      uint8_t* b = buffer_;
+      for (uint8_t i = 0; i < kAudioBlockSize / 2; ++i) {
+        uint8_t half = *r >> 1;
+        if (++r == end) {
+          r = delay_line_;
         }
-        buffer_[i] = U8Mix(x0, delayed, 128);
-        buffer_[i + 1] = U8Mix(x1, delayed, 128);
+        uint8_t x0 = b[0] >> 1;
+        uint8_t x1 = b[1] >> 1;
+        *w = U8Mix(x0 + x1, half << 1, feedback);
+        if (++w == end) {
+          w = delay_line_;
+        }
+        *b++ = x0 + half;
+        *b++ = x1 + half;
       }
+      delay_pos_ = w - delay_line_;
     } else if (fx == FX_RING) {
       // Square carrier, amt 10 Hz..9.5 kHz; param: dry signal mixed back in.
       uint16_t step = (U8U8Mul(amount, amount) >> 2) + 16;
