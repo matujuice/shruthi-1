@@ -2207,9 +2207,9 @@ void Editor::BootStep() {
   if (step == kTickerSteps && !saver_) {
     PrintTitle(line_buffer_);  // Its glyphs upload while the screen is blank.
   }
-  // Scroll steps 180 ms; at boot the hammer and sickle and the title card 550.
+  // Scroll steps 180 ms; at boot the hammer and sickle 550, the title card 1.5 s.
   popup_until_ = milliseconds() + (step < kTickerSteps - 1 || saver_ ? 180 :
-      step == kTickerSteps ? 200 : 550);
+      step == kTickerSteps - 1 ? 550 : step == kTickerSteps ? 200 : 1500);
 }
 
 /* static */
