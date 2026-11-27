@@ -696,11 +696,16 @@ static const prog_char title_card[] PROGMEM =
     "  \6 \1P\2T\3-1 \6   "  // ★ ШРУТИ-1 ★
     "    \4O\5\3BOKC    ";  // ПОЛИВОКС
 
-// ПОЛИВОКС, then the hammer and sickle, scrolling through a window of 4 tall
-// cells: 8 glyphs at most. tall_font indices, 0xff = blank.
+// П О Л И В О К С, then the hammer and sickle, scrolling through a window of 8
+// tall cells. Letters 1 cell apart and 4 blanks before the hammer keep any
+// window to 4 cells' worth of glyphs (8). tall_font indices, 0xff = blank.
 static const prog_uint8_t boot_ticker[] PROGMEM = {
-  0xff, 0xff, 0xff, 11, 0, 12, 13, 14, 0, 10, 15, 0xff, 16, 17, 18, 19,
+  0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+  11, 0xff, 0, 0xff, 12, 0xff, 13, 0xff, 14, 0xff, 0, 0xff, 10, 0xff, 15,
+  0xff, 0xff, 0xff, 0xff, 16, 17, 18, 19, 0xff, 0xff,
 };
+static const uint8_t kTickerWindow = 8;
+static const uint8_t kTickerSteps = sizeof(boot_ticker) - kTickerWindow + 1;
 
 // 0 = show the memory (INT/EXT), 1 = edited since load, 2 = just reloaded.
 static uint8_t preset_status_;
@@ -710,7 +715,8 @@ static const prog_char* popup_text_;  // 8 chars, second popup row.
 // Save page: the selected number is in the off phase of its blink.
 static uint8_t number_hidden_;
 
-// Boot screens: 0-12 scroll the ticker, 13 blank, 14 the title card.
+// Boot screens: 0 to kTickerSteps - 1 scroll the ticker, then a blank, then
+// the title card.
 static uint8_t boot_step_;
 static bool saver_;  // Screen saver: the ticker loops until any input.
 
@@ -1082,8 +1088,8 @@ bool Editor::PopupTick() {
   }
   int32_t left = popup_until_ - milliseconds();
   if (left <= 0) {
-    if (popup_phase_ == 0xfe && (++boot_step_ < 15 || saver_)) {
-      if (boot_step_ == 13 && saver_) {  // The saver skips the title card.
+    if (popup_phase_ == 0xfe && (++boot_step_ < kTickerSteps + 2 || saver_)) {
+      if (boot_step_ == kTickerSteps && saver_) {  // The saver skips the title card.
         boot_step_ = 0;
       }
       BootStep();
@@ -2182,21 +2188,23 @@ void Editor::DisplaySplashScreen() {
 /* static */
 void Editor::BootStep() {
   uint8_t step = boot_step_;
-  if (step != 14) {  // 14 shows the title card drawn at 13.
+  if (step <= kTickerSteps) {  // Past it: the title card drawn at the blank.
     memset(line_buffer_, ' ', sizeof(line_buffer_));
-    if (step < 13) {
-      uint8_t chars[4];
-      memcpy_P(chars, boot_ticker + step, 4);
-      PrintTall(chars, 4, line_buffer_ + ((kLcdWidth - 4) >> 1));
+    if (step < kTickerSteps) {
+      uint8_t chars[kTickerWindow];
+      memcpy_P(chars, boot_ticker + step, kTickerWindow);
+      PrintTall(chars, kTickerWindow,
+          line_buffer_ + ((kLcdWidth - kTickerWindow) >> 1));
     }
   }
   display.Print(0, line_buffer_);
   display.Print(1, line_buffer_ + kLcdWidth + 1);
-  if (step == 13) {
+  if (step == kTickerSteps) {
     PrintTitle(line_buffer_);  // Its glyphs upload while the screen is blank.
   }
-  // Scroll steps 180 ms, the hammer and sickle and the title card 550 ms.
-  popup_until_ = milliseconds() + (step < 12 ? 180 : step == 13 ? 200 : 550);
+  // Scroll steps 90 ms; the hammer and sickle and the title card 550 ms.
+  popup_until_ = milliseconds() +
+      (step < kTickerSteps - 1 ? 90 : step == kTickerSteps ? 200 : 550);
 }
 
 /* static */
