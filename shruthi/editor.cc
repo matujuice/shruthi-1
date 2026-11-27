@@ -2162,7 +2162,7 @@ uint8_t Editor::GetParameterValue(uint8_t offset) {
 /* static */
 void Editor::DisplaySplashScreen() {
   // ПОЛИ, ВОКС, hammer and sickle in the tall font, each popping on for
-  // 550 ms after 200 ms of blank, then the title card for 1.5 s, then PRESET.
+  // 550 ms after 200 ms of blank, then the title card, then PRESET.
   boot_step_ = 0;
   boot_word_ = 0;
   popup_phase_ = 0xfe;
@@ -2179,8 +2179,8 @@ void Editor::BootStep() {
   if (boot_step_ & 1) {
     display.Print(0, line_buffer_);
     display.Print(1, line_buffer_ + kLcdWidth + 1);
-    // Screen saver: every screen 1 s. Boot: 550 ms, the title card 1.5 s.
-    popup_until_ = milliseconds() + (saver_ ? 1000 : boot_step_ == 7 ? 1500 : 550);
+    // Boot and screen saver: every screen 550 ms.
+    popup_until_ = milliseconds() + 550;
     return;
   }
   memset(line_buffer_, ' ', sizeof(line_buffer_));
