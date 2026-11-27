@@ -149,16 +149,13 @@ static const prog_char init_patch[] PROGMEM = {
     MOD_SRC_LFO_1, MOD_DST_VCO_1_2_COARSE, 16,
     // Name
     'i', 'n', 'i', 't', ' ', ' ', ' ', ' ',
-    // Performance page assignments.
-    0, 0,
-    0, 0,
-    0, 0,
-    0, 0,
+    // extra_data_: system settings, FX type/amount/param, volume, sub, -, -.
+    0, 0, 0, 0, 127, 0, 0, 0,
     // Settings for second filter
     0, 0, 0, 
     0, 0, 0, 0,
-    '*',
-    0, 0, 0, 0, 127, 0, 0, 0,
+    '+',
+    0, 0, 0, 0, 0, 0, 0, 0,  // ops_: rebuilt by Update().
 };
 
 static const prog_char init_system_settings[] PROGMEM = {

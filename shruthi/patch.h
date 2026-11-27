@@ -197,7 +197,6 @@ enum ModulationDestination {
 
 static const uint8_t kNumModulationDestinations = MOD_DST_LAST;
 
-// Before version '+': 1 drive, 2 fold, 3 crush, 4 ring, 5 delay.
 enum FxType { FX_OFF, FX_RING, FX_DELAY, FX_DRIVE, FX_FOLD, FX_FUZZ, FX_BITS, FX_CRUSH };
 
 enum PatchParameter {

@@ -65,32 +65,16 @@ uint8_t Patch::CheckBuffer(uint8_t* buffer) {
       return 0;
     }
   }
-  if (buffer[91] != '!' && buffer[91] != '%' && buffer[91] != '&' &&
-      buffer[91] != '\'' && buffer[91] != '(' && buffer[91] != ')' &&
-      buffer[91] != '*' && buffer[91] != '+') {
+  // Older formats are converted offline by shruthi/patch_translator.py.
+  if (buffer[91] != '+') {
     memset(name, '-', 8);
     return 0;
   }
   return 1;
 }
 
-// Source number before version '\'' (SEQ, SEQ 1-2, STEP, CV 1-4 removed);
-// 0xff for a removed source.
-static uint8_t RemapSource(uint8_t s) {
-  if (s >= 14) {
-    return s - 8;
-  }
-  if (s >= 10) {
-    return 0xff;
-  }
-  if (s >= 6) {
-    return s - 4;
-  }
-  return s >= 2 ? 0xff : s;
-}
-
 void Patch::Update() {
-  ops_[0].operands[0] = op_data_[0] & 0x3f;
+  ops_[0].operands[0] = op_data_[0] & 0x1f;
   ops_[0].operands[1] = op_data_[1] >> 3;
   ops_[0].op = op_data_[1] & 0x7;
   if (op_data_[0] & 0x80) {
@@ -100,7 +84,7 @@ void Patch::Update() {
     ops_[0].operands[1] |= 0x20;
   }
   
-  ops_[1].operands[0] = op_data_[2] & 0x3f;
+  ops_[1].operands[0] = op_data_[2] & 0x1f;
   ops_[1].operands[1] = op_data_[3] >> 3;
   ops_[1].op = op_data_[3] & 0x7;
   if (op_data_[2] & 0x80) {
@@ -113,73 +97,9 @@ void Patch::Update() {
   filter_2_mode_ = filter_topology_ & 0xf;
   filter_1_mode_ = filter_topology_ >> 4;
 
-  // ponytail: older LFO settings ('!', '%') are converted by shruthi/patch_translator.py.
-  uint8_t v = version_ == '+' ? '*' : version_;  // '+' only renumbered the FX.
-  if (v != '*' && v != ')' && v != '(' && v != '\'') {
-    for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
-      Modulation* m = &modulation_matrix.modulation[i];
-      uint8_t s = RemapSource(m->source);
-      if (s == 0xff) {
-        s = MOD_SRC_LFO_1;  // The removed sources were always 0 here.
-        m->amount = 0;
-      }
-      m->source = s;
-    }
-    for (uint8_t i = 0; i < 4; ++i) {
-      uint8_t* operand = &ops_[i >> 1].operands[i & 1];
-      uint8_t s = RemapSource(*operand);
-      *operand = s == 0xff ? MOD_SRC_LFO_1 : s;
-    }
-  }
-  if (v != '*' && v != ')' && v != '(') {
-    extra_data_[1] = extra_data_[2] = extra_data_[3] = 0;  // FX off.
-  }
-  if (v != '*' && v != ')') {
-    extra_data_[4] = 127;  // Full volume.
-  }
-  uint8_t fx = extra_data_[1];
-  uint8_t sub = 0;
-  if (version_ != '+') {
-    fx = fx == 4 ? FX_RING : fx == 5 ? FX_DELAY : fx == 3 ? FX_CRUSH :
-        fx == 1 ? FX_DRIVE : fx == 2 ? FX_FOLD : FX_OFF;
-  } else {
-    fx |= (op_data_[0] & 0x20) >> 3;
-    sub = op_data_[2] & 0x20;
-    ops_[0].operands[0] &= 0x1f;
-    ops_[1].operands[0] &= 0x1f;
-  }
-  if (fx > FX_CRUSH) {
-    fx = FX_OFF;
-  }
-  // Mixer ops 4-8 moved to the FX page. New patches never store them, so
-  // this runs once per old patch.
-  uint8_t op = osc[0].option;
-  if (op >= OP_FUZZ && op <= OP_BITS) {
-    osc[0].option = OP_SUM;
-    if (fx == FX_OFF) {
-      if (op == OP_CRUSH_4 || op == OP_CRUSH_8) {
-        fx = FX_CRUSH;  // x4 / x8 hold, sub included as before.
-        extra_data_[2] = op == OP_CRUSH_4 ? 96 : 112;
-        extra_data_[3] = 0;
-        sub = 1;
-      } else {
-        // The mix balance was the amount: now FX amount, mix in the middle.
-        fx = op == OP_FUZZ ? FX_FUZZ : op == OP_FOLD ? FX_FOLD : FX_BITS;
-        extra_data_[2] = mix_balance << 1;
-        extra_data_[3] = 64;
-        mix_balance = 32;
-        for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
-          Modulation* m = &modulation_matrix.modulation[i];
-          if (m->destination == MOD_DST_MIX_BALANCE) {
-            m->destination = MOD_DST_FX;
-          }
-        }
-      }
-    }
-  }
-  extra_data_[1] = fx;
-  extra_data_[5] = sub ? 1 : 0;
-  version_ = '+';
+  // Bit 5 of op_data_[0] / [2]: FX type bit 2 / sub through the FX.
+  extra_data_[1] = (extra_data_[1] & 3) | ((op_data_[0] & 0x20) >> 3);
+  extra_data_[5] = op_data_[2] & 0x20 ? 1 : 0;
   // Out-of-range indices would make the voice read/write past its arrays.
   for (uint8_t i = 0; i < kModulationMatrixSize; ++i) {
     Modulation* m = &modulation_matrix.modulation[i];
@@ -200,13 +120,10 @@ void Patch::Update() {
     }
   }
   
-  if (v != '!') {
-    SystemSettings* system_settings = part.mutable_system_settings();
-
-    system_settings->legato = extra_data_[0] & 0x40 ? 1 : 0;
-    system_settings->portamento = extra_data_[0] & 0x3f;
-    system_settings->retrigger = extra_data_[0] & 0x80 ? 1 : 0;
-  }
+  SystemSettings* system_settings = part.mutable_system_settings();
+  system_settings->legato = extra_data_[0] & 0x40 ? 1 : 0;
+  system_settings->portamento = extra_data_[0] & 0x3f;
+  system_settings->retrigger = extra_data_[0] & 0x80 ? 1 : 0;
 }
 
 }  // shruthi

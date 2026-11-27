@@ -5,15 +5,23 @@ Usage: patch_translator.py in.syx out.syx [--bpm 160]
 
 Handles single patch dumps (command 0x01) and full backups (bulk dump,
 commands 0x40-0x43: internal and external patch memory). Other messages are
-copied unchanged. Single dumps stay 92 bytes (version ', the firmware does the
-rest on load); old full backups are repacked to the 66-byte EEPROM layout
-(version +): 30 internal slots, 124 per bank, patches kept in the same order.
+copied unchanged. Single dumps stay 92 bytes; old full backups are repacked to
+the 66-byte EEPROM layout: 30 internal slots, 124 per bank, patches kept in the
+same order. Everything comes out as version '+', the only one the firmware
+loads (it converts nothing). Running it again changes nothing.
 
 - All older versions: SEQ, SEQ 1-2, ARP STEP and CV 1-4 modulation sources
   are gone (they were always 0 on this unit): those slots get amount 0; the
   other sources and the operator inputs are renumbered; the "seq mix" option
   stays and becomes "cc mix" (sources switched by CC 3).
-- Before '+': FX drive/fold/crush are gone (-> off); ring and delay renumbered.
+- ' : FX off. ' and ( : full volume.
+- Before '+': FX renumbered (1 drive, 2 fold, 3 crush, 4 ring, 5 delay ->
+  FX_* below).
+- Mixer ops fuzz/crush 4/crush 8/fold/bits moved to the FX page (any version):
+  op -> sum. If no FX is set: crush 4/8 -> FX crush (amount 96/112, sub through
+  the FX as before); fuzz/fold/bits -> that FX, the mix balance becomes the FX
+  amount (mix 32) and mix balance modulations go to the FX amount. A patch
+  with ring or delay already set keeps it and loses the op.
 - '!' and '%' (original firmware): the LFOs become tempo-locked SPD/MUL.
   Step-synced rates keep their length (one cycle = n sixteenths); free rates
   are matched at --bpm. Fade-in is dropped. STEP SEQ waveform -> triangle.
@@ -50,6 +58,10 @@ OLD_LFO_INCREMENTS = [
     2796, 2963, 3141, 3329, 3528, 3739, 3962, 4199, 4451, 4717, 4999, 5298, 5615, 5951, 6307, 6684,
 ]
 CONTROL_RATE = 20000000 / 510 / 40
+# FxType in patch.h.
+FX_OFF, FX_RING, FX_DELAY, FX_DRIVE, FX_FOLD, FX_FUZZ, FX_BITS, FX_CRUSH = range(8)
+OP_SUM, OP_FUZZ, OP_CRUSH_4, OP_CRUSH_8, OP_FOLD, OP_BITS = 0, 4, 5, 6, 7, 8
+MOD_DST_MIX_BALANCE, MOD_DST_FX = 8, 27
 
 
 def remap_source(s):
@@ -115,19 +127,67 @@ def convert_patch(p, bpm):
   return True
 
 
+def get_fx(p):
+  """(FX type, sub through FX): bit 2 and sub are in bit 5 of p[87] / p[89]."""
+  return (p[77] & 3) | ((p[87] & 0x20) >> 3), int(p[89] & 0x20 != 0)
+
+
+def set_fx(p, fx, sub):
+  p[77], p[81] = fx, sub  # Full values too, as the firmware's own dumps.
+  p[87] = (p[87] & ~0x20) | (0x20 if fx & 4 else 0)
+  p[89] = (p[89] & ~0x20) | (0x20 if sub else 0)
+
+
 def to_plus(p):
-  """Version ' to + in place, as Patch::Update does, plus the storage limits."""
+  """Version ' .. * to + in place, plus the storage limits."""
   v = p[91]
-  if v == ord("'"):
-    p[77:80] = [0, 0, 0]  # FX off.
-  if v in (ord("'"), ord('(')):
-    p[80] = 127  # Full volume.
   if v != ord('+'):
-    p[77] = {4: 1, 5: 2}.get(p[77], 0)
-  p[81:84] = [0, 0, 0]
+    if v == ord("'"):
+      p[77:80] = [0, 0, 0]  # FX off.
+    if v in (ord("'"), ord('(')):
+      p[80] = 127  # Full volume.
+    p[81:84] = [0, 0, 0]
+    fx = {1: FX_DRIVE, 2: FX_FOLD, 3: FX_CRUSH, 4: FX_RING, 5: FX_DELAY}
+    set_fx(p, fx.get(p[77], FX_OFF), 0)
   p[84], p[85] = p[84] != 0, p[85] != 0  # PVK overdrive, FM: on/off.
   p[86] = (p[86] >= 16) << 4 | (p[86] & 15)  # PVK: not LP plays as BP.
   p[91] = ord('+')
+
+
+def fx_page(p):
+  """Mixer ops 4-8 -> FX page, in place. Returns True if the patch changed."""
+  op = p[3]
+  if not OP_FUZZ <= op <= OP_BITS:
+    return False
+  p[3] = OP_SUM
+  fx, sub = get_fx(p)
+  if fx == FX_OFF:
+    if op in (OP_CRUSH_4, OP_CRUSH_8):
+      fx, sub = FX_CRUSH, 1  # x4 / x8 hold, sub included as before.
+      p[78], p[79] = 96 if op == OP_CRUSH_4 else 112, 0
+    else:
+      fx, sub = {OP_FUZZ: FX_FUZZ, OP_FOLD: FX_FOLD, OP_BITS: FX_BITS}[op], 0
+      p[78], p[79], p[8] = p[8] << 1, 64, 32
+      for i in range(12):
+        if p[33 + 3 * i] == MOD_DST_MIX_BALANCE:
+          p[33 + 3 * i] = MOD_DST_FX
+  set_fx(p, fx, sub)
+  return True
+
+
+def convert(p, bpm):
+  """Any accepted version -> '+' in the current layout. True if changed."""
+  old = bytes(p)
+  convert_patch(p, bpm)
+  to_plus(p)
+  fx_page(p)
+  return bytes(p) != old
+
+
+def store(p):
+  q = bytearray(p)
+  q[77] &= 3  # The FX bit 2 is in p[87].
+  return pack(q)
 
 
 def pack(p):
@@ -191,19 +251,25 @@ def packed_addresses(size):
 
 
 def repack(memory, size, bpm):
-  """Old 92-byte layout -> packed, same slot order. Returns patches written."""
+  """Old 92-byte layout -> packed, same slot order; packed patches converted
+  in place. Returns patches written."""
   old = [memory[a:a + PATCH_SIZE] for a in patch_addresses(size)]
   if not all(p[91] in VERSIONS or p == ERASED * PATCH_SIZE for p in old):
-    return 0  # Already packed (or not a patch memory image).
+    n = 0  # Already packed.
+    for a in packed_addresses(size):
+      p = unpack(memory[a:a + PACKED_SIZE])
+      if p[91] and fx_page(p):
+        memory[a:a + PACKED_SIZE] = store(p)
+        n += 1
+    return n
   memory[16:INTERNAL_EEPROM - 4] = ERASED * (INTERNAL_EEPROM - 20)
   for bank in range(INTERNAL_EEPROM, size - BANK_SIZE + 1, BANK_SIZE):
     memory[bank:bank + BANK_SIZE - 2] = ERASED * (BANK_SIZE - 2)
   n = 0
   for a, p in zip(packed_addresses(size), old):
     if p[91] in VERSIONS:
-      convert_patch(p, bpm)
-      to_plus(p)
-      memory[a:a + PACKED_SIZE] = pack(p)
+      convert(p, bpm)
+      memory[a:a + PACKED_SIZE] = store(p)
       n += 1
   return n
 
@@ -227,8 +293,8 @@ def translate(syx, bpm):
     data = nibbles_to_bytes(m[8:-3])
     if (sum(data) & 0xff) != nibbles_to_bytes(m[-3:-1])[0]:
       sys.exit('checksum error in message %02x %02x' % (command, argument))
-    if command == 0x01 and len(data) == PATCH_SIZE:
-      converted += convert_patch(data, bpm)
+    if command == 0x01 and len(data) == PATCH_SIZE and data[91] in VERSIONS:
+      converted += convert(data, bpm)
       out.append(message(command, argument, data))
     elif 0x40 <= command <= 0x43:
       address = (command - 0x40) * 16384 + argument * 128
@@ -274,6 +340,26 @@ def self_test():
   assert repack(memory, len(memory), 120) == 1
   assert unpack(memory[16 + 16 * PACKED_SIZE:][:PACKED_SIZE]) == q
   assert repack(memory, len(memory), 120) == 0  # Already packed.
+  # Mixer ops -> FX page.
+  r = bytearray(q)
+  r[3], r[8], r[33], r[77], r[87], r[89] = OP_FOLD, 40, MOD_DST_MIX_BALANCE, 0, 3, 2
+  assert fx_page(r) and r[3] == OP_SUM and r[8] == 32 and r[33] == MOD_DST_FX
+  assert get_fx(r) == (FX_FOLD, 0) and r[78:80] == bytearray([80, 64])
+  assert r[87] == 0x23 and r[89] == 2 and not fx_page(r)
+  r[3] = OP_CRUSH_8
+  assert fx_page(r) and get_fx(r) == (FX_FOLD, 0)  # FX already set: kept.
+  r[3], r[77], r[87] = OP_CRUSH_4, 0, 3
+  assert fx_page(r) and get_fx(r) == (FX_CRUSH, 1) and r[78] == 96
+  assert r[87] == 0x23 and r[89] == 0x22 and unpack(store(r))[87] == 0x23
+  t = bytearray(q)
+  t[3], t[77] = OP_BITS, 0
+  memory[16:16 + PACKED_SIZE] = store(t)
+  assert repack(memory, len(memory), 120) == 1
+  assert get_fx(unpack(memory[16:16 + PACKED_SIZE])) == (FX_BITS, 0)
+  o = bytearray(q)
+  o[77], o[91] = 3, ord('(')
+  assert convert(o, 120) and get_fx(o) == (FX_CRUSH, 0) and o[87] & 0x20
+  assert not convert(o, 120)
 
 
 if __name__ == '__main__':
